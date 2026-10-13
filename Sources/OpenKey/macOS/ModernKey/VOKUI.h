@@ -10,6 +10,10 @@
 // SF Symbol, nil if this macOS does not know the name.
 NSImage* VOKSymbol(NSString* name, CGFloat pointSize, NSFontWeight weight);
 
+// Small flag for a menu item, like the ones macOS shows for input sources: @"vn" or @"us". Drawn, not loaded, so it is
+// sharp at any resolution.
+NSImage* VOKFlagImage(NSString* region);
+
 // Non-editable text that wraps at the width it is given.
 NSTextField* VOKLabel(NSString* text, CGFloat size, NSFontWeight weight, NSColor* color);
 

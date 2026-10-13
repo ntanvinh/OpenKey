@@ -92,8 +92,12 @@ static BOOL RunsFromApplicationsFolder(void) {
         [glyph.centerYAnchor constraintEqualToAnchor:tile.centerYAnchor],
     ]];
 
+    //the text may wrap but never push the switch: both switches sit in the same column, at the right edge of the card
+    CGFloat textWidth = kContentWidth - 2 * 14 - 36 - 3 * 12 - 42;
     NSTextField* titleLabel = VOKLabel(title, 13, NSFontWeightSemibold, nil);
+    titleLabel.preferredMaxLayoutWidth = textWidth;
     NSTextField* subtitleLabel = VOKLabel(subtitle, 12, NSFontWeightRegular, [NSColor secondaryLabelColor]);
+    subtitleLabel.preferredMaxLayoutWidth = textWidth;
     NSStackView* texts = [NSStackView stackViewWithViews:@[titleLabel, subtitleLabel]];
     texts.orientation = NSUserInterfaceLayoutOrientationVertical;
     texts.alignment = NSLayoutAttributeLeading;
@@ -102,7 +106,9 @@ static BOOL RunsFromApplicationsFolder(void) {
     toggle.translatesAutoresizingMaskIntoConstraints = NO;
     [toggle setContentHuggingPriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
 
-    NSStackView* row = [NSStackView stackViewWithViews:@[tile, texts, toggle]];
+    NSView* spacer = [[NSView alloc] init];
+    [spacer setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
+    NSStackView* row = [NSStackView stackViewWithViews:@[tile, texts, spacer, toggle]];
     row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     row.alignment = NSLayoutAttributeCenterY;
     row.spacing = 12;

@@ -1,10 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-  <title>Vietnamese mode V keycap menu bar icon</title>
-  <defs><mask id="v-cutout" maskUnits="userSpaceOnUse" mask-type="luminance" x="0" y="0" width="22" height="22">
+  <title>Vietnam flag monochrome menu bar icon</title>
+  <defs><mask id="flag-star" maskUnits="userSpaceOnUse" mask-type="luminance" x="0" y="0" width="22" height="22">
     <rect width="22" height="22" fill="#FFFFFF"/>
-    <text x="11" y="11" text-anchor="middle" dominant-baseline="central"
-          font-family="SF Pro, Helvetica Neue, sans-serif" font-size="14.5" font-weight="700"
-          fill="#000000">V</text>
+    <polygon points="11.000,6.700 11.965,9.671 15.090,9.671 12.562,11.508 13.527,14.479 11.000,12.642 8.473,14.479 9.438,11.508 6.910,9.671 10.035,9.671" fill="#000000" transform="matrix(1.1 0 0 1.2 -1.1 -2.2)"/>
   </mask></defs>
-  <rect x="2.5" y="2.5" width="17" height="17" rx="4.2" fill="#484848" mask="url(#v-cutout)"/>
+  <rect x="0.75" y="3.25" width="20.5" height="15.5" rx="2.8" fill="#484848" mask="url(#flag-star)"/>
 </svg>

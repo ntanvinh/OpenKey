@@ -43,6 +43,18 @@ static void ApplyShortcut(NSMenuItem* item, int data) {
     item.keyEquivalentModifierMask = modifiers;
 }
 
+//A small gray heading over a group of items, like the ones macOS uses (14 and later have a real one)
+static NSMenuItem* MakeHeader(NSString* title) {
+    if (@available(macOS 14.0, *))
+        return [NSMenuItem sectionHeaderWithTitle:title];
+    NSMenuItem* header = [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:@""];
+    header.enabled = NO;
+    header.attributedTitle = [[NSAttributedString alloc] initWithString:title attributes:@{
+        NSFontAttributeName: [NSFont systemFontOfSize:11 weight:NSFontWeightSemibold],
+        NSForegroundColorAttributeName: [NSColor secondaryLabelColor]}];
+    return header;
+}
+
 static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL action) {
     NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:title action:action keyEquivalent:@""];
     item.target = target;
@@ -110,9 +122,12 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:_secureItem];
     [_menu addItem:_noticeSeparator];
 
-    //typing language, picked like an input source in the Input menu
+    //typing language, picked like an input source in the Input menu: a check mark and the flag of the language
     _vietnameseItem = MakeItem(@"Tiếng Việt", nil, self, @selector(selectVietnamese:));
+    _vietnameseItem.image = VOKFlagImage(@"vn");
     _englishItem = MakeItem(@"English", nil, self, @selector(selectEnglish:));
+    _englishItem.image = VOKFlagImage(@"us");
+    [_menu addItem:MakeHeader(@"Chế độ gõ")];
     [_menu addItem:_vietnameseItem];
     [_menu addItem:_englishItem];
     [_menu addItem:[NSMenuItem separatorItem]];
@@ -141,7 +156,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:MakeItem([NSString stringWithFormat:@"Giới thiệu %@", VOK_APP_NAME], @"info.circle", self, @selector(openAbout:))];
     [_menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem* quit = MakeItem([NSString stringWithFormat:@"Thoát %@", VOK_APP_NAME], nil, NSApp, @selector(terminate:));
+    NSMenuItem* quit = MakeItem([NSString stringWithFormat:@"Thoát %@", VOK_APP_NAME], @"power", NSApp, @selector(terminate:));
     quit.keyEquivalent = @"q";
     [_menu addItem:quit];
 }
