@@ -14,7 +14,7 @@ extern void RequestNewSession(void);
 
 NSString* const SecureInputMonitorDidChangeNotification = @"SecureInputMonitorDidChangeNotification";
 
-//hidden switch, off with: defaults write com.tuyenmai.openkey vSecureInputFallback -int 0
+//hidden switch, off with: defaults write vn.io.lssoft.vopenkey vSecureInputFallback -int 0
 static NSString* const kFallbackKey = @"vSecureInputFallback";
 
 //macOS' own Vietnamese input sources
@@ -34,6 +34,7 @@ static TISInputSourceRef _savedSource;      //what to give back once secure inpu
 static TISInputSourceRef _fallbackSource;   //what we switched to
 static BOOL _noSourceAvailable;
 static NSString* _description;
+static NSString* _holderName;
 static BOOL _publishedSecure, _publishedActive;
 
 //Is the app being typed in the one that holds secure input? That is what a focused password field or Terminal's
@@ -99,6 +100,10 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
 
 +(NSString*)statusDescription {
     return _description;
+}
+
++(NSString*)holderName {
+    return _holderName;
 }
 
 //Everything here runs on the main thread, the same one the event tap callback runs on.
@@ -181,6 +186,7 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     else if (!wantFallback && _active)
         [self disengage];
 
+    _holderName = secure ? holderName : nil;
     NSString* description = nil;
     if (secure) {
         NSString* by = holderName != nil ? holderName : @"một ứng dụng khác";

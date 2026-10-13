@@ -7,16 +7,18 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "ViewController.h"
 
-#define OPENKEY_BUNDLE @"com.tuyenmai.openkey"
+#import "AppInfo.h"
+
+//this app's own id: a build with another id (a test build next to the real app) is a different app
+#define OPENKEY_BUNDLE ([[NSBundle mainBundle] bundleIdentifier])
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 
 -(void)onImputMethodChanged:(BOOL)willNotify;
 -(void)onInputMethodSelected;
 
--(void)askPermission;
+-(void)showPermissionWindow;
 
 -(void)onInputTypeSelectedIndex:(int)index;
 -(void)onCodeTableChanged:(int)index;
@@ -27,6 +29,10 @@
 -(void)setGrayIcon:(BOOL)val;
 
 -(void)onMacroSelected;
+-(void)onConvertTool;
+-(void)onControlPanelSelected;
+-(void)onAboutSelected;
+-(void)refreshMenu;
 -(void)onQuickConvert;
 -(void)setQuickConvertString;
 

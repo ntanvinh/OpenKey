@@ -1,5 +1,16 @@
 # OpenKey Change Log
 
+##### VOpenKey 2.1.0 (build 49): (13/10/2026)
+VOpenKey là bản fork của OpenKey 2.0.4 do LSSoft phát triển.
+- Đổi tên thành VOpenKey, bundle ID `vn.io.lssoft.vopenkey`. Lần đầu mở sẽ tự nhập cài đặt từ OpenKey gốc.
+- Giao diện làm lại theo phong cách macOS: menu thanh trạng thái, cửa sổ Cài đặt (tab trên toolbar, nhóm tùy chọn, công tắc), About chuẩn của macOS ghi rõ LSSoft fork từ tác giả gốc.
+- Cửa sổ cấp quyền khi mở lần đầu: bật công tắc Trợ năng và Giám sát đầu vào, app tự chạy tiếp, không cần mở lại.
+- Xử lý Secure Input (ô mật khẩu, Secure Keyboard Entry): biểu tượng chuyển sang E khi app đang gõ giữ Secure Input; tự dùng bộ gõ Vietnamese của macOS khi app khác chạy nền giữ.
+- Sửa lỗi OpenKey không gõ được nữa sau khi macOS tự tắt event tap.
+- "Khởi động cùng macOS" dùng cơ chế mới của macOS (không cần helper).
+- Kiểm tra bản mới trỏ về repo của VOpenKey, "Có" mở trang tải về; sửa lỗi nút kẹt ở "Đang kiểm tra..." khi mất mạng.
+- Yêu cầu macOS 13 trở lên. Thêm `scripts/dev.sh` và `scripts/release.sh` (ký, notarize, đóng gói dmg, đăng GitHub Release).
+
 ##### OpenKey for Linux: (in development)
 
 ##### Version 1.2 RC5: (26/08/2019)

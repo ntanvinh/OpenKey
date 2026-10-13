@@ -8,6 +8,7 @@
 
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
+#import "AppInfo.h"
 
 extern void OpenKeyInit(void);
 
@@ -158,51 +159,40 @@ static CFRunLoopSourceRef runLoopSource;
 #pragma mark -AutoUpdate feature
 
 +(void)checkNewVersion:(NSWindow*)parent callbackFunc:(CheckNewVersionCallback) callback {
-    //load new version config
-    NSURLSession *aSession = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
-    [[aSession dataTaskWithURL:[NSURL URLWithString:@"https://raw.githubusercontent.com/tuyenvm/OpenKey/master/version.json"] completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        if (((NSHTTPURLResponse *)response).statusCode == 200) {
-            if (data) {
-                if(NSClassFromString(@"NSJSONSerialization")) {
-                    NSError *error = nil;
-                    id object = [NSJSONSerialization
-                                 JSONObjectWithData:data
-                                 options:0
-                                 error:&error];
-                    
-                    if(error) {  }
-                    if([object isKindOfClass:[NSDictionary class]]) {
-                        NSDictionary *results = object;
-                        NSDictionary *ver = [results valueForKey:@"latestVersion"];
-                        NSString* versionCodeString = [ver valueForKey:@"versionCode"];
-                        int versionCode = (int)[versionCodeString integerValue];
-                        int currentVersionCode = (int)[((NSString*)[[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleVersion"]) integerValue];
-                        
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            if (callback != nil) {
-                                callback();
-                            }
-                            if (versionCode > currentVersionCode || callback != nil) {
-                                [self showUpdateMessage:parent needUpdating:versionCode > currentVersionCode newVersion:[ver valueForKey:@"versionName"]];
-                            }
-                        });
-                    }
-                    else {
-                        //oh my god
-                    }
-                }
-                else {
-                    //can not parse json
-                }
-            }
+    NSURLRequest* request = [NSURLRequest requestWithURL:[NSURL URLWithString:VOK_VERSION_JSON_URL]
+                                             cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
+                                         timeoutInterval:15];
+    [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        NSDictionary* latest = nil;
+        if (data != nil && ((NSHTTPURLResponse *)response).statusCode == 200) {
+            id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([object isKindOfClass:[NSDictionary class]])
+                latest = [object valueForKey:@"latestVersion"];
         }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (callback != nil) {
+                callback();
+            }
+            if (![latest isKindOfClass:[NSDictionary class]]) {
+                //the user asked for the check, so say it did not work instead of leaving them waiting
+                if (callback != nil)
+                    [self showMessage:parent message:@"Không kiểm tra được phiên bản mới" subMsg:@"Hãy kiểm tra kết nối mạng rồi thử lại."];
+                return;
+            }
+            NSInteger versionCode = [[latest valueForKey:@"versionCode"] integerValue];
+            NSInteger currentVersionCode = [[[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleVersion"] integerValue];
+            if (versionCode > currentVersionCode || callback != nil) {
+                [self showUpdateMessage:parent needUpdating:versionCode > currentVersionCode newVersion:[latest valueForKey:@"versionName"]];
+            }
+        });
     }] resume];
 }
 
 +(void)showUpdateMessage:(NSWindow*)parent needUpdating:(BOOL)needUpdating newVersion:(NSString*)versionString {
     NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:(needUpdating ? [NSString stringWithFormat:@"OpenKey Có phiên bản mới (%@), bạn có muốn cập nhật không?", versionString] : @"Bạn đang dùng phiên bản mới nhất!")];
-    [alert setInformativeText:(needUpdating ? @"Bấm 'Có' để cập nhật OpenKey." : @"")];
+    [alert setMessageText:(needUpdating ? [NSString stringWithFormat:@"%@ có phiên bản mới (%@), bạn có muốn tải về không?", VOK_APP_NAME, versionString] : @"Bạn đang dùng phiên bản mới nhất!")];
+    [alert setInformativeText:(needUpdating ? @"Bấm 'Có' để mở trang tải về." : @"")];
     
     if (!needUpdating) {
         [alert addButtonWithTitle:@"OK"];
@@ -214,48 +204,19 @@ static CFRunLoopSourceRef runLoopSource;
         [alert.window makeKeyAndOrderFront:nil];
         [alert.window setLevel:NSStatusWindowLevel];
         NSModalResponse res = [alert runModal];
-        if (res == 1000 && needUpdating) {
-            [self launchUpdateHelper];
+        if (res == NSAlertFirstButtonReturn && needUpdating) {
+            [self openReleasePage];
         }
     } else {
         [alert beginSheetModalForWindow:parent completionHandler:^(NSModalResponse returnCode) {
-            if (returnCode == 1000 && needUpdating) {
-                [self launchUpdateHelper];
+            if (returnCode == NSAlertFirstButtonReturn && needUpdating) {
+                [self openReleasePage];
             }
         }];
     }
 }
 
-+(void)launchUpdateHelper {
-    //check update app has exist or not
-    NSError *copyError = nil;
-    NSString* target = [NSString stringWithFormat:@"%@/OpenKeyUpdate.app", [self getApplicationSupportFolder]];
-    [[NSFileManager defaultManager] removeItemAtPath:target error:&copyError];
-    if (![[NSFileManager defaultManager] fileExistsAtPath:target]) {
-        [[NSFileManager defaultManager] createDirectoryAtPath:[self getApplicationSupportFolder] withIntermediateDirectories:YES attributes:nil error:nil];
-        
-        if (![[NSFileManager defaultManager] copyItemAtPath:[self getUpdateBundlePath] toPath:target error:&copyError]) {
-            NSLog(@"Error on copy");
-        }
-    }
-    
-    NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-    NSURL *url = [NSURL fileURLWithPath:[workspace fullPathForApplication:target]];
-    NSError *error = nil;
-    NSArray *arguments = [NSArray arrayWithObjects: @"yeah", nil];
-    [workspace launchApplicationAtURL:url options:0 configuration:[NSDictionary dictionaryWithObject:arguments forKey:NSWorkspaceLaunchConfigurationArguments] error:&error];
-    
-    [NSApp terminate:0]; //exit main app
-}
-
-+(NSString*)getApplicationSupportFolder {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-    NSString *applicationSupportDirectory = [paths firstObject];
-    return [NSString stringWithFormat:@"%@/OpenKey", applicationSupportDirectory];
-}
-
-+(NSString*)getUpdateBundlePath {
-    NSString *currentpath = [[NSBundle mainBundle] bundlePath];
-    return [NSString stringWithFormat:@"%@/Contents/Library/LoginItems/OpenKeyUpdate.app", currentpath];
++(void)openReleasePage {
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:VOK_RELEASES_URL]];
 }
 @end

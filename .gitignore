@@ -8,3 +8,7 @@
 /Sources/OpenKey/win32/OpenKey/OpenKey/x64/Debug
 /Sources/OpenKey/win32/OpenKey/OpenKey/x64/Release
 /Sources/OpenKey/win32/OpenKey/OpenKeyUpdate/x64/Release
+
+# Build output of scripts/dev.sh and scripts/release.sh
+/build/
+/dist/

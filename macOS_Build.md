@@ -1,24 +1,45 @@
-## Cách build cho macOS:
-Vì một số lý do mà OpenKey không thể đưa lêp Mac App Store được, nếu các bạn không yên tâm về file build chính thức từ tác giả, các bạn có thể tải mã nguồn về tự build lấy OpenKey cho mình. 
+## Cách build VOpenKey cho macOS
 
 Yêu cầu:
-- macOS Mojave trở lên.
-- XCode 10 trở lên.
+- macOS 13 (Ventura) trở lên, Xcode 15 trở lên (đã thử với Xcode 26).
+- Để ký và phát hành: chứng chỉ **Developer ID Application** trong Keychain (lệnh dưới tự tìm).
 
-Tải mã nguồn từ dự án OpenKey trên GitHub về, mở dự án OpenKey bằng cách vào:
-<img width="808" alt="Screen Shot 2022-06-01 at 13 34 39" src="https://user-images.githubusercontent.com/7700801/171342552-46c391a7-9160-4677-bb8a-9d8cececcfe6.png">
+Dự án nằm ở `Sources/OpenKey/macOS/OpenKey.xcodeproj` (target và scheme `OpenKey`, sản phẩm ra là `VOpenKey.app`).
 
-Dự án OpenKey sẽ hiện ra:
-<img width="1522" alt="Screen Shot 2022-06-01 at 13 37 36" src="https://user-images.githubusercontent.com/7700801/171343050-aa2f9629-4670-4c1e-a3c0-0c25acefa42d.png">
+### Chạy thử khi phát triển
 
-Giờ bạn vào menu Product -> Archive để Xcode tiến hành build OpenKey ở dạng Production (có thể dùng được), sau khi build xong hộp thoại sẽ xuất hiện, bấm vào Distribute App
-<img width="1112" alt="Screen Shot 2022-06-01 at 13 45 50" src="https://user-images.githubusercontent.com/7700801/171344111-540b66cb-556f-48cf-ad3b-0f44ab208d1a.png">
+```
+scripts/dev.sh
+```
 
-Nó sẽ ra:
-<img width="1112" alt="Screen Shot 2022-06-01 at 13 48 53" src="https://user-images.githubusercontent.com/7700801/171344529-12eed723-4e66-4818-8502-fa693b269dba.png">
+Lệnh này build bản Debug, ký, cài vào `~/Applications/VOpenKey.app` rồi mở. Thêm `--reset-permissions` để xóa quyền đã cấp và xem lại cửa sổ cấp quyền lần đầu, `--no-open` để chỉ cài.
 
-Bấm Next để chọn nơi lưu trữ file Build. Vậy là xong, bạn đã có ứng dụng OpenKey.app của riêng bạn.
+Nên chạy bằng lệnh này thay vì bấm Run trong Xcode hoặc mở thẳng từ thư mục build: macOS chỉ liệt kê app trong *Cài đặt hệ thống -> Quyền riêng tư & Bảo mật* khi tìm thấy nó, mà thư mục build nằm ẩn (`~/Library/Developer/Xcode/DerivedData`) nên app không hiện trong danh sách, nút "+" cũng khó chọn tới. Ký bằng cùng một chứng chỉ mỗi lần còn giúp các quyền đã cấp được giữ qua các lần build.
 
-Lưu ý: trong quá trình build, nếu XCode bão lỗi `invalid in C99`, khả năng cao là ở trong file `MJAccessibilityUtils.m`, dòng 26 `isEnabled = AXAPIEnabled();`, bạn lên đầu file thêm khai báo `extern BOOL AXAPIEnabled();` là sẽ build được.
+Khi cần quyền ở chế độ dev mà không thấy app trong danh sách, cửa sổ cấp quyền có biểu tượng để kéo thả vào danh sách và nút **Hiện trong Finder**.
 
-Chúc các bạn Build OpenKey cho macOS thành công!
+### Phát hành
+
+```
+scripts/release.sh                 # build, ký, ra dist/VOpenKey-<phiên bản>.dmg
+scripts/release.sh --notarize      # thêm: Apple xác nhận (notarize) và gắn ticket vào app và dmg
+scripts/release.sh --publish       # thêm: tạo GitHub Release (cần --notarize, vì đây là đưa lên mạng)
+```
+
+`scripts/release.sh --help` in lại hướng dẫn này. Kết quả nằm trong `dist/`: file `.dmg` (bản universal Apple Silicon + Intel, hardened runtime) và file `.sha256`.
+
+Không có `--notarize`, bản dmg vẫn chạy trên máy build nhưng máy khác sẽ cảnh báo không kiểm tra được phần mềm. Một lần duy nhất, lưu thông tin để notarize vào Keychain:
+
+```
+xcrun notarytool store-credentials VOpenKey-notary --apple-id <Apple ID> --team-id <Team ID> --password <app-specific password>
+```
+
+(app-specific password tạo ở appleid.apple.com, mục Đăng nhập và Bảo mật). Dùng tên profile khác thì đặt `NOTARY_PROFILE=<tên>`. Dùng chứng chỉ khác thì đặt `SIGN_IDENTITY="Developer ID Application: ..."`.
+
+### Tăng phiên bản
+
+Sửa `MARKETING_VERSION` và `CURRENT_PROJECT_VERSION` trong project (Xcode: target OpenKey, tab General, Version và Build) và `version.json` ở thư mục gốc. Tính năng "Kiểm tra bản mới" của app đọc `version.json` từ nhánh `master` rồi so số build, nên phải đẩy file này lên cùng lúc phát hành.
+
+### Đổi tên, repo, bundle ID
+
+Tên app, bundle ID và các đường dẫn nằm ở một chỗ: `Sources/OpenKey/macOS/ModernKey/AppInfo.h`. Bundle ID cũng nằm ở `PRODUCT_BUNDLE_IDENTIFIER` trong project và ở `scripts/common.sh`. Đổi bundle ID nghĩa là macOS coi là app khác: quyền phải cấp lại và cài đặt bắt đầu từ đầu.

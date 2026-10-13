@@ -37,6 +37,9 @@ extern NSString* const SecureInputMonitorDidChangeNotification;
 // once secure input is released, so OpenKey should take over again without waiting for the next poll.
 +(void)secureInputMayHaveEnded;
 
+// Name of the app holding secure input, nil when it is off or unknown.
++(NSString*)holderName;
+
 // For a tooltip: who is holding secure input and what is going on. nil while secure input is off.
 +(NSString*)statusDescription;
 

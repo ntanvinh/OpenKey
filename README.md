@@ -1,14 +1,15 @@
 
-# [OpenKey](http://open-key.org)
-### [Download bản mới nhất](https://github.com/tuyenvm/OpenKey/releases)
-[![GitHub release](https://img.shields.io/github/v/release/tuyenvm/OpenKey.svg)](https://github.com/tuyenvm/OpenKey/releases/latest)
+# VOpenKey
+### [Tải bản mới nhất](https://github.com/ntanvinh/OpenKey/releases/latest)
 
-### Open source Vietnamese Input App for macOS - Bộ gõ tiếng Việt nguồn mở cho macOS.
-Bộ gõ tiếng Việt mới cho macOS, sử dụng kỹ thuật `Backspace`. Loại bỏ lỗi gạch chân khó chịu ở bộ gõ mặc định. Hoàn toàn miễn phí và là nguồn mở, luôn cập nhật và phát triển.
+### Bộ gõ tiếng Việt nguồn mở cho macOS, phát triển bởi LSSoft, fork từ [OpenKey](https://github.com/tuyenvm/OpenKey) của Mai Vũ Tuyên.
+Bộ gõ tiếng Việt cho macOS, sử dụng kỹ thuật `Backspace`. Loại bỏ lỗi gạch chân khó chịu ở bộ gõ mặc định. Hoàn toàn miễn phí và là nguồn mở.
 
-### Mã nguồn của ứng dụng được mở công khai, minh bạch dưới giấy phép GPL. Điều này nghĩa là bạn hoàn toàn có thể tải mã nguồn về tự build, cải tiến theo mục đích của bạn. Nếu bạn tái phân phối bản cải tiến của bạn, thì nó cũng phải là mã nguồn mở và thông báo bản gốc là OpenKey.
+### Mã nguồn được mở công khai, minh bạch dưới giấy phép GPL-3.0. Điều này nghĩa là bạn hoàn toàn có thể tải mã nguồn về tự build, cải tiến theo mục đích của bạn. Nếu bạn tái phân phối bản cải tiến của bạn, thì nó cũng phải là mã nguồn mở và thông báo bản gốc là OpenKey của Mai Vũ Tuyên.
 
-### Lưu ý, khi sử dụng OpenKey, bạn nên tắt hẳn bộ gõ khác vì 2 chương trình bộ gõ sẽ xung đột nhau, dẫn đến thao tác không chính xác.
+### Lưu ý, khi sử dụng VOpenKey, bạn nên thoát hẳn OpenKey gốc và các bộ gõ khác vì 2 chương trình bộ gõ sẽ xung đột nhau, dẫn đến thao tác không chính xác. Khi mở lần đầu, VOpenKey sẽ tự nhập cài đặt từ OpenKey gốc (nếu có) và hỏi có muốn thoát OpenKey gốc không.
+
+*Ảnh minh họa dưới đây lấy từ OpenKey gốc, giao diện của VOpenKey đã được làm lại theo phong cách macOS.*
 
 ![Giao diện](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-main-control.png "Main UI")
 ![Giao diện](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-main-control-2.png "Main UI")
@@ -57,53 +58,43 @@ Bộ gõ tiếng Việt mới cho macOS, sử dụng kỹ thuật `Backspace`. L
 - ...
 
 
-[Changelog](https://github.com/tuyenvm/OpenKey/blob/master/CHANGELOG.md)
+[Changelog](CHANGELOG.md)
 
 ## Cài đặt:
-**Cài đặt thủ công:**  
-Tải bản OpenKey mới nhất từ [đây](https://github.com/tuyenvm/OpenKey/releases/latest), mở file `dmg` ra rồi kéo thả `OpenKey.app` vào thư mục `Application`.
+Yêu cầu macOS 13 (Ventura) trở lên.
 
-**Cài bằng Homebrew:** (by nhymxu)  
-Nếu chưa cài Homebrew, mở terminal, nhập:
-```
-$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-```
+Tải file `VOpenKey-<phiên bản>.dmg` từ [trang Releases](https://github.com/ntanvinh/OpenKey/releases/latest), mở ra rồi kéo `VOpenKey.app` vào thư mục `Applications`. Mở VOpenKey từ đó.
 
-Kiểm tra phiên bản OpenKey:
-```
-$ brew info --cask openkey
-```
-Gõ lệnh sau để homebrew tự cài OpenKey cho bạn:
-```
-$ brew install --cask openkey
-```
+## Cấp quyền khi mở lần đầu:
+VOpenKey cần 2 quyền của macOS để đọc phím bạn gõ và thay bằng chữ có dấu. Khi mở lần đầu sẽ có cửa sổ **Chào mừng đến với VOpenKey**, bạn chỉ cần:
+1. Bấm công tắc **Trợ năng (Accessibility)**, rồi bật **VOpenKey** trong Cài đặt hệ thống.
+2. Bấm công tắc **Giám sát đầu vào (Input Monitoring)**, rồi bật **VOpenKey** tiếp.
 
-Để update phiên bản mới nhất của OpenKey
-```
-$ brew upgrade --cask openkey
-```
+Cửa sổ tự cập nhật theo từng công tắc và tự khởi động bộ gõ khi đủ quyền, không cần mở lại app. Nếu macOS yêu cầu thoát và mở lại, cửa sổ sẽ có nút **Khởi động lại**. Xem lại hay mở các quyền này bất cứ lúc nào ở *Cài đặt -> Hệ thống -> Quyền*. **Không tắt các quyền này khi đang dùng VOpenKey.**
 
-## Note - Lưu ý:
-OpenKey cần cấp quyền, vào *System Preferences -> Security & Privacy -> Accessibility*, kích hoạt `OpenKey.app`. **Không tắt nó khi đang dùng OpenKey**.
-![Guide](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-guide.png "Accessibility").
+Nếu VOpenKey không có trong danh sách của Cài đặt hệ thống (thường do app chạy từ thư mục build chứ không phải `Applications`), cửa sổ sẽ có biểu tượng để kéo thả vào danh sách và nút **Hiện trong Finder**.
 
 ### Secure Input (ô mật khẩu, Secure Keyboard Entry...)
-Khi một ứng dụng bật *Secure Input* (ô nhập mật khẩu, Terminal/iTerm2 bật *Secure Keyboard Entry*, hoặc ứng dụng lỗi quên tắt), macOS giấu mọi phím khỏi các ứng dụng khác nên OpenKey không đọc được phím để chuyển dấu. Đây là giới hạn của macOS, không phải lỗi riêng của OpenKey. OpenKey xử lý như sau, rồi tự trả lại khi Secure Input hết:
-- **App đang gõ chính là app giữ Secure Input** (ô mật khẩu, Terminal bật Secure Keyboard Entry, màn hình khóa, hộp thoại mật khẩu của hệ thống): biểu tượng OpenKey chuyển sang **E** (tiếng Anh). OpenKey không tự dùng bộ gõ macOS ở đây vì bộ gõ đó cũng sẽ biến đổi cả mật khẩu bạn gõ.
-- **App đang gõ là app bình thường, còn Secure Input do một app khác đang chạy nền giữ** (thường là app quên tắt): OpenKey tự chuyển sang bộ gõ **Vietnamese của macOS** (cùng kiểu gõ Telex/VNI) để bạn vẫn gõ được tiếng Việt, và chuyển lại khi hết. Cần bật sẵn bộ gõ này tại *System Settings -> Keyboard -> Input Sources -> Vietnamese*. Bộ gõ của macOS có gạch chân, OpenKey không tắt được. Tắt tính năng tự chuyển này bằng `defaults write com.tuyenmai.openkey vSecureInputFallback -int 0`.
+Khi một ứng dụng bật *Secure Input* (ô nhập mật khẩu, Terminal/iTerm2 bật *Secure Keyboard Entry*, hoặc ứng dụng lỗi quên tắt), macOS giấu mọi phím khỏi các ứng dụng khác nên OpenKey không đọc được phím để chuyển dấu. Đây là giới hạn của macOS, không phải lỗi riêng của VOpenKey. VOpenKey xử lý như sau, rồi tự trả lại khi Secure Input hết:
+- **App đang gõ chính là app giữ Secure Input** (ô mật khẩu, Terminal bật Secure Keyboard Entry, màn hình khóa, hộp thoại mật khẩu của hệ thống): biểu tượng VOpenKey chuyển sang **E** (tiếng Anh). VOpenKey không tự dùng bộ gõ macOS ở đây vì bộ gõ đó cũng sẽ biến đổi cả mật khẩu bạn gõ.
+- **App đang gõ là app bình thường, còn Secure Input do một app khác đang chạy nền giữ** (thường là app quên tắt): VOpenKey tự chuyển sang bộ gõ **Vietnamese của macOS** (cùng kiểu gõ Telex/VNI) để bạn vẫn gõ được tiếng Việt, và chuyển lại khi hết. Cần bật sẵn bộ gõ này tại *System Settings -> Keyboard -> Input Sources -> Vietnamese*. Bộ gõ của macOS có gạch chân, VOpenKey không tắt được. Tắt tính năng tự chuyển này bằng `defaults write vn.io.lssoft.vopenkey vSecureInputFallback -int 0`.
 
-Rê chuột lên biểu tượng OpenKey khi Secure Input đang bật để biết app nào đang giữ và OpenKey đang làm gì. Cài đặt ngôn ngữ đã lưu không bị đổi.
+Khi Secure Input đang bật, menu của VOpenKey có một dòng cho biết app nào đang giữ; rê chuột lên biểu tượng để xem VOpenKey đang làm gì. Cài đặt ngôn ngữ đã lưu không bị đổi.
+
+## Build và phát hành:
+Xem [macOS_Build.md](macOS_Build.md). Tóm tắt:
+- `scripts/dev.sh`: build bản dev, ký, cài vào `~/Applications` và mở.
+- `scripts/release.sh`: build bản phát hành, ký Developer ID, đóng gói `dist/VOpenKey-<phiên bản>.dmg`. Thêm `--notarize` để Apple xác nhận, `--publish` để đăng lên GitHub Releases.
 
 ## Tác giả
-- Mai Vũ Tuyên.
-- Mọi góp ý, gửi cho mình qua maivutuyen.91@gmail.com  
-- Fanpage: [https://www.facebook.com/OpenKeyVN](https://www.facebook.com/OpenKeyVN)
+- **LSSoft** - phát triển VOpenKey (bản fork này): [github.com/ntanvinh/OpenKey](https://github.com/ntanvinh/OpenKey).
+- **Mai Vũ Tuyên** - tác giả OpenKey gốc: [github.com/tuyenvm/OpenKey](https://github.com/tuyenvm/OpenKey), maivutuyen.91@gmail.com, fanpage [OpenKeyVN](https://www.facebook.com/OpenKeyVN).
 
 ## Liên kết
 - [OpenKey cho Windows, xem chi tiết tại đây](https://github.com/tuyenvm/OpenKey/tree/master/Sources/OpenKey/win32)
 - [OpenKey cho Linux (đang phát triển)](https://github.com/tuyenvm/OpenKey/tree/master/Sources/OpenKey/linux)
 ## Một điều nhỏ nhoi
-Đừng quên ủng hộ tác giả bằng cách mua ly cafe cho tác giả tỉnh ngủ nhé:  
+Đừng quên ủng hộ tác giả gốc của OpenKey bằng cách mua ly cafe cho tác giả tỉnh ngủ nhé:  
 [Buy me a coffee ^^](https://tuyenvm.github.io/donate.html)  
 [Redbull cũng được ^^](https://paypal.me/tuyenmai)  
 Hoặc trực tiếp qua ví momo:   

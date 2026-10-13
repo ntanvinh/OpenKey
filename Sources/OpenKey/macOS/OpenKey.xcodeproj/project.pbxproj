@@ -13,7 +13,6 @@
 		232DB1E621FAED290049A0B5 /* Status@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 232DB1E221FAED280049A0B5 /* Status@2x.png */; };
 		232DB1E721FAED290049A0B5 /* StatusHighlighted@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 232DB1E321FAED280049A0B5 /* StatusHighlighted@2x.png */; };
 		232EDA5921F1B33E0085D362 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 232EDA5821F1B33E0085D362 /* AppDelegate.m */; };
-		232EDA5C21F1B33E0085D362 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 232EDA5B21F1B33E0085D362 /* ViewController.m */; };
 		232EDA5E21F1B33F0085D362 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 232EDA5D21F1B33F0085D362 /* Assets.xcassets */; };
 		232EDA6121F1B33F0085D362 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 232EDA5F21F1B33F0085D362 /* Main.storyboard */; };
 		232EDA6421F1B33F0085D362 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 232EDA6321F1B33F0085D362 /* main.m */; };
@@ -25,12 +24,18 @@
 		234F70AE21FB50BD00D2F2CA /* StatusHighlightedEng@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 234F70AA21FB50BC00D2F2CA /* StatusHighlightedEng@2x.png */; };
 		234F70AF21FB50BD00D2F2CA /* StatusEng.png in Resources */ = {isa = PBXBuildFile; fileRef = 234F70AB21FB50BD00D2F2CA /* StatusEng.png */; };
 		2371AAEF22FA85B200CA1B57 /* OpenKey.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2371AAEE22FA85B200CA1B57 /* OpenKey.mm */; };
-		2374A1302216720E005B0375 /* AboutViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2374A12F2216720E005B0375 /* AboutViewController.m */; };
 		2383405D2320F8170020F857 /* StartConvert@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 2383405B2320F8170020F857 /* StartConvert@2x.png */; };
 		238519F821F1BF3C00E79A41 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519F221F1B8E200E79A41 /* Foundation.framework */; };
 		238519FF21F1BF8A00E79A41 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519FD21F1BF5100E79A41 /* EventKit.framework */; };
 		23851A0021F1BFA300E79A41 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519FB21F1BF4900E79A41 /* Cocoa.framework */; };
 		23851A0121F1C1A400E79A41 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519F921F1BF4400E79A41 /* CoreGraphics.framework */; };
+		5EC0DE105DE66C7F2E612A3E /* LegacyOpenKey.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE10DBB068E43861EC45 /* LegacyOpenKey.m */; };
+		5EC0DE10E84BA6259B6000F7 /* VOKUI.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1070F8616B20E0B603 /* VOKUI.m */; };
+		5EC0DE10B167597739BCE2DC /* AppPermissions.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE106A2F58E52935DB47 /* AppPermissions.m */; };
+		5EC0DE10678C5B121A0662C3 /* PermissionWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE10334367611BA825AF /* PermissionWindowController.m */; };
+		5EC0DE10062DD235675C302D /* StatusMenuController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1033724A4EF33C253D /* StatusMenuController.m */; };
+		5EC0DE10695C72BB713E6B27 /* SettingsWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE105D7FC0B71EC81B27 /* SettingsWindowController.m */; };
+		5EC0DE10B11639488171E80C /* AboutPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE100726B5EE2214140E /* AboutPanel.m */; };
 		2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 2389467C21FDDB920030A13B /* OpenKeyManager.m */; };
 		5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1020261013000A0002 /* SecureInputMonitor.m */; };
 		238AF96522042C1600AEFA17 /* OK@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96422042C1600AEFA17 /* OK@2x.png */; };
@@ -43,7 +48,6 @@
 		23E2E49E2314FD3A006CCC3E /* SmartSwitchKey.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23E2E4982314FD3A006CCC3E /* SmartSwitchKey.cpp */; };
 		23E2E49F2314FD3A006CCC3E /* Engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23E2E49A2314FD3A006CCC3E /* Engine.cpp */; };
 		23E2E4A02314FD3A006CCC3E /* Vietnamese.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23E2E49B2314FD3A006CCC3E /* Vietnamese.cpp */; };
-		23F512852336386200397988 /* MJAccessibilityUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 23F512832336386200397988 /* MJAccessibilityUtils.m */; };
 		A534F32629D8B78100296F25 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23874B0F220160A500000BC8 /* Carbon.framework */; };
 /* End PBXBuildFile section */
 
@@ -66,11 +70,9 @@
 		232DB1E121FAED280049A0B5 /* Status.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Status.png; sourceTree = "<group>"; };
 		232DB1E221FAED280049A0B5 /* Status@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Status@2x.png"; sourceTree = "<group>"; };
 		232DB1E321FAED280049A0B5 /* StatusHighlighted@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "StatusHighlighted@2x.png"; sourceTree = "<group>"; };
-		232EDA5421F1B33E0085D362 /* OpenKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		232EDA5421F1B33E0085D362 /* VOpenKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VOpenKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		232EDA5721F1B33E0085D362 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		232EDA5821F1B33E0085D362 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		232EDA5A21F1B33E0085D362 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		232EDA5B21F1B33E0085D362 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
 		232EDA5D21F1B33F0085D362 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		232EDA6021F1B33F0085D362 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		232EDA6221F1B33F0085D362 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -89,8 +91,6 @@
 		234F70AA21FB50BC00D2F2CA /* StatusHighlightedEng@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "StatusHighlightedEng@2x.png"; sourceTree = "<group>"; };
 		234F70AB21FB50BD00D2F2CA /* StatusEng.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = StatusEng.png; sourceTree = "<group>"; };
 		2371AAEE22FA85B200CA1B57 /* OpenKey.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenKey.mm; sourceTree = "<group>"; };
-		2374A12E2216720E005B0375 /* AboutViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutViewController.h; sourceTree = "<group>"; };
-		2374A12F2216720E005B0375 /* AboutViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutViewController.m; sourceTree = "<group>"; };
 		237559B42204156000FB8CB9 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		237559B52204156000FB8CB9 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		237559B72204156000FB8CB9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -108,7 +108,22 @@
 		238519FD21F1BF5100E79A41 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 		23874B0F220160A500000BC8 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		2389467C21FDDB920030A13B /* OpenKeyManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OpenKeyManager.m; sourceTree = "<group>"; };
+		5EC0DE1015EFE95B19A3BD0E /* LegacyOpenKey.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LegacyOpenKey.h; sourceTree = "<group>"; };
+		5EC0DE10DBB068E43861EC45 /* LegacyOpenKey.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LegacyOpenKey.m; sourceTree = "<group>"; };
+		5EC0DE10C068535344DC235B /* VOKUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VOKUI.h; sourceTree = "<group>"; };
+		5EC0DE1070F8616B20E0B603 /* VOKUI.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = VOKUI.m; sourceTree = "<group>"; };
+		5EC0DE10E5FAEE5A2757AA87 /* AppPermissions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppPermissions.h; sourceTree = "<group>"; };
+		5EC0DE106A2F58E52935DB47 /* AppPermissions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppPermissions.m; sourceTree = "<group>"; };
+		5EC0DE105D90AB7E5D403655 /* PermissionWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PermissionWindowController.h; sourceTree = "<group>"; };
+		5EC0DE10334367611BA825AF /* PermissionWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PermissionWindowController.m; sourceTree = "<group>"; };
+		5EC0DE1091B8CC2D64F7D161 /* StatusMenuController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StatusMenuController.h; sourceTree = "<group>"; };
+		5EC0DE1033724A4EF33C253D /* StatusMenuController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = StatusMenuController.m; sourceTree = "<group>"; };
+		5EC0DE10089C8B3A39CC2654 /* SettingsWindowController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsWindowController.h; sourceTree = "<group>"; };
+		5EC0DE105D7FC0B71EC81B27 /* SettingsWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SettingsWindowController.m; sourceTree = "<group>"; };
+		5EC0DE10C6C84D5167A489C2 /* AboutPanel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutPanel.h; sourceTree = "<group>"; };
+		5EC0DE100726B5EE2214140E /* AboutPanel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutPanel.m; sourceTree = "<group>"; };
 		2389467E21FDDC3F0030A13B /* OpenKeyManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenKeyManager.h; sourceTree = "<group>"; };
+		5EC0DE1020261014000A0001 /* AppInfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppInfo.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0001 /* SecureInputMonitor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecureInputMonitor.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0002 /* SecureInputMonitor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SecureInputMonitor.m; sourceTree = "<group>"; };
 		238AF96422042C1600AEFA17 /* OK@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "OK@2x.png"; sourceTree = "<group>"; };
@@ -135,8 +150,6 @@
 		23E2E49A2314FD3A006CCC3E /* Engine.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Engine.cpp; sourceTree = "<group>"; };
 		23E2E49B2314FD3A006CCC3E /* Vietnamese.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Vietnamese.cpp; sourceTree = "<group>"; };
 		23E2E49C2314FD3A006CCC3E /* SmartSwitchKey.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SmartSwitchKey.h; sourceTree = "<group>"; };
-		23F512832336386200397988 /* MJAccessibilityUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MJAccessibilityUtils.m; sourceTree = "<group>"; };
-		23F512842336386200397988 /* MJAccessibilityUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MJAccessibilityUtils.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -194,7 +207,7 @@
 		232EDA5521F1B33E0085D362 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				232EDA5421F1B33E0085D362 /* OpenKey.app */,
+				232EDA5421F1B33E0085D362 /* VOpenKey.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -203,21 +216,30 @@
 			isa = PBXGroup;
 			children = (
 				232DB1DF21FAED280049A0B5 /* Resources */,
-				23F512842336386200397988 /* MJAccessibilityUtils.h */,
-				23F512832336386200397988 /* MJAccessibilityUtils.m */,
 				232EDA5721F1B33E0085D362 /* AppDelegate.h */,
 				232EDA5821F1B33E0085D362 /* AppDelegate.m */,
-				232EDA5A21F1B33E0085D362 /* ViewController.h */,
-				232EDA5B21F1B33E0085D362 /* ViewController.m */,
-				2374A12E2216720E005B0375 /* AboutViewController.h */,
-				2374A12F2216720E005B0375 /* AboutViewController.m */,
 				232EDA5D21F1B33F0085D362 /* Assets.xcassets */,
 				232EDA5F21F1B33F0085D362 /* Main.storyboard */,
 				232EDA6221F1B33F0085D362 /* Info.plist */,
 				232EDA6321F1B33F0085D362 /* main.m */,
 				232EDA6521F1B33F0085D362 /* ModernKey.entitlements */,
+				5EC0DE1015EFE95B19A3BD0E /* LegacyOpenKey.h */,
+				5EC0DE10DBB068E43861EC45 /* LegacyOpenKey.m */,
+				5EC0DE10C068535344DC235B /* VOKUI.h */,
+				5EC0DE1070F8616B20E0B603 /* VOKUI.m */,
+				5EC0DE10E5FAEE5A2757AA87 /* AppPermissions.h */,
+				5EC0DE106A2F58E52935DB47 /* AppPermissions.m */,
+				5EC0DE105D90AB7E5D403655 /* PermissionWindowController.h */,
+				5EC0DE10334367611BA825AF /* PermissionWindowController.m */,
+				5EC0DE1091B8CC2D64F7D161 /* StatusMenuController.h */,
+				5EC0DE1033724A4EF33C253D /* StatusMenuController.m */,
+				5EC0DE10089C8B3A39CC2654 /* SettingsWindowController.h */,
+				5EC0DE105D7FC0B71EC81B27 /* SettingsWindowController.m */,
+				5EC0DE10C6C84D5167A489C2 /* AboutPanel.h */,
+				5EC0DE100726B5EE2214140E /* AboutPanel.m */,
 				2389467E21FDDC3F0030A13B /* OpenKeyManager.h */,
 				2389467C21FDDB920030A13B /* OpenKeyManager.m */,
+				5EC0DE1020261014000A0001 /* AppInfo.h */,
 				5EC0DE1020261013000A0001 /* SecureInputMonitor.h */,
 				5EC0DE1020261013000A0002 /* SecureInputMonitor.m */,
 				23CA6D1522F0439100804D6E /* MyTextField.h */,
@@ -339,7 +361,7 @@
 			);
 			name = OpenKey;
 			productName = ModernKey;
-			productReference = 232EDA5421F1B33E0085D362 /* OpenKey.app */;
+			productReference = 232EDA5421F1B33E0085D362 /* VOpenKey.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -410,13 +432,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				23E2E49F2314FD3A006CCC3E /* Engine.cpp in Sources */,
-				232EDA5C21F1B33E0085D362 /* ViewController.m in Sources */,
 				23E2E49E2314FD3A006CCC3E /* SmartSwitchKey.cpp in Sources */,
-				23F512852336386200397988 /* MJAccessibilityUtils.m in Sources */,
+				5EC0DE105DE66C7F2E612A3E /* LegacyOpenKey.m in Sources */,
+				5EC0DE10E84BA6259B6000F7 /* VOKUI.m in Sources */,
+				5EC0DE10B167597739BCE2DC /* AppPermissions.m in Sources */,
+				5EC0DE10678C5B121A0662C3 /* PermissionWindowController.m in Sources */,
+				5EC0DE10062DD235675C302D /* StatusMenuController.m in Sources */,
+				5EC0DE10695C72BB713E6B27 /* SettingsWindowController.m in Sources */,
+				5EC0DE10B11639488171E80C /* AboutPanel.m in Sources */,
 				2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */,
 				5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */,
 				23E2E4A02314FD3A006CCC3E /* Vietnamese.cpp in Sources */,
-				2374A1302216720E005B0375 /* AboutViewController.m in Sources */,
 				23CA6D1722F0439100804D6E /* MyTextField.m in Sources */,
 				232EDA6421F1B33F0085D362 /* main.m in Sources */,
 				2345899A22F720D7003E0923 /* MacroViewController.mm in Sources */,
@@ -510,7 +536,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -564,7 +590,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -578,21 +604,21 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 48;
-				DEVELOPMENT_TEAM = 8S7348QV8Q;
+				CURRENT_PROJECT_VERSION = 49;
+				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
-				MARKETING_VERSION = 2.0.4;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 2.1.0;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tuyenmai.openkey;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = vn.io.lssoft.vopenkey;
+				PRODUCT_NAME = VOpenKey;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Debug;
@@ -604,21 +630,22 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 48;
-				DEVELOPMENT_TEAM = 8S7348QV8Q;
+				ENABLE_HARDENED_RUNTIME = YES;
+				CURRENT_PROJECT_VERSION = 49;
+				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
-				MARKETING_VERSION = 2.0.4;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 2.1.0;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tuyenmai.openkey;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = vn.io.lssoft.vopenkey;
+				PRODUCT_NAME = VOpenKey;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Release;
