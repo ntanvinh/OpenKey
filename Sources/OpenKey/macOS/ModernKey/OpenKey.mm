@@ -11,6 +11,8 @@
 #import "Engine.h"
 #import "AppDelegate.h"
 #import "ViewController.h"
+#import "OpenKeyManager.h"
+#import "SecureInputMonitor.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -599,6 +601,23 @@ extern "C" {
      * MAIN Callback.
      */
     CGEventRef OpenKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+        //macOS turns an event tap off when it thinks it is stuck or after some user input, and OpenKey
+        //silently stops working unless it is turned back on
+        if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+            [OpenKeyManager reenableEventTap];
+            return event;
+        }
+
+        //secure input is on and macOS' own Vietnamese input source is typing for us, converting here as well
+        //would do it twice
+        if ([SecureInputMonitor isFallbackActive]) {
+            if (type == kCGEventKeyDown || type == kCGEventKeyUp || type == kCGEventFlagsChanged) {
+                //keys only reach an event tap once secure input has been released
+                [SecureInputMonitor secureInputMayHaveEnded];
+            }
+            return event;
+        }
+
         //dont handle my event
         if (CGEventGetIntegerValueField(event, kCGEventSourceStateID) == CGEventSourceGetSourceStateID(myEventSource)) {
             return event;

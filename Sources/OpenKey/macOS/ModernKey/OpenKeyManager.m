@@ -7,6 +7,7 @@
 //
 
 #import "OpenKeyManager.h"
+#import "SecureInputMonitor.h"
 
 extern void OpenKeyInit(void);
 
@@ -74,11 +75,21 @@ static CFRunLoopSourceRef runLoopSource;
     // Enable the event tap.
     CGEventTapEnable(eventTap, true);
     
+    // macOS hides keys from event taps while secure input is on, see SecureInputMonitor
+    [SecureInputMonitor start];
+
     return YES;
+}
+
++(void)reenableEventTap {
+    if (eventTap)
+        CGEventTapEnable(eventTap, true);
 }
 
 +(BOOL)stopEventTap {
     if (_isInited) { //release all object
+        [SecureInputMonitor stop];
+
         CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopCommonModes);
         CFRelease(runLoopSource);
         runLoopSource = nil;

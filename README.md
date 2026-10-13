@@ -87,6 +87,13 @@ $ brew upgrade --cask openkey
 OpenKey cần cấp quyền, vào *System Preferences -> Security & Privacy -> Accessibility*, kích hoạt `OpenKey.app`. **Không tắt nó khi đang dùng OpenKey**.
 ![Guide](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/openkey-guide.png "Accessibility").
 
+### Secure Input (ô mật khẩu, Secure Keyboard Entry...)
+Khi một ứng dụng bật *Secure Input* (ô nhập mật khẩu, Terminal/iTerm2 bật *Secure Keyboard Entry*, hoặc ứng dụng lỗi quên tắt), macOS giấu mọi phím khỏi các ứng dụng khác nên OpenKey không đọc được phím để chuyển dấu. Đây là giới hạn của macOS, không phải lỗi riêng của OpenKey. OpenKey xử lý như sau, rồi tự trả lại khi Secure Input hết:
+- **App đang gõ chính là app giữ Secure Input** (ô mật khẩu, Terminal bật Secure Keyboard Entry, màn hình khóa, hộp thoại mật khẩu của hệ thống): biểu tượng OpenKey chuyển sang **E** (tiếng Anh). OpenKey không tự dùng bộ gõ macOS ở đây vì bộ gõ đó cũng sẽ biến đổi cả mật khẩu bạn gõ.
+- **App đang gõ là app bình thường, còn Secure Input do một app khác đang chạy nền giữ** (thường là app quên tắt): OpenKey tự chuyển sang bộ gõ **Vietnamese của macOS** (cùng kiểu gõ Telex/VNI) để bạn vẫn gõ được tiếng Việt, và chuyển lại khi hết. Cần bật sẵn bộ gõ này tại *System Settings -> Keyboard -> Input Sources -> Vietnamese*. Bộ gõ của macOS có gạch chân, OpenKey không tắt được. Tắt tính năng tự chuyển này bằng `defaults write com.tuyenmai.openkey vSecureInputFallback -int 0`.
+
+Rê chuột lên biểu tượng OpenKey khi Secure Input đang bật để biết app nào đang giữ và OpenKey đang làm gì. Cài đặt ngôn ngữ đã lưu không bị đổi.
+
 ## Tác giả
 - Mai Vũ Tuyên.
 - Mọi góp ý, gửi cho mình qua maivutuyen.91@gmail.com  

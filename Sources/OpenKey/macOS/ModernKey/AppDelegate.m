@@ -15,6 +15,7 @@
 #import "AppDelegate.h"
 #import "ViewController.h"
 #import "OpenKeyManager.h"
+#import "SecureInputMonitor.h"
 #import "MJAccessibilityUtils.h"
 
 AppDelegate* appDelegate;
@@ -195,7 +196,8 @@ extern bool convertToolDontAlertWhenCompleted;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {
-    // Insert code here to tear down your application
+    // give the keyboard back if macOS' input source was standing in for OpenKey
+    [SecureInputMonitor stop];
 }
 
 -(void) createStatusBarMenu {
@@ -361,21 +363,28 @@ extern bool convertToolDontAlertWhenCompleted;
     [theMenu setSubmenu:sub forItem:parent];
 }
 
-- (void) fillData {
-    //fill data
+//While secure input is on macOS hides every key from OpenKey, so the icon shows English until it is released
+//(unless macOS' own Vietnamese input source is typing in OpenKey's place). Only the icon changes, not the saved
+//language: that would also teach Smart Switch Key that the app holding secure input is an English app.
+- (void)fillStatusIcon {
     NSInteger intInputMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"InputMethod"];
     NSInteger grayIcon = [[NSUserDefaults standardUserDefaults] integerForKey:@"GrayIcon"];
-    if (intInputMethod == 1) {
-        [menuInputMethod setState:NSControlStateValueOn];
+    if (intInputMethod == 1 && ![SecureInputMonitor isOpenKeyBlind]) {
         statusItem.button.image = [NSImage imageNamed:@"Status"];
         [statusItem.button.image setTemplate:(grayIcon ? YES : NO)];
         statusItem.button.alternateImage = [NSImage imageNamed:@"StatusHighlighted"];
     } else {
-        [menuInputMethod setState:NSControlStateValueOff];
         statusItem.button.image = [NSImage imageNamed:@"StatusEng"];
         [statusItem.button.image setTemplate:(grayIcon ? YES : NO)];
         statusItem.button.alternateImage = [NSImage imageNamed:@"StatusHighlightedEng"];
     }
+}
+
+- (void) fillData {
+    //fill data
+    NSInteger intInputMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"InputMethod"];
+    [menuInputMethod setState:intInputMethod == 1 ? NSControlStateValueOn : NSControlStateValueOff];
+    [self fillStatusIcon];
     vLanguage = (int)intInputMethod;
     
     NSInteger intInputType = [[NSUserDefaults standardUserDefaults] integerForKey:@"InputType"];
@@ -552,6 +561,11 @@ extern bool convertToolDontAlertWhenCompleted;
     }
 }
 
+-(void)secureInputStatusChanged: (NSNotification*)note {
+    statusItem.button.toolTip = [SecureInputMonitor statusDescription];
+    [self fillStatusIcon];
+}
+
 -(void)registerSupportedNotification {
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: self
                                                            selector: @selector(receiveWakeNote:)
@@ -568,5 +582,9 @@ extern bool convertToolDontAlertWhenCompleted;
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: self
                                                            selector: @selector(activeAppChanged:)
                                                                name: NSWorkspaceDidActivateApplicationNotification object: NULL];
+
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(secureInputStatusChanged:)
+                                                 name: SecureInputMonitorDidChangeNotification object: NULL];
 }
 @end
