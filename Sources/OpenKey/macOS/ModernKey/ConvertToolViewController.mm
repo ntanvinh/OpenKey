@@ -12,7 +12,7 @@
 #import "ConvertTool.h"
 #import "VOKUI.h"
 #import "ShortcutRecorder.h"
-#import "SnippetPalette.h"
+#import "ShortcutConflicts.h"
 
 extern AppDelegate* appDelegate;
 extern int vSwitchKeyStatus;
@@ -44,9 +44,7 @@ extern int vSwitchKeyStatus;
     recorder.value = convertToolHotKey;
     recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
     recorder.conflict = ^NSString*(int data) {
-        if (VOKShortcutsEqual(data, vSwitchKeyStatus))
-            return @"Chuyển chế độ gõ";
-        return vSnippetsEnabled && VOKShortcutsEqual(data, vSnippetHotKey) ? @"Mở snippet" : nil;
+        return VOKShortcutConflict(data, VOKShortcutOwnerConvert);
     };
     recorder.onChange = ^(int data) {
         convertToolHotKey = data;

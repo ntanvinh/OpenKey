@@ -8,6 +8,7 @@
 #import "AppInfo.h"
 #import "AppPermissions.h"
 #import "RememberedAppsController.h"
+#import "ShortcutConflicts.h"
 #import "ShortcutRecorder.h"
 #import "InputSourceGuard.h"
 #import "OpenKeyManager.h"
@@ -15,6 +16,7 @@
 #import "SnippetPalette.h"
 #import "SnippetStore.h"
 #import "SuggestionController.h"
+#import "WordRestore.h"
 #import "VOKUI.h"
 
 extern AppDelegate* appDelegate;
@@ -147,6 +149,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     ShortcutRecorder* _switchRecorder;
     ShortcutRecorder* _convertRecorder;
     ShortcutRecorder* _snippetRecorder;
+    ShortcutRecorder* _restoreRecorder;
     NSTextField* _accessibilityStatus;
     NSTextField* _inputMonitoringStatus;
     NSButton* _checkUpdateButton;
@@ -383,9 +386,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _switchRecorder = [[ShortcutRecorder alloc] init];
     _switchRecorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
     _switchRecorder.conflict = ^NSString*(int data) {
-        if (VOKShortcutsEqual(data, convertToolHotKey))
-            return @"Chuyển mã nhanh";
-        return vSnippetsEnabled && VOKShortcutsEqual(data, vSnippetHotKey) ? @"Mở snippet" : nil;
+        return VOKShortcutConflict(data, VOKShortcutOwnerSwitch);
     };
     __weak SettingsWindowController* weakSelf = self;
     _switchRecorder.onChange = ^(int data) {
@@ -424,21 +425,42 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     SettingsToggle* spelling = [SettingsToggle title:@"Kiểm tra chính tả" detail:@"Hạn chế gõ sai từ tiếng Việt."
                                                  key:@"Spelling" variable:&vCheckSpelling];
     spelling.onChange = ^(BOOL on) { OnSpellCheckingChanged(); };
-    SettingsToggle* restore = [SettingsToggle title:@"Tự khôi phục phím với từ sai" detail:@"Từ nào sai tiếng Việt thì trả lại đúng các phím đã gõ."
+    SettingsToggle* restore = [SettingsToggle title:@"Tự khôi phục từ không phải tiếng Việt"
+                                             detail:@"Gõ xong từ mà không phải tiếng Việt, như rétỏe, thì trả lại đúng các phím đã gõ: restore. Không cần bật kiểm tra chính tả."
                                                 key:@"RestoreIfInvalidWord" variable:&vRestoreIfWrongSpelling];
     SettingsToggle* consonants = [SettingsToggle title:@"Cho phép \"z w j f\" làm phụ âm đầu" detail:nil
                                                    key:@"vAllowConsonantZFWJ" variable:&vAllowConsonantZFWJ];
     SettingsToggle* tempOff = [SettingsToggle title:@"Tạm tắt chính tả bằng phím ⌃"
                                              detail:@"Bấm ⌃ để bỏ qua kiểm tra cho từ đang gõ, như Đắk Lắk, Krông…"
                                                 key:@"vTempOffSpelling" variable:&vTempOffSpelling];
-    restore.parent = spelling;
     consonants.parent = spelling;
     tempOff.parent = spelling;
     SettingsToggle* modern = [SettingsToggle title:@"Đặt dấu oà, uý (thay vì òa, úy)" detail:nil
                                                key:@"ModernOrthography" variable:&vUseModernOrthography];
     SettingsToggle* capitalize = [SettingsToggle title:@"Viết hoa chữ cái đầu câu" detail:@"Tự viết hoa sau dấu chấm và khi xuống dòng."
                                                    key:@"UpperCaseFirstChar" variable:&vUpperCaseFirstChar];
-    return [self sectionOfToggles:@"Chính tả và dấu" toggles:@[spelling, restore, consonants, tempOff, modern, capitalize]];
+
+    //the shortcut that gives the keys of the word being typed back, for what the automatic restore does not catch
+    _restoreRecorder = [[ShortcutRecorder alloc] init];
+    _restoreRecorder.value = vRestoreHotKey;
+    _restoreRecorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    _restoreRecorder.conflict = ^NSString*(int data) {
+        return VOKShortcutConflict(data, VOKShortcutOwnerRestore);
+    };
+    _restoreRecorder.onChange = ^(int data) {
+        vRestoreHotKey = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:vRestoreHotKey forKey:@"RestoreHotKey"];
+    };
+
+    NSMutableArray* rows = [NSMutableArray array];
+    for (SettingsToggle* toggle in @[spelling, restore])
+        [rows addObject:[self rowForToggle:toggle]];
+    [rows addObject:[self rowWithTitle:@"Phím khôi phục từ đang gõ"
+                                detail:@"Từ đang gõ bị biến thành sai (rétỏe, ví dụ)? Bấm phím này để trả lại đúng các phím đã gõ."
+                               control:_restoreRecorder indent:0]];
+    for (SettingsToggle* toggle in @[consonants, tempOff, modern, capitalize])
+        [rows addObject:[self rowForToggle:toggle]];
+    return [self sectionWithTitle:@"Chính tả và dấu" rows:rows];
 }
 
 #pragma mark - Tab "Gõ tắt"
@@ -465,9 +487,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     recorder.value = convertToolHotKey;
     recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
     recorder.conflict = ^NSString*(int data) {
-        if (VOKShortcutsEqual(data, vSwitchKeyStatus))
-            return @"Chuyển chế độ gõ";
-        return vSnippetsEnabled && VOKShortcutsEqual(data, vSnippetHotKey) ? @"Mở snippet" : nil;
+        return VOKShortcutConflict(data, VOKShortcutOwnerConvert);
     };
     recorder.onChange = ^(int data) {
         convertToolHotKey = data;
@@ -532,9 +552,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     recorder.value = vSnippetHotKey;
     recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
     recorder.conflict = ^NSString*(int data) {
-        if (VOKShortcutsEqual(data, vSwitchKeyStatus))
-            return @"Chuyển chế độ gõ";
-        return VOKShortcutsEqual(data, convertToolHotKey) ? @"Chuyển mã nhanh" : nil;
+        return VOKShortcutConflict(data, VOKShortcutOwnerSnippet);
     };
     recorder.onChange = ^(int data) {
         vSnippetHotKey = data;
@@ -682,6 +700,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _switchRecorder.value = vSwitchKeyStatus;
     _convertRecorder.value = convertToolHotKey;
     _snippetRecorder.value = vSnippetHotKey;
+    _restoreRecorder.value = vRestoreHotKey;
 
     [self showStatus:[AppPermissions accessibilityGranted] in:_accessibilityStatus];
     [self showStatus:[AppPermissions inputMonitoringGranted] in:_inputMonitoringStatus];

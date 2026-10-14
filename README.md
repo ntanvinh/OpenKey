@@ -36,7 +36,8 @@ Bộ gõ tiếng Việt cho macOS, sử dụng kỹ thuật `Backspace`. Loại 
 - **Quick Telex** (On/Off) - Gõ nhanh (cc=ch, gg=gi, kk=kh, nn=ng, qq=qu, pp=ph, tt=th).
 - **Grammar check** (On/Off) - Kiểm tra ngữ pháp.
 - **Spelling check** (On/Off) - Kiểm tra chính tả.
-- **Restore key if invalid word** (on/off) - Phục hồi phím với từ sai.
+- **Tự khôi phục từ không phải tiếng Việt** (bật mặc định, Cài đặt > Bộ gõ): gõ xong một từ (bấm dấu cách, dấu phẩy, Enter…) mà không phải tiếng Việt, ví dụ `restore` gõ Telex ra `rétỏe`, thì VOpenKey trả lại đúng các phím đã gõ: `restore`. Không cần bật kiểm tra chính tả.
+- **Phím khôi phục từ đang gõ** (mặc định `⌥Space`, đổi được trong Cài đặt > Bộ gõ): bấm bất cứ lúc nào để trả lại các phím đã gõ cho từ đang gõ, dùng cho những từ mà tự khôi phục không bắt được (ví dụ `test` thành `tét` cũng là một từ tiếng Việt). Phần còn lại của từ đó được gõ nguyên, không chuyển đổi nữa. Khi không có gì để khôi phục, phím được chuyển cho ứng dụng như bình thường.
 - **Run on startup** (On/Off) - Chạy cùng macOS.
 - **Gray menu bar icon** (On/Off) - Biểu tượng xám trên thanh menu phù hợp với chế độ Dark mode.
 - **Switch input mode by shortcut key** - Đổi chế độ gõ bằng phím tắt tùy chọn.

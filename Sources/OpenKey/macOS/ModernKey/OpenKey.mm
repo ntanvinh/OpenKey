@@ -17,6 +17,7 @@
 #import "SuggestionKeys.h"
 #import "SnippetPalette.h"
 #import "SnippetInserter.h"
+#import "WordRestore.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -681,6 +682,66 @@ extern "C" {
                                          fallbackKeyCode);
     }
 
+    //Sends what the typing engine answered when it has replaced characters (code "process", and the two restores): deletes the
+    //characters that are to go and types the new ones. Uses the key of the event, _keycode, only for the restores that end a word.
+    void sendEngineResult() {
+        //fix autocomplete
+        if (shouldUseRecommendWorkaround(FRONT_APP) && pData->extCode != 4) {
+            if (vFixChromiumBrowser && [_unicodeCompoundApp containsObject:FRONT_APP]) {
+                if (pData->backspaceCount > 0) {
+                    SendShiftAndLeftArrow();
+                    if (pData->backspaceCount == 1)
+                        pData->backspaceCount--;
+                }
+            } else {
+                SendEmptyCharacter();
+                pData->backspaceCount++;
+            
+            }
+        }
+
+        if (shouldUseSelectionReplacement(FRONT_APP) && pData->backspaceCount > 0) {
+            for (_i = 0; _i < pData->backspaceCount; _i++) {
+                SendShiftAndLeftArrow();
+            }
+            pData->backspaceCount = 0;
+        }
+        
+        //send backspace
+        if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
+            for (_i = 0; _i < pData->backspaceCount; _i++) {
+                SendBackspace();
+            }
+        }
+        
+        //send new character
+        if (!vSendKeyStepByStep) {
+            SendNewCharString();
+        } else {
+            if (pData->newCharCount > 0 && pData->newCharCount <= MAX_BUFF) {
+                for (int i = pData->newCharCount - 1; i >= 0; i--) {
+                    SendKeyCode(pData->charData[i]);
+                }
+            }
+            if (pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
+                SendKeyCode(_keycode | ((_flag & kCGEventFlagMaskAlphaShift) || (_flag & kCGEventFlagMaskShift) ? CAPS_MASK : 0));
+            }
+            if (pData->code == vRestoreAndStartNewSession) {
+                startNewSession();
+            }
+        }
+    }
+
+    //The restore shortcut: gives back the keys typed for the word on screen ("rétỏe" -> "restore"). NO when there is nothing to
+    //give back, then the key is left for the application.
+    bool restoreTypingWord() {
+        if (!vRestoreWord())
+            return false;
+        sendEngineResult();
+        [SuggestionController reset]; //the word is no longer what the suggestion bar was looking at
+        return true;
+    }
+
     /**
      * MAIN HOOK entry, very important function.
      * MAIN Callback.
@@ -753,7 +814,8 @@ extern "C" {
         //switch language shortcut; convert hotkey
         if (type == kCGEventKeyDown) {
             bool isSnippetKey = vSnippetsEnabled && GET_SWITCH_KEY(vSnippetHotKey) == _keycode;
-            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey) {
+            bool isRestoreKey = GET_SWITCH_KEY(vRestoreHotKey) == _keycode;
+            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey) {
                 _lastFlag = 0;
             } else {
                 if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
@@ -773,6 +835,15 @@ extern "C" {
                     _hasJustUsedHotKey = true;
                     openSnippetPalette();
                     return NULL;
+                }
+                //restore the word being typed; with nothing to restore the key goes to the application (⌥Space is a space that does not break)
+                if (isRestoreKey && vLanguage == 1 && checkHotKey(vRestoreHotKey) && ![SnippetPalette isVisible]) {
+                    _proxy = proxy;
+                    if (restoreTypingWord()) {
+                        _lastFlag = 0;
+                        _hasJustUsedHotKey = true;
+                        return NULL;
+                    }
                 }
                 //the key of the snippet shortcut pressed with other modifiers (⌃⇧S) is an ordinary key, as it was before: without
                 //this the modifiers still held would switch the language when released
@@ -803,6 +874,15 @@ extern "C" {
                     _hasJustUsedHotKey = true;
                     openSnippetPalette();
                     return NULL;
+                }
+                //a restore shortcut that is made of modifiers only
+                if (vLanguage == 1 && GET_SWITCH_KEY(vRestoreHotKey) == 0xFE && checkHotKey(vRestoreHotKey, false) && ![SnippetPalette isVisible]) {
+                    _proxy = proxy;
+                    if (restoreTypingWord()) {
+                        _lastFlag = 0;
+                        _hasJustUsedHotKey = true;
+                        return NULL;
+                    }
                 }
                 //check temporarily turn off spell checking
                 if (vTempOffSpelling && !_hasJustUsedHotKey && _lastFlag & kCGEventFlagMaskControl) {
@@ -922,51 +1002,7 @@ extern "C" {
                 return event;
             } else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) { //handle result signal
                 
-                //fix autocomplete
-                if (shouldUseRecommendWorkaround(FRONT_APP) && pData->extCode != 4) {
-                    if (vFixChromiumBrowser && [_unicodeCompoundApp containsObject:FRONT_APP]) {
-                        if (pData->backspaceCount > 0) {
-                            SendShiftAndLeftArrow();
-                            if (pData->backspaceCount == 1)
-                                pData->backspaceCount--;
-                        }
-                    } else {
-                        SendEmptyCharacter();
-                        pData->backspaceCount++;
-                    
-                    }
-                }
-
-                if (shouldUseSelectionReplacement(FRONT_APP) && pData->backspaceCount > 0) {
-                    for (_i = 0; _i < pData->backspaceCount; _i++) {
-                        SendShiftAndLeftArrow();
-                    }
-                    pData->backspaceCount = 0;
-                }
-                
-                //send backspace
-                if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
-                    for (_i = 0; _i < pData->backspaceCount; _i++) {
-                        SendBackspace();
-                    }
-                }
-                
-                //send new character
-                if (!vSendKeyStepByStep) {
-                    SendNewCharString();
-                } else {
-                    if (pData->newCharCount > 0 && pData->newCharCount <= MAX_BUFF) {
-                        for (int i = pData->newCharCount - 1; i >= 0; i--) {
-                            SendKeyCode(pData->charData[i]);
-                        }
-                    }
-                    if (pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
-                        SendKeyCode(_keycode | ((_flag & kCGEventFlagMaskAlphaShift) || (_flag & kCGEventFlagMaskShift) ? CAPS_MASK : 0));
-                    }
-                    if (pData->code == vRestoreAndStartNewSession) {
-                        startNewSession();
-                    }
-                }
+                sendEngineResult();
             } else if (pData->code == vReplaceMaro) { //MACRO
                 handleMacro();
             }

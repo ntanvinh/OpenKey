@@ -65,6 +65,8 @@
 		5EC0DE1A20261014000C /* SnippetPalette.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1A20261014000B /* SnippetPalette.m */; };
 		5EC0DE1A202610140010 /* SnippetEditorController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1A20261014000F /* SnippetEditorController.m */; };
 		5EC0DE1A202610140014 /* SnippetSearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1A202610140013 /* SnippetSearch.cpp */; };
+		5EC0DE1B202610140004 /* WordRestore.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1B202610140003 /* WordRestore.m */; };
+		5EC0DE1B202610140008 /* ShortcutConflicts.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1B202610140007 /* ShortcutConflicts.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -197,6 +199,10 @@
 		5EC0DE1A20261014000F /* SnippetEditorController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SnippetEditorController.m; sourceTree = "<group>"; };
 		5EC0DE1A202610140011 /* SnippetSearch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SnippetSearch.h; sourceTree = "<group>"; };
 		5EC0DE1A202610140013 /* SnippetSearch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SnippetSearch.cpp; sourceTree = "<group>"; };
+		5EC0DE1B202610140001 /* WordRestore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WordRestore.h; sourceTree = "<group>"; };
+		5EC0DE1B202610140003 /* WordRestore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WordRestore.m; sourceTree = "<group>"; };
+		5EC0DE1B202610140005 /* ShortcutConflicts.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShortcutConflicts.h; sourceTree = "<group>"; };
+		5EC0DE1B202610140007 /* ShortcutConflicts.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ShortcutConflicts.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -260,6 +266,10 @@
 		232EDA5621F1B33E0085D362 /* ModernKey */ = {
 			isa = PBXGroup;
 			children = (
+				5EC0DE1B202610140007 /* ShortcutConflicts.m */,
+				5EC0DE1B202610140005 /* ShortcutConflicts.h */,
+				5EC0DE1B202610140003 /* WordRestore.m */,
+				5EC0DE1B202610140001 /* WordRestore.h */,
 				5EC0DE1A20261014000F /* SnippetEditorController.m */,
 				5EC0DE1A20261014000D /* SnippetEditorController.h */,
 				5EC0DE1A20261014000B /* SnippetPalette.m */,
@@ -511,6 +521,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5EC0DE1B202610140008 /* ShortcutConflicts.m in Sources */,
+				5EC0DE1B202610140004 /* WordRestore.m in Sources */,
 				5EC0DE1A202610140014 /* SnippetSearch.cpp in Sources */,
 				5EC0DE1A202610140010 /* SnippetEditorController.m in Sources */,
 				5EC0DE1A20261014000C /* SnippetPalette.m in Sources */,
@@ -698,7 +710,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 59;
+				CURRENT_PROJECT_VERSION = 61;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -707,7 +719,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.3.1;
+				MARKETING_VERSION = 3.4.1;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -725,7 +737,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 59;
+				CURRENT_PROJECT_VERSION = 61;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -734,7 +746,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.3.1;
+				MARKETING_VERSION = 3.4.1;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

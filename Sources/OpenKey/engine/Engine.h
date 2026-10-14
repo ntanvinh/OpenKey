@@ -235,6 +235,14 @@ int vGetTypingRawWord(Uint16* out, const int& maxCount);
 void vEnglishMode(const vKeyEventState& state, const Uint16& data, const bool& isCaps, const bool& otherControlKey);
 
 /**
+ * Gives the keys back that were typed for the word being typed ("restore" when the screen shows "r\u00e9t\u1ecfe"). Returns true
+ * when there was something to give back: the hook state is then filled as for a word that is replaced (code 1: delete
+ * backspaceCount characters, type the newCharCount characters), and the rest of the word is typed as it comes, without
+ * conversion. Returns false, changing nothing, when no word is being typed or it is as typed.
+ */
+bool vRestoreWord();
+
+/**
  * temporarily turn off spell checking
  */
 void vTempOffSpellChecking();

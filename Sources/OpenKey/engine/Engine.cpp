@@ -1026,7 +1026,8 @@ void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
 }
 
 void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32& keyWillReverse) {
-    if (CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {
+    //only when there is a character before: with an empty word this read the memory before TypingWord
+    if (_index > 0 && CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {
         hCode = vWillProcess;
         hBPC = 1;
         hNCC = 1;
@@ -1253,6 +1254,35 @@ bool checkRestoreIfWrongSpelling(const int& handleCode) {
     return false;
 }
 
+bool vRestoreWord() {
+    //a word that is being typed: not after a space or a symbol, and short enough to be remembered
+    if (_index == 0 || _stateIndex == 0 || _spaceCount > 0 || _willTempOffEngine ||
+        _specialChar.size() > 0 || _longWordHelper.size() > 0)
+        return false;
+    //nothing to give back when what is on screen is what was typed
+    bool changed = _index != _stateIndex;
+    for (ii = 0; !changed && ii < _index; ii++) {
+        if (TypingWord[ii] & (MARK_MASK | TONE_MASK | TONEW_MASK))
+            changed = true;
+    }
+    if (!changed)
+        return false;
+
+    hCode = vWillProcess; //replace the word; not vRestore, which also types the key that ended the word
+    hBPC = _index;
+    hNCC = _stateIndex;
+    hExt = 3;
+    for (i = 0; i < _stateIndex; i++) {
+        TypingWord[i] = KeyStates[i];
+        hData[_stateIndex - 1 - i] = TypingWord[i];
+    }
+    _index = _stateIndex;
+    //what follows in this word is typed as it comes, until the word is over
+    _willTempOffEngine = true;
+    hMacroKey.clear();
+    return true;
+}
+
 void vTempOffSpellChecking() {
     if (_useSpellCheckingBefore) {
         vCheckSpelling = vCheckSpelling ? 0 : 1;
@@ -1366,7 +1396,8 @@ void vKeyHandleEvent(const vKeyEvent& event,
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && isMacroBreakCode(data)) {
             checkQuickConsonant();
         } else if (vRestoreIfWrongSpelling && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
-            if (!tempDisableKey && vCheckSpelling) {
+            //the word is over, so it is judged now even when spell checking is off: restoring does not need it while typing
+            if (!tempDisableKey) {
                 checkSpelling(true); //force check spelling
             }
             if (tempDisableKey && !checkRestoreIfWrongSpelling(vRestoreAndStartNewSession)) {
@@ -1415,7 +1446,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 _upperCaseStatus = 0;
         }
     } else if (data == KEY_SPACE) {
-        if (!tempDisableKey && vCheckSpelling) {
+        if (!tempDisableKey && (vCheckSpelling || vRestoreIfWrongSpelling)) {
             checkSpelling(true); //force check spelling
         }
         if (vUseMacro && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) { //macro

@@ -244,7 +244,12 @@ static void TestPalette(void) {
     printf("panel visible=%d key=%d, app active=%d (a nonactivating panel should be key without activating the app)\n",
            palette.panel.visible, palette.panel.keyWindow, NSApp.active);
     CHECK(palette.panel.visible);
-    CHECK(palette.panel.keyWindow);
+    //macOS gives the keyboard to no window while the screen is locked, whatever the window asks for
+    NSDictionary* session = CFBridgingRelease(CGSessionCopyCurrentDictionary());
+    if ([session[@"CGSSessionScreenIsLocked"] boolValue])
+        printf("screen is locked: the check that the window takes the keyboard is skipped\n");
+    else
+        CHECK(palette.panel.keyWindow);
     CHECK([SnippetPalette isVisible]);
     CHECK(boundaries == 1);
     CHECK(palette.searchField.currentEditor != nil);                                 //the field has the keyboard

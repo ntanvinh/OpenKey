@@ -26,6 +26,7 @@
 #import "InputSourceGuard.h"
 #import "SnippetPalette.h"
 #import "SnippetStore.h"
+#import "WordRestore.h"
 
 AppDelegate* appDelegate;
 extern void OnTableCodeChange(void);
@@ -114,6 +115,9 @@ extern bool convertToolDontAlertWhenCompleted;
     [InputSourceGuard registerDefaults];
     [SnippetPalette registerDefaults];
     [SnippetPalette start];
+    [WordRestore registerDefaults];
+    [WordRestore migrateSettings]; //before the typing engine reads its settings
+    [WordRestore start];
     
     [self registerSupportedNotification];
     
@@ -209,7 +213,8 @@ extern bool convertToolDontAlertWhenCompleted;
     vSwitchKeyStatus = DEFAULT_SWITCH_STATUS; [[NSUserDefaults standardUserDefaults] setInteger:vCodeTable forKey:@"SwitchKeyStatus"];
     vQuickTelex = 0; [[NSUserDefaults standardUserDefaults] setInteger:vQuickTelex forKey:@"QuickTelex"];
     vUseModernOrthography = 0; [[NSUserDefaults standardUserDefaults] setInteger:vUseModernOrthography forKey:@"ModernOrthography"];
-    vRestoreIfWrongSpelling = 0; [[NSUserDefaults standardUserDefaults] setInteger:vRestoreIfWrongSpelling forKey:@"RestoreIfInvalidWord"];
+    vRestoreIfWrongSpelling = 1; [[NSUserDefaults standardUserDefaults] setInteger:vRestoreIfWrongSpelling forKey:@"RestoreIfInvalidWord"];
+    vRestoreHotKey = VOK_RESTORE_DEFAULT_HOTKEY; [[NSUserDefaults standardUserDefaults] setInteger:vRestoreHotKey forKey:@"RestoreHotKey"];
     vFixRecommendBrowser = 1; [[NSUserDefaults standardUserDefaults] setInteger:vFixRecommendBrowser forKey:@"FixRecommendBrowser"];
     vUseMacro = 1; [[NSUserDefaults standardUserDefaults] setInteger:vUseMacro forKey:@"UseMacro"];
     vUseMacroInEnglishMode = 0; [[NSUserDefaults standardUserDefaults] setInteger:vUseMacroInEnglishMode forKey:@"UseMacroInEnglishMode"];
