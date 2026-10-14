@@ -1,5 +1,5 @@
 # OpenKey for Windows
-[![GitHub release](https://img.shields.io/github/v/release/tuyenvm/OpenKey.svg)](https://github.com/tuyenvm/OpenKey/releases/latest)
+[![GitHub release](https://img.shields.io/github/v/release/ntanvinh/OpenKey.svg)](https://github.com/ntanvinh/OpenKey/releases/latest)
 - OpenKey phiên bản cho Windows bắt đầu từ bản 1.5, có tất cả các tính năng của bản macOS.  
 - OpenKey mặc định chạy ở chế độ `Administrator` để có thể dễ dàng gõ Tiếng Việt trong **game**. Mã nguồn đã được phát hành công khai dưới giấy phép **GPL** nên các bạn hoàn toàn yên tâm về tính minh bạch của chương trình, không keylog, không backdoor,...
 - OpenKey for Windows hỗ trợ từ Windows Vista trở lên, Windows XP thì chưa có cơ hội để test, Windows 2000 trở về trước thì chắc chắn không thể hỗ trợ rồi.
@@ -47,7 +47,7 @@ Mặc định, OpenKey cho phép gõ với chế độ bỏ dấu tự do, khôn
 	* Gõ tắt phụ âm cuối: g->ng, h->nh, k->ch
 
 ## Cài đặt
-- Vào [đây](https://github.com/tuyenvm/OpenKey/releases/latest) tải file `.zip` phiên bản mới nhất về máy, giải nén vào nơi bất kỳ.
+- Vào [đây](https://github.com/ntanvinh/OpenKey/releases/latest) tải file `VOpenKey-<phiên bản>-Windows.zip` mới nhất về máy, giải nén vào nơi bất kỳ.
 - Nhấp đúp vô `OpenKey.exe` để chạy chương trình.
 - Lưu ý, khi chạy chương trình lần đầu, Windows sẽ mở một hộp thoại để hỏi bạn, bấm `yes` để đồng ý OpenKey chạy với quyền `admin`
 - Xong rồi một biểu tượng chữ `V` sẽ hiện trên system tray, đúp click vô đó để mở bảng điều khiển, cấu hình những thứ bạn cần.

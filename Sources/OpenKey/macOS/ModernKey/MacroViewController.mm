@@ -33,9 +33,12 @@
     
     self.AutoCapsMacro.state = vAutoCapsMacro ? NSControlStateValueOn : NSControlStateValueOff;
 
-    //SF Symbols instead of the pictures of the old toolbar
-    VOKSetButtonSymbol(self.buttonAdd, @"plus", 12);
-    VOKSetButtonSymbol(VOKFindButton(self.view, @selector(onDeleteMacro:)), @"minus", 12);
+    //Add is the main action of the window: the default button, answering to Return. Delete is red, and has no
+    //shortcut of its own (a bare letter as a shortcut would be taken by the text fields)
+    self.buttonAdd.keyEquivalent = @"\r";
+    NSButton* deleteButton = VOKFindButton(self.view, @selector(onDeleteMacro:));
+    deleteButton.keyEquivalent = @"";
+    deleteButton.hasDestructiveAction = YES;
     
     //load data
     getAllMacro(keys, macroText, macroContent);
@@ -96,13 +99,15 @@
     [openPanel setLevel:NSStatusWindowLevel];
     if ([openPanel runModal] == NSModalResponseOK ) {
         NSAlert* alert = [[NSAlert alloc] init];
-        [alert setInformativeText:@"Bạn có muốn giữ lại các dữ liệu hiện tại không?"];
-        [alert addButtonWithTitle:@"Có"];
-        [alert addButtonWithTitle:@"Không"];
-        [alert setMessageText:@"Dữ liệu gõ tắt"];
-        [alert setAlertStyle:NSCriticalAlertStyle];
+        [alert setMessageText:@"Nạp danh sách gõ tắt từ file"];
+        [alert setInformativeText:@"Giữ lại các gõ tắt hiện có và thêm các gõ tắt trong file, hay thay thế hết bằng file?"];
+        [alert addButtonWithTitle:@"Giữ lại và thêm"];
+        [alert addButtonWithTitle:@"Thay thế"].hasDestructiveAction = YES;
+        [alert addButtonWithTitle:@"Hủy"].keyEquivalent = @"\033";
         [alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
-            readFromFile(openPanel.URL.path.UTF8String, returnCode == 1000);
+            if (returnCode == NSAlertThirdButtonReturn)
+                return;
+            readFromFile(openPanel.URL.path.UTF8String, returnCode == NSAlertFirstButtonReturn);
             [self saveAndReload];
         }];
     }
@@ -126,7 +131,6 @@
     [alert setInformativeText:msg];
     [alert addButtonWithTitle:@"OK"];
     [alert setMessageText:@"Gõ tắt"];
-    [alert setAlertStyle:NSCriticalAlertStyle];
     [alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
         
     }];

@@ -195,14 +195,15 @@ static CFRunLoopSourceRef runLoopSource;
 
 +(void)showUpdateMessage:(NSWindow*)parent needUpdating:(BOOL)needUpdating newVersion:(NSString*)versionString {
     NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:(needUpdating ? [NSString stringWithFormat:@"%@ có phiên bản mới (%@), bạn có muốn tải về không?", VOK_APP_NAME, versionString] : @"Bạn đang dùng phiên bản mới nhất!")];
-    [alert setInformativeText:(needUpdating ? @"Bấm 'Có' để mở trang tải về." : @"")];
+    [alert setMessageText:(needUpdating ? [NSString stringWithFormat:@"%@ có phiên bản mới (%@)", VOK_APP_NAME, versionString] : @"Bạn đang dùng phiên bản mới nhất")];
+    [alert setInformativeText:(needUpdating ? @"Trang tải về sẽ mở trong trình duyệt." : @"")];
     
+    //buttons say what they do, not Yes and No; the one that goes on is the default
     if (!needUpdating) {
         [alert addButtonWithTitle:@"OK"];
     } else {
-        [alert addButtonWithTitle:@"Có"];
-        [alert addButtonWithTitle:@"Không"];
+        [alert addButtonWithTitle:@"Tải về"];
+        [alert addButtonWithTitle:@"Để sau"].keyEquivalent = @"\033";
     }
     if (parent == nil) {
         [alert.window makeKeyAndOrderFront:nil];

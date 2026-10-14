@@ -638,10 +638,11 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSAlert* alert = [[NSAlert alloc] init];
     alert.messageText = @"Xóa dữ liệu đã học?";
     alert.informativeText = @"VOpenKey sẽ quên mọi từ và cụm từ đã học từ cách gõ của bạn. Từ điển có sẵn không bị ảnh hưởng.";
-    [alert addButtonWithTitle:@"Xóa"];
+    //the safe choice is the default one, the destructive one is in red
     [alert addButtonWithTitle:@"Hủy"];
+    [alert addButtonWithTitle:@"Xóa"].hasDestructiveAction = YES;
     [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
-        if (returnCode == NSAlertFirstButtonReturn)
+        if (returnCode == NSAlertSecondButtonReturn)
             [SuggestionController forgetLearnedWords];
     }];
 }
@@ -681,10 +682,10 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSAlert* alert = [[NSAlert alloc] init];
     alert.messageText = @"Khôi phục cấu hình mặc định?";
     alert.informativeText = @"Mọi tùy chọn sẽ trở về như lúc mới cài. Danh sách gõ tắt của bạn không bị xóa.";
-    [alert addButtonWithTitle:@"Khôi phục"];
     [alert addButtonWithTitle:@"Hủy"];
+    [alert addButtonWithTitle:@"Khôi phục"].hasDestructiveAction = YES;
     [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
-        if (returnCode != NSAlertFirstButtonReturn)
+        if (returnCode != NSAlertSecondButtonReturn)
             return;
         [appDelegate loadDefaultConfig];
         [[NSUserDefaults standardUserDefaults] setInteger:0 forKey:@"ShowUIOnStartup"];

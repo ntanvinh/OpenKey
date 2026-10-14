@@ -42,15 +42,19 @@ static void ApplyShortcut(NSMenuItem* item, int data) {
     item.keyEquivalentModifierMask = modifiers;
 }
 
-//Keep the language checkmark in a trailing column, while retaining AppKit's
-//native menu row sizing and spacing. The right tab stop is inside the title
-//column, after the flag image.
+//The checkmark of the selected language sits at the trailing edge of the menu, in the column where the other rows have
+//their arrows and shortcuts, while the rows keep the native size and spacing of AppKit.
+//A menu is as wide as its widest row. Putting the right tab stop wider than every other row makes these two the
+//widest ones, so the stop is the trailing edge of the menu whatever the other rows hold or the system font is
+//(a smaller number leaves the checkmark floating in the middle of a wider menu). The text starts after the flag.
+static const CGFloat kLanguageRowTextWidth = 262;
+
 static NSAttributedString* LanguageMenuTitle(NSString* title, BOOL selected) {
     NSString* value = [title stringByAppendingFormat:@"\t%@", selected ? @"✓" : @""];
     NSMutableParagraphStyle* paragraphStyle = [[NSMutableParagraphStyle alloc] init];
     paragraphStyle.alignment = NSTextAlignmentLeft;
     paragraphStyle.tabStops = @[[[NSTextTab alloc] initWithTextAlignment:NSTextAlignmentRight
-                                                                 location:190
+                                                                 location:kLanguageRowTextWidth
                                                                   options:@{}]];
     return [[NSAttributedString alloc] initWithString:value attributes:@{
         NSParagraphStyleAttributeName: paragraphStyle

@@ -95,12 +95,12 @@ BEGIN
     LTEXT           "OpenKey",IDC_STATIC_APP_TITLE,45,14,206,33,SS_NOPREFIX
     LTEXT           "Bộ gõ Tiếng Việt nguồn mở đa nền tảng",IDC_STATIC_APP_SUB_TITLE,45,40,215,12
     LTEXT           "Phien ban",IDC_STATIC_APP_VERSION,45,52,227,8
-    CONTROL         "<a>https://github.com/tuyenvm/OpenKey</a>",IDC_SYSLINK_HOME_PAGE,
+    CONTROL         "<a>https://github.com/ntanvinh/OpenKey</a>",IDC_SYSLINK_HOME_PAGE,
                     "SysLink",WS_TABSTOP,105,79,152,10
     LTEXT           "Trang chủ:",IDC_STATIC_APP_SUB_TITLE2,45,79,47,8
     LTEXT           "Phiên bản mới:",IDC_STATIC_APP_SUB_TITLE3,45,91,58,8
     LTEXT           "Fanpage:",IDC_STATIC_APP_SUB_TITLE4,45,103,47,8
-    CONTROL         "<a>https://github.com/tuyenvm/OpenKey/releases</a>",IDC_SYSLINK_NEW_VERSION,
+    CONTROL         "<a>https://github.com/ntanvinh/OpenKey/releases</a>",IDC_SYSLINK_NEW_VERSION,
                     "SysLink",WS_TABSTOP,105,91,175,10
     CONTROL         "<a>https://www.facebook.com/OpenKeyVN</a>",IDC_SYSLINK_FANPAGE,
                     "SysLink",WS_TABSTOP,105,104,175,10
@@ -405,8 +405,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,5,0
- PRODUCTVERSION 2,0,5,0
+ FILEVERSION 3,0,0,50
+ PRODUCTVERSION 3,0,0,50
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -421,14 +421,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "The OpenKey Project"
+            VALUE "CompanyName", "LSSoft"
             VALUE "FileDescription", "OpenKey - Bộ gõ Tiếng Việt nguồn mở"
-            VALUE "FileVersion", "2.0.5.0"
+            VALUE "FileVersion", "3.0.0.50"
             VALUE "InternalName", "OpenKey.exe"
-            VALUE "LegalCopyright", "Copyright (C) 2019 - Mai Vũ Tuyên"
+            VALUE "LegalCopyright", "Copyright (C) 2019 - Mai Vũ Tuyên. Fork VOpenKey by LSSoft, GPL-3.0"
             VALUE "OriginalFilename", "OpenKey.exe"
             VALUE "ProductName", "OpenKey"
-            VALUE "ProductVersion", "2.0.5.0"
+            VALUE "ProductVersion", "3.0.0.50"
         END
     END
     BLOCK "VarFileInfo"

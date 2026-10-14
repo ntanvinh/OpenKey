@@ -1,0 +1,79 @@
+name: Release Windows
+
+# Builds the Windows version and attaches VOpenKey-<version>-Windows.zip to the GitHub Release of the same tag.
+#
+# The macOS release is made on the Mac (scripts/release.sh --publish creates the release v<version> with the .dmg),
+# publishing that release starts this workflow, which adds the Windows zip to it.
+# It can also be run by hand: Actions > Release Windows > Run workflow, with the tag of an existing release.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of an existing release, for example v3.0.0
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  SOLUTION_DIR: Sources/OpenKey/win32/OpenKey
+  RC_FILE: Sources/OpenKey/win32/OpenKey/OpenKey/OpenKey.rc
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Work out the tag
+        shell: pwsh
+        run: |
+          $tag = if ("${{ github.event_name }}" -eq "release") { "${{ github.event.release.tag_name }}" } else { "${{ inputs.tag }}" }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw "tag '$tag' is not like v3.0.0" }
+          "TAG=$tag" >> $env:GITHUB_ENV
+          "VERSION=$($tag.Substring(1))" >> $env:GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      # The program tells itself apart from the newest version by the version inside the .exe,
+      # a zip whose version does not match its tag would be offered as an update again and again.
+      - name: The version of the program matches the tag
+        shell: pwsh
+        run: |
+          $rc = Get-Content $env:RC_FILE -Raw
+          if ($rc -notmatch 'FILEVERSION\s+(\d+),(\d+),(\d+),(\d+)') { throw "no FILEVERSION in $env:RC_FILE" }
+          $inside = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+          if ($inside -ne $env:VERSION) { throw "OpenKey.rc says $inside but the tag is $env:TAG" }
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build x86
+        run: msbuild -m -target:Rebuild -p:Configuration=Release -p:Platform=x86 ${{ env.SOLUTION_DIR }}
+
+      - name: Build x64
+        run: msbuild -m -target:Rebuild -p:Configuration=Release -p:Platform=x64 ${{ env.SOLUTION_DIR }}
+
+      - name: Make the zip
+        shell: pwsh
+        run: |
+          $out = "VOpenKey-$env:VERSION-Windows"
+          New-Item -ItemType Directory -Path $out | Out-Null
+          Copy-Item "$env:SOLUTION_DIR/x64/Release/OpenKey64.exe" $out
+          Copy-Item "$env:SOLUTION_DIR/Release/OpenKey32.exe" $out
+          Copy-Item "$env:SOLUTION_DIR/Release/OpenKeyUpdate.exe" $out
+          Copy-Item LICENSE $out
+          Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
+          (Get-FileHash "$out.zip" -Algorithm SHA256).Hash.ToLower() + "  $out.zip" | Out-File -Encoding ascii "$out.zip.sha256"
+          Get-ChildItem $out | Format-Table Name, Length
+
+      - name: Attach to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) { throw "there is no release $env:TAG, create it first" }
+          gh release upload $env:TAG "VOpenKey-$env:VERSION-Windows.zip" "VOpenKey-$env:VERSION-Windows.zip.sha256" --clobber --repo $env:GITHUB_REPOSITORY
