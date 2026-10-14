@@ -1,9 +1,12 @@
 # OpenKey Change Log
 
-##### Chưa phát hành
-- Thanh gợi ý khi gõ, kiểu bảng ứng viên của bộ gõ Hán tự: hiện các từ có thể gõ tiếp ngay dưới từ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác; chọn xong tự thêm dấu cách và dự đoán từ kế tiếp. Mặc định tắt, bật trong Cài đặt > Gõ tắt.
+##### VOpenKey 3.0.0 (build 50): (14/10/2026)
+- Thanh gợi ý khi gõ theo phong cách macOS (chất liệu menu, bo góc đồng tâm, sáng/tối tự theo hệ thống), kiểu bảng ứng viên của bộ gõ Hán tự: hiện các từ có thể gõ tiếp ngay dưới từ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác; chọn xong tự thêm dấu cách và dự đoán từ kế tiếp. Mặc định tắt, bật trong Cài đặt > Gõ tắt.
 - Engine gợi ý dùng chung cho mọi nền tảng (`engine/Suggest*.{h,cpp}`): từ điển là file text, đoán theo ngữ cảnh 2 từ trước (bigram/trigram), gõ không dấu vẫn ra từ có dấu, tự học từ cách gõ (lưu ở `~/Library/Application Support/VOpenKey/learned.txt`).
 - Gợi ý từ ghép: gõ liền không dấu, ví dụ `thietke`, ra `thiết kế`; gõ dở như `thiet` ra `thiết kế`, `thiết bị`... Từ ghép viết `thiết_kế` trong file từ điển, hoặc viết cách bình thường dưới dòng `#!compounds`. Tìm cả bằng phím thô khi Telex đã đổi chữ trên màn hình (`hoso` ra `hồ sơ`).
+- Biểu tượng: thay các ảnh PNG đen cũ trong cửa sổ Chuyển mã và Gõ tắt bằng SF Symbols của macOS (tự đổi màu theo giao diện sáng/tối); nút, ô chọn bảng mã và ô nhập dùng kiểu bo tròn chuẩn của macOS; "Chuyển mã" là nút mặc định.
+- Sửa lỗi hàng trong Cài đặt có mô tả dài bị tràn ra ngoài thẻ; sửa công tắc con của "Thanh gợi ý" hiện Tắt khi mở Cài đặt trước khi bộ gợi ý khởi động.
+- Cài đặt: khoảng cách các hàng, nhóm và tiêu đề thống nhất ở mọi tab (hàng cao tối thiểu 44 pt, đường kẻ thụt như System Settings, chú thích dưới nhóm); thêm nút xóa dữ liệu đã học.
 - Kèm sẵn khoảng 36.000 từ ghép và 5.000 âm tiết từ [Wiktionary tiếng Việt](https://vi.wiktionary.org) (CC BY-SA 4.0, chỉ lấy tên mục từ), tạo bằng `scripts/fetch-wiktionary-dictionary.py`; ghi nguồn trong cửa sổ About và `engine/dictionaries/README.md`.
 - Bổ sung từ điển bằng cách thả file `.txt` vào thư mục Dictionaries; `scripts/build-dictionary.py` tạo từ điển lớn từ văn bản tiếng Việt.
 

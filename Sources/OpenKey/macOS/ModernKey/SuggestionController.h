@@ -24,6 +24,9 @@ extern int vSuggestCompounds;
 
 @interface SuggestionController : NSObject
 
+/// The values of the settings before the user has changed them. Call at launch, before any window shows them.
++(void)registerDefaults;
+
 /// Loads the dictionaries and starts watching the frontmost application. Call once at launch.
 +(void)start;
 /// Saves what was learned.
@@ -33,6 +36,8 @@ extern int vSuggestCompounds;
 +(void)reloadSettings;
 /// Reads the dictionary files again, after files were added or edited.
 +(void)reloadDictionaries;
+/// Forgets everything learned from the user's typing, in memory and on disk.
++(void)forgetLearnedWords;
 /// Shows the folder where dictionary files can be added in Finder.
 +(void)openDictionaryFolder;
 

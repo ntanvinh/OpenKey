@@ -5,14 +5,17 @@
 
 #import "SuggestionPanel.h"
 
+//Corners are concentric: the bar is as round as an item plus the space around the item
+static const CGFloat kItemRadius = 6;
 static const CGFloat kPadding = 4;
-static const CGFloat kItemHeight = 24;
-static const CGFloat kItemPadding = 9;
+static const CGFloat kBarRadius = kItemRadius + kPadding;
+static const CGFloat kItemHeight = 26;
+static const CGFloat kItemPadding = 10;   //left and right of the text inside an item
 static const CGFloat kItemGap = 2;
-static const CGFloat kLabelGap = 5;
-static const CGFloat kCornerRadius = 8;
-static const CGFloat kScreenMargin = 4;
-static const CGFloat kDistanceFromText = 3;
+static const CGFloat kLabelGap = 6;       //between the key hint and the word
+static const CGFloat kScreenMargin = 6;
+static const CGFloat kDistanceFromText = 4;
+static const NSTimeInterval kFadeIn = 0.12;
 
 #pragma mark - The words
 
@@ -27,36 +30,48 @@ static const CGFloat kDistanceFromText = 3;
     return YES;
 }
 
--(NSString*)labelAtIndex:(NSUInteger)index {
+-(BOOL)isOpaque {
+    return NO;
+}
+
+//Tab for the first, ⌥2... for the others, in the way macOS writes shortcuts
+-(NSString*)hintAtIndex:(NSUInteger)index {
     return index == 0 ? @"⇥" : [NSString stringWithFormat:@"⌥%lu", (unsigned long)index + 1];
 }
 
 -(NSDictionary*)wordAttributes:(BOOL)selected {
     return @{NSFontAttributeName: [NSFont systemFontOfSize:15],
-             NSForegroundColorAttributeName: selected ? [NSColor whiteColor] : [NSColor labelColor]};
+             NSForegroundColorAttributeName: selected ? [NSColor alternateSelectedControlTextColor] : [NSColor labelColor]};
 }
 
--(NSDictionary*)labelAttributes:(BOOL)selected {
-    return @{NSFontAttributeName: [NSFont systemFontOfSize:11],
-             NSForegroundColorAttributeName: selected ? [[NSColor whiteColor] colorWithAlphaComponent:0.75]
-                                                      : [NSColor tertiaryLabelColor]};
+-(NSDictionary*)hintAttributes:(BOOL)selected {
+    return @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:11 weight:NSFontWeightRegular],
+             NSForegroundColorAttributeName: selected ? [[NSColor alternateSelectedControlTextColor] colorWithAlphaComponent:0.8]
+                                                      : [NSColor secondaryLabelColor]};
 }
 
 -(CGFloat)widthOfItem:(NSUInteger)index {
     BOOL selected = index == 0;
-    CGFloat label = [[self labelAtIndex:index] sizeWithAttributes:[self labelAttributes:selected]].width;
-    CGFloat word = [self.words[index] sizeWithAttributes:[self wordAttributes:selected]].width;
-    return kItemPadding + label + kLabelGap + word + kItemPadding;
+    CGFloat hint = ceil([[self hintAtIndex:index] sizeWithAttributes:[self hintAttributes:selected]].width);
+    CGFloat word = ceil([self.words[index] sizeWithAttributes:[self wordAttributes:selected]].width);
+    return kItemPadding + hint + kLabelGap + word + kItemPadding;
 }
 
 -(NSSize)contentSize {
     CGFloat width = kPadding;
     for (NSUInteger i = 0; i < self.words.count; i++)
         width += [self widthOfItem:i] + (i > 0 ? kItemGap : 0);
-    return NSMakeSize(ceil(width + kPadding), kItemHeight + 2 * kPadding);
+    return NSMakeSize(width + kPadding, kItemHeight + 2 * kPadding);
 }
 
 -(void)drawRect:(NSRect)dirtyRect {
+    //hairline around the bar, drawn here so that its colour follows light and dark
+    NSBezierPath* outline = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0.25, 0.25)
+                                                            xRadius:kBarRadius yRadius:kBarRadius];
+    outline.lineWidth = 0.5;
+    [[NSColor separatorColor] setStroke];
+    [outline stroke];
+
     CGFloat x = kPadding;
     for (NSUInteger i = 0; i < self.words.count; i++) {
         BOOL selected = i == 0;
@@ -64,26 +79,46 @@ static const CGFloat kDistanceFromText = 3;
         NSRect item = NSMakeRect(x, kPadding, width, kItemHeight);
         if (selected) {
             [[NSColor controlAccentColor] setFill];
-            [[NSBezierPath bezierPathWithRoundedRect:item xRadius:5 yRadius:5] fill];
+            [[NSBezierPath bezierPathWithRoundedRect:item xRadius:kItemRadius yRadius:kItemRadius] fill];
         }
-        NSString* label = [self labelAtIndex:i];
-        NSDictionary* labelAttributes = [self labelAttributes:selected];
+        NSString* hint = [self hintAtIndex:i];
+        NSDictionary* hintAttributes = [self hintAttributes:selected];
         NSDictionary* wordAttributes = [self wordAttributes:selected];
-        NSSize labelSize = [label sizeWithAttributes:labelAttributes];
+        NSSize hintSize = [hint sizeWithAttributes:hintAttributes];
         NSSize wordSize = [self.words[i] sizeWithAttributes:wordAttributes];
         CGFloat left = x + kItemPadding;
-        [label drawAtPoint:NSMakePoint(left, item.origin.y + (kItemHeight - labelSize.height) / 2)
-            withAttributes:labelAttributes];
-        [self.words[i] drawAtPoint:NSMakePoint(left + labelSize.width + kLabelGap,
-                                               item.origin.y + (kItemHeight - wordSize.height) / 2)
+        //the key hint and the word are smaller and larger text on one baseline, centred as a whole on the item
+        NSFont* hintFont = hintAttributes[NSFontAttributeName];
+        NSFont* wordFont = wordAttributes[NSFontAttributeName];
+        CGFloat baseline = NSMidY(item) - wordSize.height / 2 + wordFont.ascender;
+        [hint drawAtPoint:NSMakePoint(left, baseline - hintFont.ascender) withAttributes:hintAttributes];
+        [self.words[i] drawAtPoint:NSMakePoint(left + ceil(hintSize.width) + kLabelGap, baseline - wordFont.ascender)
                     withAttributes:wordAttributes];
         x += width + kItemGap;
     }
 }
 
+-(void)viewDidChangeEffectiveAppearance {
+    [super viewDidChangeEffectiveAppearance];
+    self.needsDisplay = YES;
+}
+
 @end
 
 #pragma mark - The panel
+
+//Stretchable rounded mask: the system uses it to cut the blur and to shape the shadow
+static NSImage* BarMask(void) {
+    CGFloat side = kBarRadius * 2 + 1;
+    NSImage* mask = [NSImage imageWithSize:NSMakeSize(side, side) flipped:NO drawingHandler:^BOOL(NSRect rect) {
+        [[NSColor blackColor] set];
+        [[NSBezierPath bezierPathWithRoundedRect:rect xRadius:kBarRadius yRadius:kBarRadius] fill];
+        return YES;
+    }];
+    mask.capInsets = NSEdgeInsetsMake(kBarRadius, kBarRadius, kBarRadius, kBarRadius);
+    mask.resizingMode = NSImageResizingModeStretch;
+    return mask;
+}
 
 @implementation SuggestionPanel {
     SuggestionItemsView* _items;
@@ -103,20 +138,18 @@ static const CGFloat kDistanceFromText = 3;
         self.hidesOnDeactivate = NO;
         self.ignoresMouseEvents = YES;
         self.releasedWhenClosed = NO;
+        self.animationBehavior = NSWindowAnimationBehaviorNone;
         self.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
                                   NSWindowCollectionBehaviorStationary |
                                   NSWindowCollectionBehaviorFullScreenAuxiliary |
                                   NSWindowCollectionBehaviorIgnoresCycle;
 
+        //the material of menus: it follows light and dark, the accent colour and "Reduce transparency" by itself
         NSVisualEffectView* background = [[NSVisualEffectView alloc] initWithFrame:self.contentView.bounds];
         background.material = NSVisualEffectMaterialMenu;
         background.blendingMode = NSVisualEffectBlendingModeBehindWindow;
         background.state = NSVisualEffectStateActive;
-        background.wantsLayer = YES;
-        background.layer.cornerRadius = kCornerRadius;
-        background.layer.masksToBounds = YES;
-        background.layer.borderWidth = 0.5;
-        background.layer.borderColor = [[NSColor separatorColor] CGColor];
+        background.maskImage = BarMask();
         self.contentView = background;
 
         _items = [[SuggestionItemsView alloc] initWithFrame:background.bounds];
@@ -139,6 +172,7 @@ static const CGFloat kDistanceFromText = 3;
     _items.words = words;
     [self setContentSize:[_items contentSize]];
     _items.needsDisplay = YES;
+    [self invalidateShadow];
 }
 
 -(NSScreen*)screenContaining:(NSPoint)point {
@@ -149,16 +183,33 @@ static const CGFloat kDistanceFromText = 3;
     return [NSScreen mainScreen];
 }
 
+-(void)show {
+    if (self.visible)
+        return;
+    if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
+        self.alphaValue = 1;
+        [self orderFrontRegardless];
+        return;
+    }
+    self.alphaValue = 0;
+    [self orderFrontRegardless];
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext* context) {
+        context.duration = kFadeIn;
+        self.animator.alphaValue = 1;
+    }];
+}
+
 -(void)showBelowRect:(NSRect)rect {
     NSSize size = self.frame.size;
     NSRect visible = [self screenContaining:rect.origin].visibleFrame;
-    CGFloat x = rect.origin.x - kPadding;
+    //the first word starts where the typed word starts
+    CGFloat x = rect.origin.x - kPadding - kItemPadding;
     x = MAX(visible.origin.x + kScreenMargin, MIN(x, NSMaxX(visible) - size.width - kScreenMargin));
     CGFloat y = rect.origin.y - size.height - kDistanceFromText;
     if (y < visible.origin.y + kScreenMargin) //no room below: above the text
         y = NSMaxY(rect) + kDistanceFromText;
     [self setFrameOrigin:NSMakePoint(x, y)];
-    [self orderFrontRegardless];
+    [self show];
 }
 
 -(void)showNearPoint:(NSPoint)point {

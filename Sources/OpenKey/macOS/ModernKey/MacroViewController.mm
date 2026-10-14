@@ -6,6 +6,7 @@
 //  Copyright © 2019 Tuyen Mai. All rights reserved.
 //
 
+#import "VOKUI.h"
 #import "MacroViewController.h"
 #include "Engine.h"
 
@@ -31,6 +32,10 @@
     self.macroContent.delegate = self;
     
     self.AutoCapsMacro.state = vAutoCapsMacro ? NSControlStateValueOn : NSControlStateValueOff;
+
+    //SF Symbols instead of the pictures of the old toolbar
+    VOKSetButtonSymbol(self.buttonAdd, @"plus", 12);
+    VOKSetButtonSymbol(VOKFindButton(self.view, @selector(onDeleteMacro:)), @"minus", 12);
     
     //load data
     getAllMacro(keys, macroText, macroContent);

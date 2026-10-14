@@ -12,6 +12,27 @@ NSImage* VOKSymbol(NSString* name, CGFloat pointSize, NSFontWeight weight) {
     return [image imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPointSize:pointSize weight:weight]];
 }
 
+NSButton* VOKFindButton(NSView* root, SEL action) {
+    if ([root isKindOfClass:[NSButton class]] && ((NSButton*)root).action == action)
+        return (NSButton*)root;
+    for (NSView* child in root.subviews) {
+        NSButton* found = VOKFindButton(child, action);
+        if (found != nil)
+            return found;
+    }
+    return nil;
+}
+
+void VOKSetButtonSymbol(NSButton* button, NSString* symbol, CGFloat pointSize) {
+    NSImage* image = VOKSymbol(symbol, pointSize, NSFontWeightRegular);
+    if (image == nil || button == nil)
+        return;
+    button.image = image;
+    button.imagePosition = button.title.length > 0 ? NSImageLeading : NSImageOnly;
+    button.imageScaling = NSImageScaleProportionallyDown;
+    button.imageHugsTitle = YES;
+}
+
 static NSBezierPath* StarPath(NSPoint center, CGFloat radius) {
     NSBezierPath* star = [NSBezierPath bezierPath];
     for (int i = 0; i < 10; i++) {
@@ -121,6 +142,20 @@ NSView* VOKSeparator(void) {
     line.boxType = NSBoxSeparator;
     line.translatesAutoresizingMaskIntoConstraints = NO;
     return line;
+}
+
+NSView* VOKInsetSeparator(CGFloat leading) {
+    NSView* container = [[NSView alloc] init];
+    container.translatesAutoresizingMaskIntoConstraints = NO;
+    NSView* line = VOKSeparator();
+    [container addSubview:line];
+    [NSLayoutConstraint activateConstraints:@[
+        [line.leadingAnchor constraintEqualToAnchor:container.leadingAnchor constant:leading],
+        [line.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
+        [line.topAnchor constraintEqualToAnchor:container.topAnchor],
+        [line.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
+    ]];
+    return container;
 }
 
 void VOKFillWidth(NSStackView* stack) {

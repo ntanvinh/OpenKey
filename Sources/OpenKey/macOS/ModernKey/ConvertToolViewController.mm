@@ -10,6 +10,7 @@
 #import "ConvertToolViewController.h"
 #import "OpenKeyManager.h"
 #import "ConvertTool.h"
+#import "VOKUI.h"
 
 extern AppDelegate* appDelegate;
 
@@ -24,6 +25,30 @@ extern AppDelegate* appDelegate;
 
     self.SHotKey.Parent = self;
     [self fillData];
+    [self styleButtons];
+}
+
+//Buttons in the look of macOS: rounded, with SF Symbols instead of pictures, the main action in the accent colour
+-(void)styleButtons {
+    VOKSetButtonSymbol(self.ReverseCode, @"arrow.left.arrow.right", 13);
+    self.ReverseCode.toolTip = @"Đổi chỗ bảng mã nguồn và đích";
+
+    NSButton* convert = VOKFindButton(self.view, @selector(onConvertButton:));
+    NSButton* close = VOKFindButton(self.view, @selector(onOKButton:));
+    VOKSetButtonSymbol(convert, @"arrow.triangle.2.circlepath", 13);
+    VOKSetButtonSymbol(close, @"xmark.circle", 13);
+    convert.keyEquivalent = @"\r";
+    close.keyEquivalent = @"\033";
+    for (NSButton* button in @[convert, close]) {
+        //a standard rounded button, a little larger than the 22 point ones, still centred where the old one was
+        NSRect frame = button.frame;
+        CGFloat height = 32;
+        frame.origin.y += (frame.size.height - height) / 2;
+        frame.size.height = height;
+        button.controlSize = NSControlSizeLarge;
+        button.font = [NSFont systemFontOfSize:13];
+        button.frame = frame;
+    }
 }
 
 -(void)fillData {

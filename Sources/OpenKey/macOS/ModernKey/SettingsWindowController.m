@@ -39,8 +39,16 @@ extern int vAutoCapsMacro;
 extern int vFixChromiumBrowser;
 extern int vPerformLayoutCompat;
 
+//Spacing used by every tab, so they all have the same rhythm (multiples of 4, like System Settings)
 static const CGFloat kCardWidth = 520;
-static const CGFloat kRowInset = 14;
+static const CGFloat kPageMargin = 24;      //between the window edge and the cards
+static const CGFloat kSectionSpacing = 24;  //between one group and the next
+static const CGFloat kHeadingSpacing = 8;   //between a group's heading and its card
+static const CGFloat kRowInset = 16;        //between the card edge and the text or control of a row
+static const CGFloat kRowPadding = 12;      //above and below the text of a row
+static const CGFloat kRowMinHeight = 44;    //a row is never lower than this, with or without a line of explanation
+static const CGFloat kChildIndent = 20;     //extra inset of an option that depends on the one above it
+static const CGFloat kFooterSpacing = 8;    //between a card and the note under it
 static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 #pragma mark - One on/off option
@@ -172,8 +180,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSStackView* stack = [NSStackView stackViewWithViews:sections];
     stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     stack.alignment = NSLayoutAttributeLeading;
-    stack.spacing = 22;
-    stack.edgeInsets = NSEdgeInsetsMake(20, 20, 24, 20);
+    stack.spacing = kSectionSpacing;
+    stack.edgeInsets = NSEdgeInsetsMake(kPageMargin, kPageMargin, kPageMargin, kPageMargin);
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     for (NSView* section in sections)
         [section.widthAnchor constraintEqualToConstant:kCardWidth].active = YES;
@@ -202,10 +210,15 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 //A card of rows under a heading, like a group in System Settings.
 -(NSView*)sectionWithTitle:(NSString*)title rows:(NSArray<NSView*>*)rows {
+    return [self sectionWithTitle:title rows:rows footer:nil];
+}
+
+//Same, with a note in small grey text under the card for what does not fit in a row.
+-(NSView*)sectionWithTitle:(NSString*)title rows:(NSArray<NSView*>*)rows footer:(NSString*)footer {
     NSMutableArray* parts = [NSMutableArray array];
     for (NSUInteger i = 0; i < rows.count; i++) {
         if (i > 0)
-            [parts addObject:VOKSeparator()];
+            [parts addObject:VOKInsetSeparator(kRowInset)];
         [parts addObject:rows[i]];
     }
     NSStackView* list = [NSStackView stackViewWithViews:parts];
@@ -214,14 +227,37 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     VOKFillWidth(list);
     NSView* card = VOKCard(list);
 
+    //the heading and the note start where the text of the rows starts
     NSTextField* heading = VOKLabel(title, 13, NSFontWeightSemibold, nil);
-    NSStackView* section = [NSStackView stackViewWithViews:@[heading, card]];
+    NSStackView* headingLine = [NSStackView stackViewWithViews:@[heading]];
+    headingLine.edgeInsets = NSEdgeInsetsMake(0, kRowInset, 0, kRowInset);
+    NSMutableArray* views = [NSMutableArray arrayWithObjects:headingLine, card, nil];
+    NSStackView* section = [NSStackView stackViewWithViews:views];
     section.orientation = NSUserInterfaceLayoutOrientationVertical;
     section.alignment = NSLayoutAttributeLeading;
-    section.spacing = 8;
+    section.spacing = kHeadingSpacing;
     section.translatesAutoresizingMaskIntoConstraints = NO;
     [card.widthAnchor constraintEqualToAnchor:section.widthAnchor].active = YES;
+    [headingLine.widthAnchor constraintEqualToAnchor:section.widthAnchor].active = YES;
+    if (footer.length > 0) {
+        NSTextField* note = VOKLabel(footer, 11, NSFontWeightRegular, [NSColor secondaryLabelColor]);
+        [self fixSizeOfLabel:note width:kCardWidth - 2 * kRowInset];
+        NSStackView* noteLine = [NSStackView stackViewWithViews:@[note]];
+        noteLine.edgeInsets = NSEdgeInsetsMake(0, kRowInset, 0, kRowInset);
+        [section addArrangedSubview:noteLine];
+        [section setCustomSpacing:kFooterSpacing afterView:card];
+        [noteLine.widthAnchor constraintEqualToAnchor:section.widthAnchor].active = YES;
+    }
     return section;
+}
+
+//A label that wraps gets the height of its text at that width, measured here. Leaving it to Auto Layout made a row
+//whose text needs two lines keep the height of one, with the text spilling over the edge of the card.
+-(void)fixSizeOfLabel:(NSTextField*)label width:(CGFloat)width {
+    label.preferredMaxLayoutWidth = width;
+    NSSize size = [label.cell cellSizeForBounds:NSMakeRect(0, 0, width, CGFLOAT_MAX)];
+    [label.heightAnchor constraintEqualToConstant:ceil(size.height)].active = YES;
+    [label.widthAnchor constraintLessThanOrEqualToConstant:width].active = YES;
 }
 
 //Name (and a line of explanation under it) on the left, the control on the right.
@@ -232,17 +268,17 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
     CGFloat textWidth = kCardWidth - 2 * kRowInset - 12 - control.fittingSize.width - indent;
     NSTextField* name = VOKLabel(title, 13, NSFontWeightRegular, nil);
-    name.preferredMaxLayoutWidth = textWidth;
+    [self fixSizeOfLabel:name width:textWidth];
     NSMutableArray* texts = [NSMutableArray arrayWithObject:name];
     if (detail.length > 0) {
         NSTextField* explanation = VOKLabel(detail, 11, NSFontWeightRegular, [NSColor secondaryLabelColor]);
-        explanation.preferredMaxLayoutWidth = textWidth;
+        [self fixSizeOfLabel:explanation width:textWidth];
         [texts addObject:explanation];
     }
     NSStackView* textStack = [NSStackView stackViewWithViews:texts];
     textStack.orientation = NSUserInterfaceLayoutOrientationVertical;
     textStack.alignment = NSLayoutAttributeLeading;
-    textStack.spacing = 2;
+    textStack.spacing = 3;
 
     NSView* spacer = [[NSView alloc] init];
     [spacer setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
@@ -250,8 +286,9 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     row.alignment = NSLayoutAttributeCenterY;
     row.spacing = 12;
-    row.edgeInsets = NSEdgeInsetsMake(10, kRowInset + indent, 10, kRowInset);
+    row.edgeInsets = NSEdgeInsetsMake(kRowPadding, kRowInset + indent, kRowPadding, kRowInset);
     row.translatesAutoresizingMaskIntoConstraints = NO;
+    [row.heightAnchor constraintGreaterThanOrEqualToConstant:kRowMinHeight].active = YES;
     return row;
 }
 
@@ -269,7 +306,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [weakSelf reload]; //children follow their parent
     };
     [_toggles addObject:toggle];
-    return [self rowWithTitle:toggle.title detail:toggle.detail control:control indent:parent != nil ? 22 : 0];
+    return [self rowWithTitle:toggle.title detail:toggle.detail control:control indent:parent != nil ? kChildIndent : 0];
 }
 
 -(NSView*)sectionOfToggles:(NSString*)title toggles:(NSArray<SettingsToggle*>*)toggles {
@@ -388,20 +425,20 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(NSView*)sectionSuggestion {
     void (^changed)(BOOL) = ^(BOOL on) { [SuggestionController reloadSettings]; };
     SettingsToggle* enabled = [SettingsToggle title:@"Thanh gợi ý khi gõ"
-                                             detail:@"Hiện các từ có thể gõ tiếp. Bấm Tab để chọn từ đầu tiên, ⌥1–⌥5 để chọn từ khác. Chỉ dùng được với bảng mã Unicode, tự tắt trong Terminal."
+                                             detail:@"Hiện từ gợi ý dưới chữ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác."
                                                 key:@"SuggestionEnabled" variable:&vSuggestEnabled];
     enabled.onChange = changed;
+    SettingsToggle* compounds = [SettingsToggle title:@"Gợi ý từ ghép"
+                                               detail:@"Gõ liền không dấu cũng ra từ ghép, ví dụ thietke ra thiết kế."
+                                                  key:@"SuggestionCompounds" variable:&vSuggestCompounds];
+    compounds.onChange = changed;
+    compounds.parent = enabled;
     SettingsToggle* nextWord = [SettingsToggle title:@"Dự đoán từ kế tiếp" detail:@"Gợi ý ngay sau dấu cách, trước khi bạn gõ chữ nào."
                                                  key:@"SuggestionNextWord" variable:&vSuggestNextWord];
     nextWord.onChange = changed;
     nextWord.parent = enabled;
-    SettingsToggle* compounds = [SettingsToggle title:@"Gợi ý từ ghép"
-                                               detail:@"Gõ liền không dấu cũng ra từ ghép có dấu, ví dụ thietke ra thiết kế."
-                                                  key:@"SuggestionCompounds" variable:&vSuggestCompounds];
-    compounds.onChange = changed;
-    compounds.parent = enabled;
     SettingsToggle* learn = [SettingsToggle title:@"Học từ cách gõ của bạn"
-                                           detail:@"Nhớ những từ và cụm từ bạn hay dùng. Chỉ lưu trên máy này, trong file learned.txt."
+                                           detail:@"Nhớ từ và cụm từ bạn hay dùng, chỉ lưu trên máy này."
                                               key:@"SuggestionLearn" variable:&vSuggestLearn];
     learn.onChange = changed;
     learn.parent = enabled;
@@ -409,11 +446,14 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSMutableArray* rows = [NSMutableArray array];
     for (SettingsToggle* toggle in @[enabled, compounds, nextWord, learn])
         [rows addObject:[self rowForToggle:toggle]];
-    NSButton* folder = [NSButton buttonWithTitle:@"Mở thư mục từ điển…" target:self action:@selector(openDictionaryFolder:)];
-    [rows addObject:[self buttonRowWithTitle:@"Từ điển" detail:@"Thả thêm file .txt vào đó để bổ sung từ và cụm từ." button:folder]];
+    NSButton* folder = [NSButton buttonWithTitle:@"Mở thư mục…" target:self action:@selector(openDictionaryFolder:)];
+    [rows addObject:[self buttonRowWithTitle:@"Từ điển" detail:@"Thả thêm file .txt vào thư mục để bổ sung từ và cụm từ." button:folder]];
     NSButton* reload = [NSButton buttonWithTitle:@"Tải lại" target:self action:@selector(reloadDictionaries:)];
     [rows addObject:[self buttonRowWithTitle:@"Tải lại từ điển" detail:@"Sau khi thêm hoặc sửa file từ điển." button:reload]];
-    return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows];
+    NSButton* forget = [NSButton buttonWithTitle:@"Xóa…" target:self action:@selector(forgetLearnedWords:)];
+    [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey đã học từ bạn." button:forget]];
+    return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows
+                           footer:@"Chỉ dùng được với bảng mã Unicode. Tự tắt trong Terminal và khi gõ mật khẩu."];
 }
 
 -(NSView*)sectionQuickTyping {
@@ -592,6 +632,18 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 -(void)reloadDictionaries:(id)sender {
     [SuggestionController reloadDictionaries];
+}
+
+-(void)forgetLearnedWords:(id)sender {
+    NSAlert* alert = [[NSAlert alloc] init];
+    alert.messageText = @"Xóa dữ liệu đã học?";
+    alert.informativeText = @"VOpenKey sẽ quên mọi từ và cụm từ đã học từ cách gõ của bạn. Từ điển có sẵn không bị ảnh hưởng.";
+    [alert addButtonWithTitle:@"Xóa"];
+    [alert addButtonWithTitle:@"Hủy"];
+    [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
+        if (returnCode == NSAlertFirstButtonReturn)
+            [SuggestionController forgetLearnedWords];
+    }];
 }
 
 -(void)openMacroTable:(id)sender {

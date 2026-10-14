@@ -159,6 +159,11 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 #pragma mark - Life cycle
 
++(void)registerDefaults {
+    [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"SuggestionNextWord": @1, @"SuggestionLearn": @1,
+                                                              @"SuggestionCompounds": @1}];
+}
+
 +(void)start {
     [[self shared] startUp];
 }
@@ -172,8 +177,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         return;
     _started = YES;
 
-    [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"SuggestionNextWord": @1, @"SuggestionLearn": @1,
-                                                              @"SuggestionCompounds": @1}];
+    [SuggestionController registerDefaults];
     NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
     vSuggestEnabled = (int)[defaults integerForKey:@"SuggestionEnabled"];
     vSuggestNextWord = (int)[defaults integerForKey:@"SuggestionNextWord"];
@@ -264,6 +268,15 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     [s resetState];
     [s prepareFolders];
     [s loadDictionaries];
+}
+
++(void)forgetLearnedWords {
+    SuggestionController* s = [self shared];
+    [[NSFileManager defaultManager] removeItemAtURL:[s learnedFile] error:nil];
+    if (!s->_started)
+        return;
+    s->_engine->clear(vsuggest::Target::User);
+    [s resetState];
 }
 
 +(void)openDictionaryFolder {

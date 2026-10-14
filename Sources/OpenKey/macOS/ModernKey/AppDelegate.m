@@ -107,6 +107,7 @@ extern bool convertToolDontAlertWhenCompleted;
     appDelegate = self;
     
     [LegacyOpenKey importSettingsIfNeeded];
+    [SuggestionController registerDefaults]; //the Settings window may show them before the suggestion bar starts
     
     [self registerSupportedNotification];
     

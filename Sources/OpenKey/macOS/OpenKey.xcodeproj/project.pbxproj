@@ -24,7 +24,6 @@
 		234F70AE21FB50BD00D2F2CA /* StatusHighlightedEng@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 234F70AA21FB50BC00D2F2CA /* StatusHighlightedEng@2x.png */; };
 		234F70AF21FB50BD00D2F2CA /* StatusEng.png in Resources */ = {isa = PBXBuildFile; fileRef = 234F70AB21FB50BD00D2F2CA /* StatusEng.png */; };
 		2371AAEF22FA85B200CA1B57 /* OpenKey.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2371AAEE22FA85B200CA1B57 /* OpenKey.mm */; };
-		2383405D2320F8170020F857 /* StartConvert@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 2383405B2320F8170020F857 /* StartConvert@2x.png */; };
 		238519F821F1BF3C00E79A41 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519F221F1B8E200E79A41 /* Foundation.framework */; };
 		238519FF21F1BF8A00E79A41 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519FD21F1BF5100E79A41 /* EventKit.framework */; };
 		23851A0021F1BFA300E79A41 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 238519FB21F1BF4900E79A41 /* Cocoa.framework */; };
@@ -44,9 +43,6 @@
 		5EC0DE1120261014000A000C /* SuggestionController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A000B /* SuggestionController.mm */; };
 		5EC0DE1120261014000A000E /* vi-base.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A000D /* vi-base.txt */; };
 		5EC0DE1120261014000A0010 /* vi-wiktionary.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A000F /* vi-wiktionary.txt */; };
-		238AF96522042C1600AEFA17 /* OK@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96422042C1600AEFA17 /* OK@2x.png */; };
-		238AF96722042D4900AEFA17 /* ExitButton@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96622042D4900AEFA17 /* ExitButton@2x.png */; };
-		238AF96922042E2500AEFA17 /* ThumbUp@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96822042E2500AEFA17 /* ThumbUp@2x.png */; };
 		238AF97122042EC600AEFA17 /* Icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 238AF97022042EC600AEFA17 /* Icon.icns */; };
 		23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23963B4F22040C720097189E /* ServiceManagement.framework */; };
 		23CA6D1722F0439100804D6E /* MyTextField.m in Sources */ = {isa = PBXBuildFile; fileRef = 23CA6D1622F0439100804D6E /* MyTextField.m */; };
@@ -107,7 +103,6 @@
 		237724A3232BA3B800E92BDF /* linux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = linux.h; sourceTree = "<group>"; };
 		237724A4232BA3B800E92BDF /* win32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = win32.h; sourceTree = "<group>"; };
 		237724A5232BA3B800E92BDF /* mac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mac.h; sourceTree = "<group>"; };
-		2383405B2320F8170020F857 /* StartConvert@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "StartConvert@2x.png"; sourceTree = "<group>"; };
 		238519F221F1B8E200E79A41 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		238519F921F1BF4400E79A41 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		238519FB21F1BF4900E79A41 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
@@ -142,9 +137,6 @@
 		5EC0DE1120261014000A000B /* SuggestionController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SuggestionController.mm; sourceTree = "<group>"; };
 		5EC0DE1120261014000A000D /* vi-base.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-base.txt; path = dictionaries/vi-base.txt; sourceTree = "<group>"; };
 		5EC0DE1120261014000A000F /* vi-wiktionary.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-wiktionary.txt; path = dictionaries/vi-wiktionary.txt; sourceTree = "<group>"; };
-		238AF96422042C1600AEFA17 /* OK@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "OK@2x.png"; sourceTree = "<group>"; };
-		238AF96622042D4900AEFA17 /* ExitButton@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ExitButton@2x.png"; sourceTree = "<group>"; };
-		238AF96822042E2500AEFA17 /* ThumbUp@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ThumbUp@2x.png"; sourceTree = "<group>"; };
 		238AF97022042EC600AEFA17 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
 		23963B4F22040C720097189E /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		2397059323143266002DDEA7 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -189,11 +181,7 @@
 		232DB1DF21FAED280049A0B5 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				2383405B2320F8170020F857 /* StartConvert@2x.png */,
 				238AF97022042EC600AEFA17 /* Icon.icns */,
-				238AF96822042E2500AEFA17 /* ThumbUp@2x.png */,
-				238AF96622042D4900AEFA17 /* ExitButton@2x.png */,
-				238AF96422042C1600AEFA17 /* OK@2x.png */,
 				234F70AB21FB50BD00D2F2CA /* StatusEng.png */,
 				234F70A921FB50BC00D2F2CA /* StatusEng@2x.png */,
 				234F70A821FB50BC00D2F2CA /* StatusHighlightedEng.png */,
@@ -432,21 +420,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				238AF96722042D4900AEFA17 /* ExitButton@2x.png in Resources */,
 				234F70AC21FB50BD00D2F2CA /* StatusHighlightedEng.png in Resources */,
 				232DB1E721FAED290049A0B5 /* StatusHighlighted@2x.png in Resources */,
 				238AF97122042EC600AEFA17 /* Icon.icns in Resources */,
 				234F70AE21FB50BD00D2F2CA /* StatusHighlightedEng@2x.png in Resources */,
 				232DB1E421FAED290049A0B5 /* StatusHighlighted.png in Resources */,
-				238AF96522042C1600AEFA17 /* OK@2x.png in Resources */,
 				234F70AF21FB50BD00D2F2CA /* StatusEng.png in Resources */,
 				234F70AD21FB50BD00D2F2CA /* StatusEng@2x.png in Resources */,
 				232DB1E621FAED290049A0B5 /* Status@2x.png in Resources */,
 				232DB1E521FAED290049A0B5 /* Status.png in Resources */,
-				238AF96922042E2500AEFA17 /* ThumbUp@2x.png in Resources */,
 				232EDA5E21F1B33F0085D362 /* Assets.xcassets in Resources */,
 				232EDA6121F1B33F0085D362 /* Main.storyboard in Resources */,
-				2383405D2320F8170020F857 /* StartConvert@2x.png in Resources */,
 				5EC0DE1120261014000A000E /* vi-base.txt in Resources */,
 				5EC0DE1120261014000A0010 /* vi-wiktionary.txt in Resources */,
 			);
@@ -636,7 +620,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -645,7 +629,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 3.0.0;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -663,7 +647,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 49;
+				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -672,7 +656,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 3.0.0;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
