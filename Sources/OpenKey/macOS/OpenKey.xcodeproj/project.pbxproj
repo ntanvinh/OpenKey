@@ -46,6 +46,7 @@
 		5EC0DE1220261015000A0003 /* ShortcutRecorder.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1220261015000A0002 /* ShortcutRecorder.m */; };
 		5EC0DE1320261016000A0003 /* RememberedAppsController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1320261016000A0002 /* RememberedAppsController.m */; };
 		5EC0DE1420261017000A0003 /* MacroPresets.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1420261017000A0002 /* MacroPresets.mm */; };
+		5EC0DE1620261019000A0002 /* CaretLocator.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1620261019000A0001 /* CaretLocator.m */; };
 		5EC0DE1420261017000A0005 /* vi-macros.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1420261017000A0004 /* vi-macros.txt */; };
 		238AF97122042EC600AEFA17 /* Icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 238AF97022042EC600AEFA17 /* Icon.icns */; };
 		23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23963B4F22040C720097189E /* ServiceManagement.framework */; };
@@ -149,6 +150,8 @@
 		5EC0DE1320261016000A0002 /* RememberedAppsController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RememberedAppsController.m; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0001 /* MacroPresets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MacroPresets.h; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0002 /* MacroPresets.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MacroPresets.mm; sourceTree = "<group>"; };
+		5EC0DE1620261019000A0001 /* CaretLocator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CaretLocator.m; sourceTree = "<group>"; };
+		5EC0DE1620261019000A0003 /* CaretLocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CaretLocator.h; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0004 /* vi-macros.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-macros.txt; path = dictionaries/vi-macros.txt; sourceTree = "<group>"; };
 		238AF97022042EC600AEFA17 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
 		23963B4F22040C720097189E /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
@@ -266,6 +269,8 @@
 				5EC0DE1320261016000A0002 /* RememberedAppsController.m */,
 				5EC0DE1420261017000A0001 /* MacroPresets.h */,
 				5EC0DE1420261017000A0002 /* MacroPresets.mm */,
+				5EC0DE1620261019000A0003 /* CaretLocator.h */,
+				5EC0DE1620261019000A0001 /* CaretLocator.m */,
 				5EC0DE1120261014000A0007 /* SuggestionPanel.h */,
 				5EC0DE1120261014000A0008 /* SuggestionPanel.m */,
 				5EC0DE1120261014000A000A /* SuggestionController.h */,
@@ -480,6 +485,7 @@
 				5EC0DE1220261015000A0003 /* ShortcutRecorder.m in Sources */,
 				5EC0DE1320261016000A0003 /* RememberedAppsController.m in Sources */,
 				5EC0DE1420261017000A0003 /* MacroPresets.mm in Sources */,
+				5EC0DE1620261019000A0002 /* CaretLocator.m in Sources */,
 				5EC0DE1120261014000A0003 /* Suggest.cpp in Sources */,
 				5EC0DE1120261014000A0006 /* SuggestSession.cpp in Sources */,
 				5EC0DE1120261014000A0009 /* SuggestionPanel.m in Sources */,

@@ -78,6 +78,22 @@ set_rc_version() { # <version> <build>
     [ "$(rc_version)" = "$v $b" ] || die "could not write the version into the Windows resources"
 }
 
+# The commit the last release was made at: the newest of the last version tag and the last commit that says it is a release
+# (releases are not always tagged right away). Empty when there has never been one.
+last_release_commit() {
+    local tag tag_commit="" marker best=""
+    tag="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+    [ -z "$tag" ] || tag_commit="$(git -C "$ROOT" rev-list -n1 "$tag")"
+    marker="$(git -C "$ROOT" log -n1 --format=%H -E --grep='^(release|chore: release)' 2>/dev/null || true)"
+    for candidate in "$tag_commit" "$marker"; do
+        [ -n "$candidate" ] || continue
+        if [ -z "$best" ] || [ "$(git -C "$ROOT" rev-list --count "$candidate"..HEAD)" -lt "$(git -C "$ROOT" rev-list --count "$best"..HEAD)" ]; then
+            best="$candidate"
+        fi
+    done
+    echo "$best"
+}
+
 # adds an entry for the version at the top of the change log, from the commit messages since the last release, unless
 # there is one already (written by hand before releasing)
 add_changelog_entry() { # <version> <build>
@@ -86,12 +102,19 @@ add_changelog_entry() { # <version> <build>
         say "The change log already has an entry for $v, keeping it"
         return
     fi
-    local last notes
-    last="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
-    if [ -n "$last" ]; then
-        notes="$(git -C "$ROOT" log "$last"..HEAD --no-merges --pretty='- %s' | grep -v '^- release:' || true)"
+    local base notes="" count total
+    base="$(last_release_commit)"
+    if [ -n "$base" ]; then
+        notes="$(git -C "$ROOT" log "$base"..HEAD --no-merges --pretty='- %s' | grep -Ev '^- (release|chore: release)' || true)"
+    else # never released: the last few, not the whole history
+        notes="$(git -C "$ROOT" log -n 15 --no-merges --pretty='- %s' | grep -Ev '^- (release|chore: release)' || true)"
     fi
-    [ -n "${notes:-}" ] || notes="- Cập nhật phiên bản."
+    total="$(printf '%s\n' "$notes" | grep -c . || true)"
+    if [ "${total:-0}" -gt 30 ]; then
+        count=$((total - 30))
+        notes="$(printf '%s\n' "$notes" | head -30)"$'\n'"- ... và $count thay đổi khác."
+    fi
+    [ -n "$notes" ] || notes="- Cập nhật phiên bản."
     local entry; entry="$(printf '##### VOpenKey %s (build %s): (%s)\n%s\n' "$v" "$b" "$(date +%d/%m/%Y)" "$notes")"
     # after the title line and the blank line under it
     /usr/bin/python3 - "$CHANGELOG" "$entry" <<'EOF'

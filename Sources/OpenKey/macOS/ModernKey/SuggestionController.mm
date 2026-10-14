@@ -7,6 +7,7 @@
 #import <Cocoa/Cocoa.h>
 #import <ApplicationServices/ApplicationServices.h>
 #import "AppInfo.h"
+#import "CaretLocator.h"
 #import "SuggestionPanel.h"
 #include <memory>
 #include "SuggestSession.h"
@@ -70,12 +71,13 @@ void BarHost::hideCandidates() {
     SuggestionPanel* _panel;
     NSArray<NSString*>* _lastWords;
     NSString* _lastTyped;
-    NSRect _anchorRect;          //where the word being typed starts, in Cocoa screen coordinates
+    NSRect _lastLine;            //the line of the caret the bar is under, in Cocoa screen coordinates
     BOOL _anchorValid;
-    BOOL _anchorQueryInFlight;
+    BOOL _locating;              //the application is being asked where the caret is
+    BOOL _locateAgain;           //the word changed meanwhile
+    int _staleAnswers;           //answers in a row that described text from before the typing
     NSUInteger _generation;      //changes every time the bar is hidden, so late answers are ignored
     dispatch_queue_t _accessibilityQueue;
-    NSMutableSet<NSNumber*>* _manualAccessibility; //only touched on _accessibilityQueue
 }
 
 +(SuggestionController*)shared {
@@ -187,7 +189,6 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     vSuggestTabAccepts = (int)[defaults integerForKey:@"SuggestionTab"];
 
     _accessibilityQueue = dispatch_queue_create("vn.io.lssoft.vopenkey.suggestion.accessibility", DISPATCH_QUEUE_SERIAL);
-    _manualAccessibility = [NSMutableSet set];
 
     _engine.reset(new vsuggest::Engine());
     _host.reset(new BarHost(self));
@@ -344,6 +345,9 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 #pragma mark - The bar
 
+//The bar goes under the line of the caret. That line is asked of the application after every change of the word, not
+//once per word: the first answer may come before the application has drawn what was typed, and a line given once
+//and kept would leave the bar on top of the line that is being typed (after a new line, for example).
 -(void)showBarWithWords:(NSArray<NSString*>*)words typed:(NSString*)typed {
     if (!_panel)
         _panel = [[SuggestionPanel alloc] init];
@@ -351,99 +355,79 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     _lastTyped = typed;
     _panel.firstWordUsesTab = vSuggestTabAccepts != 0;
     [_panel setWords:words];
+    if (_anchorValid) //where it was, until the application says where the line is now
+        [_panel showBelowRect:_lastLine];
+    [self requestLocation];
+}
 
-    //the bar stays where the word started while it is being typed, a new word is a new place
-    if (_anchorValid && typed.length > 1) {
-        [_panel showBelowRect:_anchorRect];
+-(void)requestLocation {
+    if (_locating) {
+        _locateAgain = YES;
         return;
     }
-    if (_anchorQueryInFlight)
-        return;
-    _anchorQueryInFlight = YES;
+    _locating = YES;
+    _locateAgain = NO;
     NSUInteger generation = _generation;
+    NSString* typed = _lastTyped ?: @"";
     pid_t pid = [NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier;
-    NSUInteger back = MAX(typed.length, (NSUInteger)1);
 
     dispatch_async(_accessibilityQueue, ^{
-        [NSThread sleepForTimeInterval:0.04]; //the application has to draw the new letter first
-        NSValue* found = [self caretRectForProcess:pid charactersBack:back];
+        CaretLocation* location = [CaretLocator locateInProcess:pid word:typed];
         dispatch_async(dispatch_get_main_queue(), ^{
-            self->_anchorQueryInFlight = NO;
+            self->_locating = NO;
             if (!self->_session->isShowing())
                 return;
-            if (generation != self->_generation) { //hidden and shown again meanwhile
+            //the bar was hidden, or the word has changed since: the answer is for something else
+            if (generation != self->_generation || ![typed isEqualToString:self->_lastTyped ?: @""]) {
                 if (self->_lastWords)
-                    [self showBarWithWords:self->_lastWords typed:self->_lastTyped];
+                    [self requestLocation];
                 return;
             }
-            if (found != nil) {
-                self->_anchorRect = [self cocoaRectFromAccessibilityRect:found.rectValue];
-                self->_anchorValid = YES;
-                [self->_panel showBelowRect:self->_anchorRect];
-            } else {
-                [self->_panel showNearPoint:[NSEvent mouseLocation]];
-            }
+            [self placeBarFor:location typed:typed];
+            if (self->_locateAgain)
+                [self requestLocation];
         });
     });
+}
+
+-(void)placeBarFor:(CaretLocation*)location typed:(NSString*)typed {
+    BOOL known = !NSIsEmptyRect(location.caret);
+    if (known && (location.textMatches || !location.canCheckText)) {
+        _lastLine = [CaretLocator lineForLocation:location typing:typed.length > 0];
+        _anchorValid = YES;
+        _staleAnswers = 0;
+        [_panel showBelowRect:_lastLine];
+        return;
+    }
+    if (known && _staleAnswers < 5) {
+        //the application still describes the text from before: the bar stays where it was (or stays hidden), and asks again
+        _staleAnswers++;
+        NSUInteger generation = _generation;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.06 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (generation == self->_generation && self->_lastWords)
+                [self requestLocation];
+        });
+        return;
+    }
+    _staleAnswers = 0;
+    //no position for the caret: under the text field, which at least does not cover what is being typed in it...
+    if (!NSIsEmptyRect(location.field)) {
+        _lastLine = NSMakeRect(location.field.origin.x + 8, location.field.origin.y, 0, 0);
+        _anchorValid = YES;
+        [_panel showBelowRect:_lastLine];
+        return;
+    }
+    //...and when even that is unknown, under the mouse pointer
+    [_panel showNearPoint:[NSEvent mouseLocation]];
 }
 
 -(void)hideBar {
     _generation++;
     _anchorValid = NO;
+    _locateAgain = NO;
+    _staleAnswers = 0;
     _lastWords = nil;
     [_panel orderOut:nil];
-}
-
--(NSRect)cocoaRectFromAccessibilityRect:(NSRect)rect {
-    //Accessibility counts from the top left of the main display, Cocoa from the bottom left
-    CGFloat mainHeight = [[NSScreen screens] firstObject].frame.size.height;
-    return NSMakeRect(rect.origin.x, mainHeight - rect.origin.y - rect.size.height, rect.size.width, rect.size.height);
-}
-
-/// Where a letter of the text being typed is, asked of the application that has the keyboard. Runs off the main
-/// thread because the application may be slow to answer. nil when it cannot say.
--(NSValue*)caretRectForProcess:(pid_t)pid charactersBack:(NSUInteger)back {
-    AXUIElementRef application = AXUIElementCreateApplication(pid);
-    if (application == NULL)
-        return nil;
-    AXUIElementSetMessagingTimeout(application, 0.25);
-
-    //Chromium and Electron only describe their text fields once asked to
-    if (![_manualAccessibility containsObject:@(pid)]) {
-        [_manualAccessibility addObject:@(pid)];
-        AXUIElementSetAttributeValue(application, CFSTR("AXManualAccessibility"), kCFBooleanTrue);
-    }
-
-    NSValue* result = nil;
-    CFTypeRef focused = NULL;
-    if (AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute, &focused) == kAXErrorSuccess && focused) {
-        AXUIElementRef element = (AXUIElementRef)focused;
-        AXUIElementSetMessagingTimeout(element, 0.25);
-        CFTypeRef selection = NULL;
-        if (AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute, &selection) == kAXErrorSuccess && selection) {
-            CFRange caret;
-            if (AXValueGetValue((AXValueRef)selection, (AXValueType)kAXValueTypeCFRange, &caret)) {
-                CFRange target = CFRangeMake(MAX(caret.location - (CFIndex)back, (CFIndex)0), 1);
-                AXValueRef targetValue = AXValueCreate((AXValueType)kAXValueTypeCFRange, &target);
-                CFTypeRef bounds = NULL;
-                if (targetValue != NULL &&
-                    AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute,
-                                                               targetValue, &bounds) == kAXErrorSuccess && bounds) {
-                    CGRect rect;
-                    if (AXValueGetValue((AXValueRef)bounds, (AXValueType)kAXValueTypeCGRect, &rect) &&
-                        rect.size.height > 0 && !(rect.origin.x == 0 && rect.origin.y == 0))
-                        result = [NSValue valueWithRect:NSRectFromCGRect(rect)];
-                    CFRelease(bounds);
-                }
-                if (targetValue != NULL)
-                    CFRelease(targetValue);
-            }
-            CFRelease(selection);
-        }
-        CFRelease(focused);
-    }
-    CFRelease(application);
-    return result;
 }
 
 @end

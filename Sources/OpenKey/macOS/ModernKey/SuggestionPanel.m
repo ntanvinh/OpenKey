@@ -208,16 +208,21 @@ static NSImage* BarMask(void) {
     }];
 }
 
--(void)showBelowRect:(NSRect)rect {
-    NSSize size = self.frame.size;
-    NSRect visible = [self screenContaining:rect.origin].visibleFrame;
++(NSPoint)originForBarOfSize:(NSSize)size line:(NSRect)line visibleFrame:(NSRect)visible {
     //the first word starts where the typed word starts
-    CGFloat x = rect.origin.x - kPadding - kItemPadding;
+    CGFloat x = line.origin.x - kPadding - kItemPadding;
     x = MAX(visible.origin.x + kScreenMargin, MIN(x, NSMaxX(visible) - size.width - kScreenMargin));
-    CGFloat y = rect.origin.y - size.height - kDistanceFromText;
-    if (y < visible.origin.y + kScreenMargin) //no room below: above the text
-        y = NSMaxY(rect) + kDistanceFromText;
-    [self setFrameOrigin:NSMakePoint(x, y)];
+    CGFloat y = line.origin.y - size.height - kDistanceFromText;
+    if (y < visible.origin.y + kScreenMargin) //no room below: above the line
+        y = MIN(NSMaxY(line) + kDistanceFromText, NSMaxY(visible) - size.height - kScreenMargin);
+    return NSMakePoint(x, y);
+}
+
+-(void)showBelowRect:(NSRect)line {
+    NSRect visible = [self screenContaining:line.origin].visibleFrame;
+    NSPoint origin = [SuggestionPanel originForBarOfSize:self.frame.size line:line visibleFrame:visible];
+    if (!NSEqualPoints(origin, self.frame.origin))
+        [self setFrameOrigin:origin];
     [self show];
 }
 

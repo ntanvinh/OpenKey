@@ -10,7 +10,7 @@ mn:mọi người
 ae:anh em
 ace:anh chị em
 cx:cũng
-bt:bình thường
+bt:biết
 bth:bình thường
 hqua:hôm qua
 hnay:hôm nay
@@ -51,3 +51,39 @@ tphcm:Thành phố Hồ Chí Minh
 qh:quốc hội
 ubnd:Ủy ban nhân dân
 hdnd:Hội đồng nhân dân
+btc:Ban tổ chức
+clb:Câu lạc bộ
+htx:Hợp tác xã
+nxb:Nhà xuất bản
+ob:Ông bà
+tp:Thành phố
+tu:Trung ương
+tw:Trung ương
+bch:Ban Chấp hành
+chxhcnvn:Cộng hòa Xã hội Chủ nghĩa Việt Nam
+mtdtgpmnvn:Mặt trận Dân tộc Giải phóng miền Nam Việt Nam
+qdnd:Quân đội Nhân dân Việt Nam
+qđnd:Quân đội Nhân dân Việt Nam
+qlvnch:Quân lực Việt Nam Cộng hòa
+vnqdđ:Việt Nam Quốc dân Đảng
+vnqdd:Việt Nam Quốc dân Đảng
+vnch:Việt Nam Cộng hòa
+vndcch:Việt Nam Dân chủ Cộng hòa
+lhq:Liên Hợp Quốc
+; nhắn tin và hội thoại
+lm:làm
+tr:trang
+đc:được
+dg:đang
+đg:đang
+ng:người
+bik:biết
+hc:học
+vt:viết
+vc:việc
+trc:trước
+xg:xong
+bx:bữa
+vg:vâng
+chs:chơi
+cj:chị

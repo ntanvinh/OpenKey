@@ -17,9 +17,12 @@
 /// The first word is the highlighted one, the others follow it.
 -(void)setWords:(NSArray<NSString*>*)words;
 
-/// Puts the bar under a rectangle (the word being typed), in Cocoa screen coordinates; above it when
-/// there is no room below. Shows the bar.
--(void)showBelowRect:(NSRect)rect;
+/// Puts the bar under a line of text, in Cocoa screen coordinates: `line` is where the text of the word starts (its x) and
+/// the place and height of the line of the caret. Above the line when there is no room below. Shows the bar.
+-(void)showBelowRect:(NSRect)line;
+
+/// Where the bar of that size goes for that line on a screen whose usable area is `visible`.
++(NSPoint)originForBarOfSize:(NSSize)size line:(NSRect)line visibleFrame:(NSRect)visible;
 
 /// When the position of the text caret is not known: under the mouse pointer.
 -(void)showNearPoint:(NSPoint)point;
