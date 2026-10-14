@@ -107,6 +107,12 @@ public:
     /** Lowercase, composed form of a word, as it is stored. */
     static std::string normalizeWord(const std::string& utf8);
 
+    /**
+     * Text for searching in: lowercase, accents taken off, "\u0111" written as "d" ("Tom tat" and "t\u00f3m t\u1eaft" are the same).
+     * Everything that is not a letter stays as it is.
+     */
+    static std::string foldForSearch(const std::string& utf8);
+
 private:
     std::unique_ptr<Model> base_;
     std::unique_ptr<Model> user_;

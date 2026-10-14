@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "snippets": [
+    {
+      "id": "builtin.summarize",
+      "title": "Tóm tắt văn bản",
+      "keywords": "tom tat summary summarize tldr rut gon ngan gon",
+      "content": "Hãy tóm tắt văn bản dưới đây thành 5 ý chính, mỗi ý một dòng, ngắn gọn và giữ nguyên các số liệu quan trọng. Cuối cùng thêm một câu kết luận.\n\nVăn bản:\n{clipboard}"
+    },
+    {
+      "id": "builtin.translate-en",
+      "title": "Dịch sang tiếng Anh",
+      "keywords": "dich english translate en tieng anh",
+      "content": "Dịch đoạn văn sau sang tiếng Anh tự nhiên, đúng ngữ cảnh, giữ nguyên giọng văn và các thuật ngữ chuyên ngành. Chỉ trả về bản dịch, không giải thích.\n\n{clipboard}"
+    },
+    {
+      "id": "builtin.translate-vi",
+      "title": "Dịch sang tiếng Việt",
+      "keywords": "dich vietnamese translate vi tieng viet",
+      "content": "Dịch đoạn văn sau sang tiếng Việt tự nhiên, dễ hiểu, giữ nguyên giọng văn. Giữ nguyên tên riêng và thuật ngữ chuyên ngành thông dụng (ghi chú tiếng Anh trong ngoặc khi cần). Chỉ trả về bản dịch, không giải thích.\n\n{clipboard}"
+    },
+    {
+      "id": "builtin.rewrite",
+      "title": "Viết lại cho hay hơn",
+      "keywords": "viet lai rewrite paraphrase cai thien van phong polish",
+      "content": "Hãy viết lại đoạn văn dưới đây cho rõ ràng, mạch lạc và tự nhiên hơn, giữ nguyên ý và giọng văn. Đưa ra 2 phương án khác nhau và nói ngắn gọn hai phương án khác nhau ở điểm nào.\n\n{clipboard}"
+    },
+    {
+      "id": "builtin.proofread",
+      "title": "Sửa lỗi chính tả và ngữ pháp",
+      "keywords": "sua loi chinh ta ngu phap proofread grammar spelling typo",
+      "content": "Sửa lỗi chính tả, dấu câu và ngữ pháp trong đoạn văn dưới đây. Giữ nguyên ý và cách diễn đạt của tôi. Trả về bản đã sửa, sau đó liệt kê các chỗ đã sửa dưới dạng gạch đầu dòng.\n\n{clipboard}"
+    },
+    {
+      "id": "builtin.explain-simple",
+      "title": "Giải thích đơn giản",
+      "keywords": "giai thich don gian explain eli5 de hieu",
+      "content": "Giải thích khái niệm dưới đây như thể tôi chưa biết gì về chủ đề này: dùng ngôn ngữ đời thường, một ví dụ cụ thể và một phép so sánh dễ hình dung. Sau đó cho tôi 3 câu hỏi để tự kiểm tra xem đã hiểu chưa.\n\nKhái niệm: {clipboard}"
+    },
+    {
+      "id": "builtin.role-expert",
+      "title": "Đóng vai chuyên gia",
+      "keywords": "dong vai chuyen gia role persona expert system prompt",
+      "content": "Hãy đóng vai một [chuyên gia lĩnh vực] với hơn 15 năm kinh nghiệm thực tế. Trước khi trả lời, hãy hỏi tôi những thông tin còn thiếu mà bạn cần. Khi trả lời, nêu rõ các giả định của bạn, đưa ra khuyến nghị cụ thể và chỉ ra rủi ro cần lưu ý.\n\nCâu hỏi của tôi:"
+    },
+    {
+      "id": "builtin.code-review",
+      "title": "Review code",
+      "keywords": "code review danh gia ma nguon pull request pr senior",
+      "content": "Hãy review đoạn code dưới đây như một senior engineer. Chỉ ra theo thứ tự mức độ nghiêm trọng:\n1. Bug và lỗi logic (kể cả các trường hợp biên)\n2. Vấn đề bảo mật\n3. Hiệu năng\n4. Khả năng đọc và bảo trì\n\nVới mỗi vấn đề, nêu dòng liên quan, lý do và đề xuất cách sửa bằng code. Nếu code ổn, hãy nói rõ là ổn.\n\n```\n{clipboard}\n```"
+    },
+    {
+      "id": "builtin.explain-code",
+      "title": "Giải thích code",
+      "keywords": "giai thich code explain ma nguon doc hieu onboarding",
+      "content": "Giải thích đoạn code dưới đây từng bước: mục đích tổng thể, luồng chạy, ý nghĩa của các hàm và biến quan trọng, và những chỗ dễ gây nhầm lẫn. Viết cho người mới vào dự án.\n\n```\n{clipboard}\n```"
+    },
+    {
+      "id": "builtin.debug",
+      "title": "Tìm và sửa lỗi (debug)",
+      "keywords": "debug sua loi bug tim loi error exception stack trace nguyen nhan",
+      "content": "Tôi đang gặp lỗi. Hãy giúp tôi tìm nguyên nhân gốc rễ, không chỉ xử lý triệu chứng.\n\nHành vi mong đợi:\nHành vi thực tế:\nThông báo lỗi hoặc log:\n{clipboard}\n\nHãy liệt kê các nguyên nhân có thể, từ khả năng cao nhất xuống, cách kiểm chứng từng nguyên nhân, rồi đề xuất cách sửa."
+    },
+    {
+      "id": "builtin.unit-tests",
+      "title": "Viết unit test",
+      "keywords": "viet unit test kiem thu testing tdd coverage",
+      "content": "Viết unit test cho đoạn code dưới đây. Bao gồm trường hợp bình thường, trường hợp biên, dữ liệu không hợp lệ và các trường hợp lỗi. Dùng framework test đang có trong dự án, đặt tên test mô tả rõ hành vi được kiểm tra, và nêu những phần chưa được kiểm tra.\n\n```\n{clipboard}\n```"
+    },
+    {
+      "id": "builtin.refactor",
+      "title": "Refactor code",
+      "keywords": "refactor tai cau truc don gian hoa clean code toi uu",
+      "content": "Refactor đoạn code dưới đây để dễ đọc và dễ bảo trì hơn nhưng KHÔNG đổi hành vi. Giải thích ngắn gọn từng thay đổi và lý do. Nếu thấy rủi ro khi thay đổi, hãy nói trước.\n\n```\n{clipboard}\n```"
+    },
+    {
+      "id": "builtin.commit-message",
+      "title": "Viết commit message",
+      "keywords": "commit message git conventional commits viet commit",
+      "content": "Viết commit message bằng tiếng Anh theo chuẩn Conventional Commits (feat, fix, refactor, docs, test, chore) cho thay đổi dưới đây. Dòng đầu tối đa 72 ký tự, ở thể mệnh lệnh; phần thân giải thích vì sao có thay đổi (không lặp lại nội dung diff).\n\nThay đổi:\n{clipboard}"
+    },
+    {
+      "id": "builtin.pr-description",
+      "title": "Viết mô tả Pull Request",
+      "keywords": "pull request pr mo ta description git merge",
+      "content": "Viết mô tả Pull Request cho thay đổi dưới đây gồm các phần: Tóm tắt, Lý do, Những gì đã thay đổi, Cách kiểm tra, Rủi ro và ảnh hưởng. Ngắn gọn, đi thẳng vào vấn đề.\n\nThay đổi:\n{clipboard}"
+    },
+    {
+      "id": "builtin.email",
+      "title": "Viết email chuyên nghiệp",
+      "keywords": "email thu mail viet email cong viec lich su professional",
+      "content": "Viết một email chuyên nghiệp, lịch sự nhưng ngắn gọn (dưới 150 từ) với:\n- Người nhận:\n- Mục đích:\n- Ý chính cần nói:\n- Giọng văn: [trang trọng / thân thiện]\n\nĐưa ra tiêu đề email và nội dung. Cuối email, gợi ý một lời kêu gọi hành động rõ ràng."
+    },
+    {
+      "id": "builtin.meeting-notes",
+      "title": "Biên bản cuộc họp",
+      "keywords": "bien ban cuoc hop meeting notes minutes action items ghi chu hop",
+      "content": "Từ ghi chú thô dưới đây, hãy viết biên bản cuộc họp ngày {date} gồm: Mục đích cuộc họp, Người tham gia (nếu có nhắc đến), Các quyết định đã chốt, Việc cần làm (ai làm gì, hạn chót), Vấn đề còn tồn đọng. Chỉ dùng thông tin có trong ghi chú, chỗ nào thiếu hãy ghi \"chưa rõ\".\n\nGhi chú:\n{clipboard}"
+    },
+    {
+      "id": "builtin.pros-cons",
+      "title": "Phân tích ưu nhược điểm",
+      "keywords": "uu nhuoc diem pros cons so sanh compare danh gia lua chon",
+      "content": "Phân tích ưu điểm và nhược điểm của lựa chọn dưới đây dưới dạng bảng, so sánh với ít nhất 2 phương án thay thế. Sau đó đưa ra khuyến nghị rõ ràng và nêu điều kiện khiến khuyến nghị đó thay đổi.\n\nLựa chọn và bối cảnh:\n{clipboard}"
+    },
+    {
+      "id": "builtin.plan",
+      "title": "Lập kế hoạch từng bước",
+      "keywords": "ke hoach lap ke hoach plan roadmap tung buoc step by step timeline",
+      "content": "Hãy lập kế hoạch thực hiện mục tiêu dưới đây thành các bước cụ thể. Với mỗi bước ghi rõ: việc cần làm, kết quả đầu ra, thời gian ước tính và rủi ro. Chỉ ra bước nào có thể làm song song và việc nào cần làm trước tiên.\n\nMục tiêu:\n{clipboard}"
+    },
+    {
+      "id": "builtin.brainstorm",
+      "title": "Động não ý tưởng",
+      "keywords": "dong nao y tuong brainstorm idea sang tao",
+      "content": "Động não 10 ý tưởng khác nhau cho vấn đề dưới đây, từ an toàn đến táo bạo. Với mỗi ý tưởng: một dòng mô tả, điểm mạnh chính và rủi ro lớn nhất. Cuối cùng chọn 3 ý tưởng đáng thử nhất và giải thích lý do.\n\nVấn đề:\n{clipboard}"
+    },
+    {
+      "id": "builtin.outline",
+      "title": "Dàn ý bài viết",
+      "keywords": "dan y bai viet outline blog content bai bao seo",
+      "content": "Lập dàn ý chi tiết cho bài viết về chủ đề dưới đây: tiêu đề hấp dẫn (3 phương án), mở bài, các phần chính kèm ý nhỏ, kết luận và lời kêu gọi hành động. Đối tượng độc giả: [mô tả người đọc]. Độ dài dự kiến: [số từ].\n\nChủ đề:\n{clipboard}"
+    },
+    {
+      "id": "builtin.improve-prompt",
+      "title": "Cải thiện prompt",
+      "keywords": "cai thien prompt improve prompt engineering toi uu prompt",
+      "content": "Hãy cải thiện prompt dưới đây để mô hình AI trả lời tốt hơn: làm rõ mục tiêu, bối cảnh, định dạng đầu ra mong muốn và các ràng buộc. Hỏi tôi những điều còn thiếu trước, rồi trả về phiên bản prompt đã tối ưu trong một khối code để tôi sao chép.\n\nPrompt gốc:\n{clipboard}"
+    }
+  ]
+}

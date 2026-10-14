@@ -9,6 +9,7 @@
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
 #import "SuggestionController.h"
+#import "InputSourceGuard.h"
 #import "AppInfo.h"
 
 extern void OpenKeyInit(void);
@@ -82,6 +83,9 @@ static CFRunLoopSourceRef runLoopSource;
 
     //suggestion bar: dictionaries, learned words
     [SuggestionController start];
+
+    //macOS' own Vietnamese input source would convert every letter a second time
+    [InputSourceGuard start];
 
     return YES;
 }

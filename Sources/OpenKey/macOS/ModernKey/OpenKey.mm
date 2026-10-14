@@ -15,6 +15,8 @@
 #import "SuggestionController.h"
 #import "ShortcutRecorder.h"
 #import "SuggestionKeys.h"
+#import "SnippetPalette.h"
+#import "SnippetInserter.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -90,6 +92,8 @@ extern "C" {
     
     NSString* _frontMostApp = @"UnknownApp";
     
+    void RequestNewSession();
+
     void OpenKeyInit() {
         //load saved data
         vFreeMark = 0;//(int)[[NSUserDefaults standardUserDefaults] integerForKey:@"FreeMark"];
@@ -120,6 +124,14 @@ extern "C" {
         
         myEventSource = CGEventSourceCreate(kCGEventSourceStatePrivate);
         pData = (vKeyHookState*)vKeyInit();
+
+        //the ⌘V that pastes a snippet is ours: the tap leaves it alone like the keys it sends itself
+        [SnippetInserter useEventSource:myEventSource];
+        //what is typed in the snippet window must not become part of the next word typed in another application
+        [SnippetPalette setTypingBoundaryHandler:^{
+            RequestNewSession();
+            [SuggestionController reset];
+        }];
 
         eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
         eventBackSpaceUp = CGEventCreateKeyboardEvent (myEventSource, 51, false);
@@ -568,6 +580,13 @@ extern "C" {
         [SuggestionController reset];
     }
     
+    //Opens the snippet window, or closes it when it is open. Not inside the callback: the tap must answer at once.
+    void openSnippetPalette() {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [SnippetPalette toggle];
+        });
+    }
+
     void handleMacro() {
         //fix autocomplete
         if (shouldUseRecommendWorkaround(FRONT_APP)) {
@@ -733,7 +752,8 @@ extern "C" {
         
         //switch language shortcut; convert hotkey
         if (type == kCGEventKeyDown) {
-            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode) {
+            bool isSnippetKey = vSnippetsEnabled && GET_SWITCH_KEY(vSnippetHotKey) == _keycode;
+            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey) {
                 _lastFlag = 0;
             } else {
                 if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
@@ -748,6 +768,16 @@ extern "C" {
                     _hasJustUsedHotKey = true;
                     return NULL;
                 }
+                if (isSnippetKey && checkHotKey(vSnippetHotKey)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openSnippetPalette();
+                    return NULL;
+                }
+                //the key of the snippet shortcut pressed with other modifiers (⌃⇧S) is an ordinary key, as it was before: without
+                //this the modifiers still held would switch the language when released
+                if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode)
+                    _lastFlag = 0;
             }
             _hasJustUsedHotKey = _lastFlag != 0;
         } else if (type == kCGEventFlagsChanged) {
@@ -765,6 +795,13 @@ extern "C" {
                     _lastFlag = 0;
                     [appDelegate onQuickConvert];
                     _hasJustUsedHotKey = true;
+                    return NULL;
+                }
+                //a snippet shortcut that is made of modifiers only, ⌃⇧ for example; one with a key is handled by the key
+                if (vSnippetsEnabled && GET_SWITCH_KEY(vSnippetHotKey) == 0xFE && checkHotKey(vSnippetHotKey, false)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openSnippetPalette();
                     return NULL;
                 }
                 //check temporarily turn off spell checking
@@ -833,7 +870,7 @@ extern "C" {
         }
         
         //Tab or ⌥1-5 chooses a suggestion from the bar
-        if (type == kCGEventKeyDown && vSuggestEnabled && !tabForTheApplication && [SuggestionController isShowing]) {
+        if (type == kCGEventKeyDown && vSuggestEnabled && !tabForTheApplication && [SuggestionController isShowing] && ![SnippetPalette isVisible]) {
             int slot = SuggestionSlotForKey(_keycode, _flag, vSuggestTabAccepts != 0);
             if (slot >= 0) {
                 NSString* suggestion = nil;
@@ -855,7 +892,7 @@ extern "C" {
                             _keycode,
                             _flag & kCGEventFlagMaskShift ? 1 : (_flag & kCGEventFlagMaskAlphaShift ? 2 : 0),
                             OTHER_CONTROL_KEY);
-            if (vSuggestEnabled) {
+            if (vSuggestEnabled && ![SnippetPalette isVisible]) { //the snippet window is not a place to suggest words in
                 VOKSuggestionKey kind = VOKSuggestionKeyOther;
                 if (_keycode == KEY_SPACE && !(OTHER_CONTROL_KEY) && pData->code == vDoNothing) {
                     kind = VOKSuggestionKeySpace;

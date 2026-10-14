@@ -720,6 +720,10 @@ void Engine::setFallback(FallbackProvider provider) {
     fallback_ = provider;
 }
 
+std::string Engine::foldForSearch(const std::string& utf8) {
+    return baseKey(decode(utf8));
+}
+
 std::string Engine::normalizeWord(const std::string& utf8) {
     std::vector<Letter> letters = decode(utf8);
     for (Letter& l : letters)

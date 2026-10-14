@@ -8,6 +8,8 @@
 #import "AppInfo.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
+#import "ShortcutRecorder.h"
+#import "SnippetPalette.h"
 #import "SuggestionController.h"
 #import "VOKUI.h"
 
@@ -56,6 +58,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _inputTypeParent;
     NSMenuItem* _codeTableParent;
     NSMenuItem* _suggestionItem;
+    NSMenuItem* _snippetItem;
     NSArray<NSMenuItem*>* _inputTypeItems;
     NSArray<NSMenuItem*>* _codeTableItems;
 }
@@ -126,6 +129,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
     _suggestionItem = MakeItem(@"Thanh gợi ý khi gõ", @"text.magnifyingglass", self, @selector(toggleSuggestion:));
     [_menu addItem:_suggestionItem];
+    _snippetItem = MakeItem(@"Snippet…", @"text.insert", self, @selector(openSnippets:));
+    [_menu addItem:_snippetItem];
     [_menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem* settings = MakeItem(@"Cài đặt…", @"gearshape", self, @selector(openSettings:));
@@ -167,6 +172,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     for (NSMenuItem* item in _codeTableItems)
         item.state = item.tag == codeTable ? NSControlStateValueOn : NSControlStateValueOff;
     _suggestionItem.state = vSuggestEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+    //the shortcut is written at the right of the item; the event tap handles the keys, the menu only shows them
+    BOOL snippetShortcut = vSnippetsEnabled && !VOKShortcutIsEmpty(vSnippetHotKey);
+    _snippetItem.keyEquivalent = snippetShortcut ? VOKShortcutKeyEquivalent(vSnippetHotKey) : @"";
+    _snippetItem.keyEquivalentModifierMask = snippetShortcut ? VOKShortcutModifierMask(vSnippetHotKey) : 0;
     if (@available(macOS 14.4, *)) {
         //what is selected, written under the name of the submenu
         _inputTypeParent.subtitle = inputType >= 0 && inputType < (NSInteger)InputTypeNames().count ? InputTypeNames()[inputType] : nil;
@@ -221,6 +230,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [[NSUserDefaults standardUserDefaults] setInteger:vSuggestEnabled forKey:@"SuggestionEnabled"];
     [SuggestionController reloadSettings];
     [self refresh];
+}
+
+-(void)openSnippets:(id)sender {
+    [SnippetPalette show];
 }
 
 -(void)openSettings:(id)sender {

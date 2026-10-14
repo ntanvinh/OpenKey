@@ -9,7 +9,11 @@
 #import "AppPermissions.h"
 #import "RememberedAppsController.h"
 #import "ShortcutRecorder.h"
+#import "InputSourceGuard.h"
 #import "OpenKeyManager.h"
+#import "SnippetEditorController.h"
+#import "SnippetPalette.h"
+#import "SnippetStore.h"
 #import "SuggestionController.h"
 #import "VOKUI.h"
 
@@ -142,6 +146,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSPopUpButton* _codeTable;
     ShortcutRecorder* _switchRecorder;
     ShortcutRecorder* _convertRecorder;
+    ShortcutRecorder* _snippetRecorder;
     NSTextField* _accessibilityStatus;
     NSTextField* _inputMonitoringStatus;
     NSButton* _checkUpdateButton;
@@ -164,6 +169,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self addPage:@"Bộ gõ" symbol:@"keyboard" sections:@[[self sectionTyping], [self sectionSpelling]]];
         [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionConvertShortcut], [self sectionQuickTyping]]];
         [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion]]];
+        [self addPage:@"Snippet" symbol:@"text.insert" sections:@[[self sectionSnippets]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
         [self addPage:@"Hệ thống" symbol:@"gearshape" sections:@[[self sectionStartup], [self sectionPermissions], [self sectionAbout]]];
         NSInteger saved = [[NSUserDefaults standardUserDefaults] integerForKey:kSelectedTabKey];
@@ -377,7 +383,9 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _switchRecorder = [[ShortcutRecorder alloc] init];
     _switchRecorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
     _switchRecorder.conflict = ^NSString*(int data) {
-        return VOKShortcutsEqual(data, convertToolHotKey) ? @"Chuyển mã nhanh" : nil;
+        if (VOKShortcutsEqual(data, convertToolHotKey))
+            return @"Chuyển mã nhanh";
+        return vSnippetsEnabled && VOKShortcutsEqual(data, vSnippetHotKey) ? @"Mở snippet" : nil;
     };
     __weak SettingsWindowController* weakSelf = self;
     _switchRecorder.onChange = ^(int data) {
@@ -396,6 +404,11 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
     };
 
+    SettingsToggle* forceABC = [SettingsToggle title:@"Giữ bộ gõ macOS ở ABC khi gõ tiếng Việt"
+                                              detail:@"Tránh gõ hai lần khi bộ gõ Vietnamese của macOS cũng đang bật: nếu gặp nó, VOpenKey chuyển về ABC."
+                                                 key:@"ForceABCWhenVietnamese" variable:&vForceABC];
+    forceABC.onChange = ^(BOOL on) { [InputSourceGuard enforce]; };
+
     return [self sectionWithTitle:@"Kiểu gõ" rows:@[
         [self rowWithTitle:@"Chế độ gõ" detail:nil control:_language indent:0],
         [self rowWithTitle:@"Kiểu gõ" detail:nil control:_inputType indent:0],
@@ -403,6 +416,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self rowWithTitle:@"Phím chuyển chế độ" detail:@"Bấm vào ô rồi nhấn tổ hợp phím mới."
                       control:_switchRecorder indent:0],
         [self rowForToggle:beep],
+        [self rowForToggle:forceABC],
     ]];
 }
 
@@ -451,7 +465,9 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     recorder.value = convertToolHotKey;
     recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
     recorder.conflict = ^NSString*(int data) {
-        return VOKShortcutsEqual(data, vSwitchKeyStatus) ? @"Chuyển chế độ gõ" : nil;
+        if (VOKShortcutsEqual(data, vSwitchKeyStatus))
+            return @"Chuyển chế độ gõ";
+        return vSnippetsEnabled && VOKShortcutsEqual(data, vSnippetHotKey) ? @"Mở snippet" : nil;
     };
     recorder.onChange = ^(int data) {
         convertToolHotKey = data;
@@ -501,6 +517,40 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey đã học từ bạn." button:forget]];
     return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows
                            footer:@"Chỉ dùng được với bảng mã Unicode. Tự tắt trong Terminal và khi gõ mật khẩu."];
+}
+
+#pragma mark - Tab "Snippet"
+
+-(NSView*)sectionSnippets {
+    SettingsToggle* enabled = [SettingsToggle title:@"Chèn snippet bằng phím tắt"
+                                             detail:@"Bấm phím tắt ở bất kỳ ứng dụng nào để tìm snippet và chèn vào chỗ đang gõ."
+                                                key:@"SnippetsEnabled" variable:&vSnippetsEnabled];
+    enabled.onChange = ^(BOOL on) { [appDelegate refreshMenu]; };
+
+    ShortcutRecorder* recorder = [[ShortcutRecorder alloc] init];
+    _snippetRecorder = recorder;
+    recorder.value = vSnippetHotKey;
+    recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    recorder.conflict = ^NSString*(int data) {
+        if (VOKShortcutsEqual(data, vSwitchKeyStatus))
+            return @"Chuyển chế độ gõ";
+        return VOKShortcutsEqual(data, convertToolHotKey) ? @"Chuyển mã nhanh" : nil;
+    };
+    recorder.onChange = ^(int data) {
+        vSnippetHotKey = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:vSnippetHotKey forKey:@"SnippetHotKey"];
+        [appDelegate refreshMenu]; //the shortcut is shown on the menu
+    };
+
+    NSButton* manage = [NSButton buttonWithTitle:@"Quản lý…" target:self action:@selector(openSnippetEditor:)];
+    NSButton* restore = [NSButton buttonWithTitle:@"Khôi phục…" target:self action:@selector(restoreSnippets:)];
+    return [self sectionWithTitle:@"Snippet" rows:@[
+        [self rowForToggle:enabled],
+        [self rowWithTitle:@"Phím tắt mở snippet" detail:@"Bấm vào ô rồi nhấn tổ hợp phím mới." control:recorder indent:0],
+        [self buttonRowWithTitle:@"Danh sách snippet" detail:@"Thêm, sửa hoặc xóa snippet. Có sẵn các prompt mẫu cho trợ lý AI." button:manage],
+        [self buttonRowWithTitle:@"Snippet mẫu" detail:@"Lấy lại các snippet mẫu đã xóa và đưa các bản đã sửa về như ban đầu." button:restore],
+    ] footer:@"Trong nội dung snippet, {clipboard} được thay bằng chữ đang sao chép, {date} bằng ngày hôm nay (14/10/2026) "
+             @"và {time} bằng giờ hiện tại (09:05). Snippet được dán bằng ⌘V, sau đó clipboard của bạn được trả lại như cũ."];
 }
 
 -(NSView*)sectionQuickTyping {
@@ -631,6 +681,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
     _switchRecorder.value = vSwitchKeyStatus;
     _convertRecorder.value = convertToolHotKey;
+    _snippetRecorder.value = vSnippetHotKey;
 
     [self showStatus:[AppPermissions accessibilityGranted] in:_accessibilityStatus];
     [self showStatus:[AppPermissions inputMonitoringGranted] in:_inputMonitoringStatus];
@@ -680,6 +731,22 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
         if (returnCode == NSAlertSecondButtonReturn)
             [SuggestionController forgetLearnedWords];
+    }];
+}
+
+-(void)openSnippetEditor:(id)sender {
+    [SnippetEditorController show];
+}
+
+-(void)restoreSnippets:(id)sender {
+    NSAlert* alert = [[NSAlert alloc] init];
+    alert.messageText = @"Khôi phục snippet mẫu?";
+    alert.informativeText = @"Các snippet mẫu đã xóa sẽ quay lại và các snippet mẫu bạn đã sửa sẽ trở về nội dung gốc. Snippet do bạn tạo không bị ảnh hưởng.";
+    [alert addButtonWithTitle:@"Hủy"];
+    [alert addButtonWithTitle:@"Khôi phục"].hasDestructiveAction = YES;
+    [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
+        if (returnCode == NSAlertSecondButtonReturn)
+            [[SnippetStore shared] restoreDefaults];
     }];
 }
 

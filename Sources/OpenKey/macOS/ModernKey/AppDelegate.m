@@ -23,6 +23,9 @@
 #import "AppPermissions.h"
 #import "PermissionWindowController.h"
 #import "SuggestionController.h"
+#import "InputSourceGuard.h"
+#import "SnippetPalette.h"
+#import "SnippetStore.h"
 
 AppDelegate* appDelegate;
 extern void OnTableCodeChange(void);
@@ -108,6 +111,9 @@ extern bool convertToolDontAlertWhenCompleted;
     
     [LegacyOpenKey importSettingsIfNeeded];
     [SuggestionController registerDefaults]; //the Settings window may show them before the suggestion bar starts
+    [InputSourceGuard registerDefaults];
+    [SnippetPalette registerDefaults];
+    [SnippetPalette start];
     
     [self registerSupportedNotification];
     
@@ -187,6 +193,7 @@ extern bool convertToolDontAlertWhenCompleted;
     // give the keyboard back if macOS' input source was standing in for OpenKey
     [SecureInputMonitor stop];
     [SuggestionController stop];
+    [SnippetStore flushShared];
 }
 
 -(void)setQuickConvertString {
@@ -222,6 +229,10 @@ extern bool convertToolDontAlertWhenCompleted;
     vSuggestCompounds = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestCompounds forKey:@"SuggestionCompounds"];
     vSuggestTabAccepts = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestTabAccepts forKey:@"SuggestionTab"];
     [SuggestionController reloadSettings];
+    vForceABC = 1;[[NSUserDefaults standardUserDefaults] setInteger:vForceABC forKey:@"ForceABCWhenVietnamese"];
+    [InputSourceGuard enforce];
+    vSnippetsEnabled = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSnippetsEnabled forKey:@"SnippetsEnabled"];
+    vSnippetHotKey = VOK_SNIPPET_DEFAULT_HOTKEY;[[NSUserDefaults standardUserDefaults] setInteger:vSnippetHotKey forKey:@"SnippetHotKey"];
     vShowIconOnDock = 0;[[NSUserDefaults standardUserDefaults] setInteger:vShowIconOnDock forKey:@"vShowIconOnDock"];
     vFixChromiumBrowser = 0;[[NSUserDefaults standardUserDefaults] setInteger:vFixChromiumBrowser forKey:@"vFixChromiumBrowser"];
     vPerformLayoutCompat = 0;[[NSUserDefaults standardUserDefaults] setInteger:vPerformLayoutCompat forKey:@"vPerformLayoutCompat"];
@@ -293,6 +304,7 @@ extern bool convertToolDontAlertWhenCompleted;
     
     if (willNotify)
         OnInputMethodChanged();
+    [InputSourceGuard enforce]; //typing Vietnamese now: macOS must not be doing it too
 }
 
 #pragma mark -StatusBar menu action
