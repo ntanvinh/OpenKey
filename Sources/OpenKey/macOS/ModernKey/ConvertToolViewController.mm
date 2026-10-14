@@ -11,8 +11,10 @@
 #import "OpenKeyManager.h"
 #import "ConvertTool.h"
 #import "VOKUI.h"
+#import "ShortcutRecorder.h"
 
 extern AppDelegate* appDelegate;
+extern int vSwitchKeyStatus;
 
 @interface ConvertToolViewController ()
 
@@ -25,7 +27,32 @@ extern AppDelegate* appDelegate;
 
     self.SHotKey.Parent = self;
     [self fillData];
+    [self installShortcutRecorder];
     [self styleButtons];
+}
+
+//The quick convert shortcut is recorded by pressing it, as the language switch is in the Settings window. The four
+//check boxes and the text field of the storyboard are replaced by it, in the same place.
+-(void)installShortcutRecorder {
+    NSRect first = self.SControl.frame, last = self.SHotKey.frame;
+    ShortcutRecorder* recorder = [[ShortcutRecorder alloc] init];
+    recorder.translatesAutoresizingMaskIntoConstraints = YES;
+    recorder.frame = NSMakeRect(first.origin.x, NSMidY(last) - NSHeight(recorder.frame) / 2,
+                                NSWidth(recorder.frame), NSHeight(recorder.frame));
+    recorder.autoresizingMask = NSViewMaxXMargin | NSViewMinYMargin;
+    recorder.value = convertToolHotKey;
+    recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    recorder.conflict = ^NSString*(int data) {
+        return VOKShortcutsEqual(data, vSwitchKeyStatus) ? @"Chuyển chế độ gõ" : nil;
+    };
+    recorder.onChange = ^(int data) {
+        convertToolHotKey = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:convertToolHotKey forKey:@"convertToolHotKey"];
+        [appDelegate setQuickConvertString];
+    };
+    for (NSView* old in @[self.SControl, self.SOption, self.SCommand, self.SShift, self.SHotKey])
+        old.hidden = YES;
+    [self.SControl.superview addSubview:recorder];
 }
 
 //Buttons in the look of macOS. Push buttons carry text only (a symbol is for a button that has no title, like the

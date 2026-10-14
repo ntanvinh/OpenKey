@@ -7,7 +7,8 @@
 #import "AppDelegate.h"
 #import "AppInfo.h"
 #import "AppPermissions.h"
-#import "MyTextField.h"
+#import "RememberedAppsController.h"
+#import "ShortcutRecorder.h"
 #import "OpenKeyManager.h"
 #import "SuggestionController.h"
 #import "VOKUI.h"
@@ -38,6 +39,7 @@ extern int vShowIconOnDock;
 extern int vAutoCapsMacro;
 extern int vFixChromiumBrowser;
 extern int vPerformLayoutCompat;
+extern int convertToolHotKey;
 
 //Spacing used by every tab, so they all have the same rhythm (multiples of 4, like System Settings)
 static const CGFloat kCardWidth = 520;
@@ -45,7 +47,8 @@ static const CGFloat kPageMargin = 24;      //between the window edge and the ca
 static const CGFloat kSectionSpacing = 24;  //between one group and the next
 static const CGFloat kHeadingSpacing = 8;   //between a group's heading and its card
 static const CGFloat kRowInset = 16;        //between the card edge and the text or control of a row
-static const CGFloat kRowPadding = 12;      //above and below the text of a row
+static const CGFloat kRowPadding = 10;      //above and below the text of a row
+static const CGFloat kRowSpacing = 12;      //between the text of a row and its control
 static const CGFloat kRowMinHeight = 44;    //a row is never lower than this, with or without a line of explanation
 static const CGFloat kChildIndent = 20;     //extra inset of an option that depends on the one above it
 static const CGFloat kFooterSpacing = 8;    //between a card and the note under it
@@ -108,6 +111,16 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 #pragma mark - The window
 
+//The page of a tab. Flipped, so that when a page is taller than the window and scrolls it starts at the top.
+@interface SettingsPageView : NSView
+@end
+
+@implementation SettingsPageView
+-(BOOL)isFlipped {
+    return YES;
+}
+@end
+
 //Remembers which tab was open. The tab view controller is the delegate of its own tab view, so this is
 //done by overriding its method, not by setting a delegate.
 @interface SettingsTabs : NSTabViewController
@@ -127,8 +140,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSSegmentedControl* _language;
     NSPopUpButton* _inputType;
     NSPopUpButton* _codeTable;
-    NSArray<NSButton*>* _modifierKeys;
-    MyTextField* _switchKey;
+    ShortcutRecorder* _switchRecorder;
+    ShortcutRecorder* _convertRecorder;
     NSTextField* _accessibilityStatus;
     NSTextField* _inputMonitoringStatus;
     NSButton* _checkUpdateButton;
@@ -149,7 +162,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         _tabs = [[SettingsTabs alloc] init];
         _tabs.tabStyle = NSTabViewControllerTabStyleToolbar;
         [self addPage:@"Bộ gõ" symbol:@"keyboard" sections:@[[self sectionTyping], [self sectionSpelling]]];
-        [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionSuggestion], [self sectionQuickTyping]]];
+        [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionConvertShortcut], [self sectionQuickTyping]]];
+        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
         [self addPage:@"Hệ thống" symbol:@"gearshape" sections:@[[self sectionStartup], [self sectionPermissions], [self sectionAbout]]];
         NSInteger saved = [[NSUserDefaults standardUserDefaults] integerForKey:kSelectedTabKey];
@@ -186,7 +200,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     for (NSView* section in sections)
         [section.widthAnchor constraintEqualToConstant:kCardWidth].active = YES;
 
-    NSView* content = [[NSView alloc] init];
+    NSView* content = [[SettingsPageView alloc] init];
     [content addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
         [stack.topAnchor constraintEqualToAnchor:content.topAnchor],
@@ -198,9 +212,22 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     content.frame = NSMakeRect(0, 0, size.width, size.height);
     [content layoutSubtreeIfNeeded];
 
+    //a page taller than the screen scrolls instead of making a window that does not fit
+    CGFloat limit = MAX(480, [NSScreen mainScreen].visibleFrame.size.height - 170); //minus the title bar, the toolbar, the menu bar
+    NSView* pageView = content;
+    if (size.height > limit) {
+        NSScrollView* scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, size.width, limit)];
+        scroll.hasVerticalScroller = YES;
+        scroll.autohidesScrollers = YES;
+        scroll.drawsBackground = NO;
+        scroll.documentView = content; //flipped, so it starts at its top
+        pageView = scroll;
+        size.height = limit;
+    }
+
     NSViewController* page = [[NSViewController alloc] init];
     page.title = title;
-    page.view = content;
+    page.view = pageView;
     page.preferredContentSize = size; //the window grows or shrinks to fit the tab that is selected
     [_tabs addChildViewController:page];
     _tabs.tabViewItems.lastObject.image = VOKSymbol(symbol, 18, NSFontWeightRegular);
@@ -261,12 +288,15 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 }
 
 //Name (and a line of explanation under it) on the left, the control on the right.
+//The padding above and below the text is made of constraints: the edge insets of a stack view are not applied
+//vertically when its views are centred, which left rows with several lines of text without any padding.
 -(NSView*)rowWithTitle:(NSString*)title detail:(NSString*)detail control:(NSView*)control indent:(CGFloat)indent {
     control.translatesAutoresizingMaskIntoConstraints = NO;
     [control setContentHuggingPriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
     [control setContentCompressionResistancePriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
 
-    CGFloat textWidth = kCardWidth - 2 * kRowInset - 12 - control.fittingSize.width - indent;
+    //the text may be as wide as what the control leaves
+    CGFloat textWidth = kCardWidth - 2 * kRowInset - kRowSpacing - ceil(control.fittingSize.width) - indent;
     NSTextField* name = VOKLabel(title, 13, NSFontWeightRegular, nil);
     [self fixSizeOfLabel:name width:textWidth];
     NSMutableArray* texts = [NSMutableArray arrayWithObject:name];
@@ -279,16 +309,21 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     textStack.orientation = NSUserInterfaceLayoutOrientationVertical;
     textStack.alignment = NSLayoutAttributeLeading;
     textStack.spacing = 3;
+    textStack.translatesAutoresizingMaskIntoConstraints = NO;
 
-    NSView* spacer = [[NSView alloc] init];
-    [spacer setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView* row = [NSStackView stackViewWithViews:@[textStack, spacer, control]];
-    row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
-    row.alignment = NSLayoutAttributeCenterY;
-    row.spacing = 12;
-    row.edgeInsets = NSEdgeInsetsMake(kRowPadding, kRowInset + indent, kRowPadding, kRowInset);
+    NSView* row = [[NSView alloc] init];
     row.translatesAutoresizingMaskIntoConstraints = NO;
-    [row.heightAnchor constraintGreaterThanOrEqualToConstant:kRowMinHeight].active = YES;
+    [row addSubview:textStack];
+    [row addSubview:control];
+    [NSLayoutConstraint activateConstraints:@[
+        [textStack.leadingAnchor constraintEqualToAnchor:row.leadingAnchor constant:kRowInset + indent],
+        [textStack.topAnchor constraintEqualToAnchor:row.topAnchor constant:kRowPadding],
+        [textStack.bottomAnchor constraintEqualToAnchor:row.bottomAnchor constant:-kRowPadding],
+        [textStack.trailingAnchor constraintLessThanOrEqualToAnchor:control.leadingAnchor constant:-kRowSpacing],
+        [control.trailingAnchor constraintEqualToAnchor:row.trailingAnchor constant:-kRowInset],
+        [control.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [row.heightAnchor constraintGreaterThanOrEqualToConstant:kRowMinHeight],
+    ]];
     return row;
 }
 
@@ -338,32 +373,19 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _codeTable.target = self;
     _codeTable.action = @selector(codeTableChanged:);
 
-    //switch shortcut: modifier keys that are on, then the key
-    NSMutableArray* modifiers = [NSMutableArray array];
-    NSArray* glyphs = @[@"⌃", @"⌥", @"⌘", @"⇧"];
-    NSArray* bits = @[@0x100, @0x200, @0x400, @0x800];
-    NSArray* names = @[@"Phím Control", @"Phím Option", @"Phím Command", @"Phím Shift"];
-    for (NSUInteger i = 0; i < glyphs.count; i++) {
-        NSButton* key = [NSButton buttonWithTitle:glyphs[i] target:self action:@selector(modifierChanged:)];
-        key.buttonType = NSButtonTypePushOnPushOff;
-        key.bezelStyle = NSBezelStyleRounded;
-        key.tag = [bits[i] integerValue];
-        key.toolTip = names[i];
-        key.translatesAutoresizingMaskIntoConstraints = NO;
-        [key.widthAnchor constraintEqualToConstant:34].active = YES;
-        [modifiers addObject:key];
-    }
-    _modifierKeys = modifiers;
-    _switchKey = [[MyTextField alloc] init];
-    _switchKey.Parent = (id<MyTextFieldDelegate>)self;
-    _switchKey.alignment = NSTextAlignmentCenter;
-    _switchKey.bezelStyle = NSTextFieldRoundedBezel;
-    _switchKey.toolTip = @"Bấm một phím vào đây (Xóa để bỏ)";
-    _switchKey.translatesAutoresizingMaskIntoConstraints = NO;
-    [_switchKey.widthAnchor constraintEqualToConstant:44].active = YES;
-    NSStackView* shortcut = [NSStackView stackViewWithViews:[modifiers arrayByAddingObject:_switchKey]];
-    shortcut.orientation = NSUserInterfaceLayoutOrientationHorizontal;
-    shortcut.spacing = 6;
+    //the shortcut that switches the language: recorded by pressing it
+    _switchRecorder = [[ShortcutRecorder alloc] init];
+    _switchRecorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    _switchRecorder.conflict = ^NSString*(int data) {
+        return VOKShortcutsEqual(data, convertToolHotKey) ? @"Chuyển mã nhanh" : nil;
+    };
+    __weak SettingsWindowController* weakSelf = self;
+    _switchRecorder.onChange = ^(int data) {
+        vSwitchKeyStatus = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
+        [appDelegate refreshMenu]; //the shortcut is shown on the menu
+        (void)weakSelf;
+    };
 
     SettingsToggle* beep = [[SettingsToggle alloc] init];
     beep.title = @"Kêu beep khi chuyển chế độ";
@@ -378,7 +400,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self rowWithTitle:@"Chế độ gõ" detail:nil control:_language indent:0],
         [self rowWithTitle:@"Kiểu gõ" detail:nil control:_inputType indent:0],
         [self rowWithTitle:@"Bảng mã" detail:@"Thường là Unicode." control:_codeTable indent:0],
-        [self rowWithTitle:@"Phím chuyển chế độ" detail:nil control:shortcut indent:0],
+        [self rowWithTitle:@"Phím chuyển chế độ" detail:@"Bấm vào ô rồi nhấn tổ hợp phím mới."
+                      control:_switchRecorder indent:0],
         [self rowForToggle:beep],
     ]];
 }
@@ -422,10 +445,29 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     return [self sectionWithTitle:@"Gõ tắt" rows:rows];
 }
 
+-(NSView*)sectionConvertShortcut {
+    ShortcutRecorder* recorder = [[ShortcutRecorder alloc] init];
+    _convertRecorder = recorder; //the Convert window records the same shortcut: reload() keeps this one up to date
+    recorder.value = convertToolHotKey;
+    recorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    recorder.conflict = ^NSString*(int data) {
+        return VOKShortcutsEqual(data, vSwitchKeyStatus) ? @"Chuyển chế độ gõ" : nil;
+    };
+    recorder.onChange = ^(int data) {
+        convertToolHotKey = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:convertToolHotKey forKey:@"convertToolHotKey"];
+        [appDelegate setQuickConvertString];
+    };
+    return [self sectionWithTitle:@"Chuyển mã"
+                             rows:@[[self rowWithTitle:@"Phím chuyển mã nhanh"
+                                                detail:@"Chọn nội dung rồi bấm phím tắt để chuyển mã trong clipboard."
+                                               control:recorder indent:0]]];
+}
+
 -(NSView*)sectionSuggestion {
     void (^changed)(BOOL) = ^(BOOL on) { [SuggestionController reloadSettings]; };
     SettingsToggle* enabled = [SettingsToggle title:@"Thanh gợi ý khi gõ"
-                                             detail:@"Hiện từ gợi ý dưới chữ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác."
+                                             detail:@"Hiện từ gợi ý dưới chữ đang gõ. Giữ ⌥ và bấm số 1–5 để chọn."
                                                 key:@"SuggestionEnabled" variable:&vSuggestEnabled];
     enabled.onChange = changed;
     SettingsToggle* compounds = [SettingsToggle title:@"Gợi ý từ ghép"
@@ -437,6 +479,11 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
                                                  key:@"SuggestionNextWord" variable:&vSuggestNextWord];
     nextWord.onChange = changed;
     nextWord.parent = enabled;
+    SettingsToggle* tab = [SettingsToggle title:@"Dùng Tab để chọn gợi ý đầu tiên"
+                                          detail:@"Khi bật, Tab không còn chuyển sang ô kế tiếp trong form lúc thanh gợi ý đang hiện."
+                                             key:@"SuggestionTab" variable:&vSuggestTabAccepts];
+    tab.onChange = changed;
+    tab.parent = enabled;
     SettingsToggle* learn = [SettingsToggle title:@"Học từ cách gõ của bạn"
                                            detail:@"Nhớ từ và cụm từ bạn hay dùng, chỉ lưu trên máy này."
                                               key:@"SuggestionLearn" variable:&vSuggestLearn];
@@ -444,7 +491,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     learn.parent = enabled;
 
     NSMutableArray* rows = [NSMutableArray array];
-    for (SettingsToggle* toggle in @[enabled, compounds, nextWord, learn])
+    for (SettingsToggle* toggle in @[enabled, compounds, nextWord, tab, learn])
         [rows addObject:[self rowForToggle:toggle]];
     NSButton* folder = [NSButton buttonWithTitle:@"Mở thư mục…" target:self action:@selector(openDictionaryFolder:)];
     [rows addObject:[self buttonRowWithTitle:@"Từ điển" detail:@"Thả thêm file .txt vào thư mục để bổ sung từ và cụm từ." button:folder]];
@@ -478,7 +525,12 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
                                                       key:@"vOtherLanguage" variable:&vOtherLanguage];
     SettingsToggle* tempOff = [SettingsToggle title:@"Tạm tắt VOpenKey bằng phím ⌘" detail:@"Bấm ⌘ để tạm ngừng cho tới khi bạn gõ một từ mới."
                                                 key:@"vTempOffOpenKey" variable:&vTempOffOpenKey];
-    return [self sectionOfToggles:@"Theo từng ứng dụng" toggles:@[smart, remember, otherLanguage, tempOff]];
+    NSMutableArray* rows = [NSMutableArray array];
+    for (SettingsToggle* toggle in @[smart, remember, otherLanguage, tempOff])
+        [rows addObject:[self rowForToggle:toggle]];
+    NSButton* list = [NSButton buttonWithTitle:@"Xem danh sách…" target:self action:@selector(openRememberedApps:)];
+    [rows addObject:[self buttonRowWithTitle:@"Ứng dụng đã ghi nhớ" detail:@"Xem và sửa chế độ gõ, bảng mã VOpenKey đã nhớ cho từng ứng dụng." button:list]];
+    return [self sectionWithTitle:@"Theo từng ứng dụng" rows:rows];
 }
 
 -(NSView*)sectionCompatibility {
@@ -577,9 +629,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     if (codeTable >= 0 && codeTable < _codeTable.numberOfItems)
         [_codeTable selectItemAtIndex:codeTable];
 
-    for (NSButton* key in _modifierKeys)
-        key.state = (vSwitchKeyStatus & key.tag) ? NSControlStateValueOn : NSControlStateValueOff;
-    [_switchKey setTextByChar:((vSwitchKeyStatus >> 24) & 0xFF)];
+    _switchRecorder.value = vSwitchKeyStatus;
+    _convertRecorder.value = convertToolHotKey;
 
     [self showStatus:[AppPermissions accessibilityGranted] in:_accessibilityStatus];
     [self showStatus:[AppPermissions inputMonitoringGranted] in:_inputMonitoringStatus];
@@ -607,23 +658,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [appDelegate onCodeTableChanged:(int)sender.indexOfSelectedItem];
 }
 
--(void)modifierChanged:(NSButton*)sender {
-    if (sender.state == NSControlStateValueOn)
-        vSwitchKeyStatus |= (int)sender.tag;
-    else
-        vSwitchKeyStatus &= ~(int)sender.tag;
-    [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
-    [appDelegate refreshMenu]; //the shortcut is shown on the menu
-}
-
-//the key that was pressed in the shortcut field (MyTextFieldDelegate)
--(void)onMyTextFieldKeyChange:(unsigned short)keyCode character:(unsigned short)character {
-    vSwitchKeyStatus &= 0xFFFFFF00;
-    vSwitchKeyStatus |= keyCode;
-    vSwitchKeyStatus &= 0x00FFFFFF;
-    vSwitchKeyStatus |= ((unsigned int)character << 24);
-    [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
-    [appDelegate refreshMenu];
+-(void)openRememberedApps:(id)sender {
+    [RememberedAppsController presentFromWindow:self.window];
 }
 
 -(void)openDictionaryFolder:(id)sender {

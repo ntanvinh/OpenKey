@@ -7,6 +7,7 @@
 //
 
 #import "VOKUI.h"
+#import "MacroPresets.h"
 #import "MacroViewController.h"
 #include "Engine.h"
 
@@ -42,6 +43,71 @@
     
     //load data
     getAllMacro(keys, macroText, macroContent);
+
+    //the common abbreviations can be added from here too, next to the other ways of filling the table
+    NSButton* export_ = VOKFindButton(self.view, @selector(onExportToFile:));
+    if (export_ != nil) {
+        NSButton* presets = [NSButton buttonWithTitle:@"Gõ tắt mẫu…" target:self action:@selector(onAddPresets:)];
+        presets.bezelStyle = NSBezelStyleRounded;
+        presets.toolTip = @"Thêm các từ viết tắt thông dụng của tiếng Việt";
+        presets.autoresizingMask = export_.autoresizingMask;
+        [presets sizeToFit];
+        NSRect frame = presets.frame;
+        frame.origin = NSMakePoint(NSMaxX(export_.frame) + 12, export_.frame.origin.y + (NSHeight(export_.frame) - NSHeight(frame)) / 2);
+        presets.frame = frame;
+        NSRect check = self.AutoCapsMacro.frame;
+        check.origin.x = NSMaxX(frame) + 16;
+        self.AutoCapsMacro.frame = check;
+        [self.view addSubview:presets];
+    }
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(macrosChanged:)
+                                                 name:VOKMacrosDidChangeNotification object:nil];
+}
+
+-(void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+//the row of buttons at the bottom got one more, the window grows to keep the last control inside it
+-(void)viewWillAppear {
+    [super viewWillAppear];
+    NSWindow* window = self.view.window;
+    if (window == nil)
+        return;
+    CGFloat wanted = NSMaxX(self.AutoCapsMacro.frame) + 24;
+    NSSize size = window.contentView.frame.size;
+    if (size.width < wanted) {
+        size.width = wanted;
+        [window setContentSize:size];
+    }
+}
+
+//the table was changed elsewhere (the Settings window added the common abbreviations)
+-(void)macrosChanged:(NSNotification*)notification {
+    getAllMacro(keys, macroText, macroContent);
+    [self.tableView reloadData];
+}
+
+-(void)onAddPresets:(id)sender {
+    NSUInteger total = 0, missing = 0;
+    [MacroPresets countTotal:&total missing:&missing];
+    NSAlert* alert = [[NSAlert alloc] init];
+    if (missing == 0) {
+        alert.messageText = @"Bạn đã có đủ gõ tắt phổ biến";
+        alert.informativeText = [NSString stringWithFormat:@"Cả %lu gõ tắt trong bộ này đều đã có trong danh sách của bạn.", (unsigned long)total];
+        [alert addButtonWithTitle:@"OK"];
+        [alert beginSheetModalForWindow:self.view.window completionHandler:nil];
+        return;
+    }
+    alert.messageText = @"Thêm gõ tắt phổ biến?";
+    alert.informativeText = [NSString stringWithFormat:@"Thêm %lu gõ tắt thông dụng của tiếng Việt, ví dụ %@. Những gõ tắt bạn đã có được giữ nguyên.",
+                             (unsigned long)missing, [MacroPresets examples]];
+    [alert addButtonWithTitle:[NSString stringWithFormat:@"Thêm %lu gõ tắt", (unsigned long)missing]];
+    [alert addButtonWithTitle:@"Hủy"];
+    [alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
+        if (returnCode == NSAlertFirstButtonReturn)
+            [MacroPresets addMissing]; //the notification reloads the table
+    }];
 }
 
 -(void)saveAndReload {

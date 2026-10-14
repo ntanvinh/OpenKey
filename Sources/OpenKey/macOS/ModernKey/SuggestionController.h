@@ -21,6 +21,7 @@ extern int vSuggestEnabled;
 extern int vSuggestNextWord;
 extern int vSuggestLearn;
 extern int vSuggestCompounds;
+extern int vSuggestTabAccepts; //Tab also chooses the first suggestion, off by default: Tab moves between the fields of a form
 
 @interface SuggestionController : NSObject
 

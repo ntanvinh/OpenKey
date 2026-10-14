@@ -8,8 +8,9 @@
 //  (3) type the text it gets back from accept(). Same rules then apply on macOS, Windows and Linux.
 //
 //  Keys, the same on every platform:
-//      Tab            accepts the first suggestion (slot 0)
 //      Alt/Option+1-5 accepts suggestion 1-5 (slot 0-4)
+//      Tab            accepts the first suggestion (slot 0) ONLY if the user turned that on: Tab is also the key that
+//                     moves to the next field of a form, and a suggestion must never take it by surprise
 //  Accepting replaces the word typed so far with the suggestion followed by a space, and the bar
 //  goes on with the next word prediction, so a sentence can be typed with Tab Tab Tab.
 //

@@ -1,5 +1,278 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.1.1 (build 53): (14/10/2026)
+- chore: release v3.0.0 of forked VOpenKey
+- feat(macOS): release v3.0.0 with modern macOS UI and features
+- chore(macOS ModernKey): delete unused PNG assets
+- feat: add contextual word suggestion bar for macOS Vietnamese typing
+- fix(status menu): match native layout for language menu checkmarks
+- feat(macOS): add dynamic flag icons, fix menu and permission window UI
+- feat(macOS): rebrand to VOpenKey and modernize the macOS UI
+- feat(macos): add secure input support and event tap recovery
+- Fix macOS UI and Spotlight composition
+- feat: Enable multi-user support by allowing multiple instances of OpenKey for different mac users
+- Fix "á" and "huỵch"
+- [Win] Sửa thuật toán parse version cho an toàn hơn
+- [Win] Thay hàm GetCurrentDirectory bằng hàm GetTempPath2
+- Tạo MSBuild pipeline
+- Xóa file OpenKey.aps
+- Xử lý trường hợp thỉnh thoảng mất system tray icon
+- Restore win32.h
+- Code formatting
+- Update UI
+- Fix build errors
+- Add allow other languages options to win32
+- Add win32 ignore
+- [Win] Reliably check caps lock for every key press
+- Update gitignore
+- Dvorak support
+- reverse dev team name and min macos target
+- Thêm checkbox, biến cho mode "tắt tiếng Việt khi bộ gõ hệ thống khác English". Thêm Carbon.Framework để chạy code phát hiện bộ gõ hệ thống.
+- Không gõ tiếng Việt khi đang gõ Microsoft IME
+- Add "Simple Telex 2"
+- Create macOS_Build.md
+- [Windows] Update theme for Windows 11
+- Use gray icon by default.
+- Resolve error Implicit declaration of function 'AXAPIEnabled' is invalid in C99
+- optimize
+- sync project
+- chores: update homebrew's installation commands
+- Support Telex entry on different keyboard layouts
+- update version
+- [macOS] correct sendkey.
+- update version
+- [mac] improve UI, feature
+- [Win] Fix some issues on Windows
+- improve spelling check
+- update readme!
+- [win] fix auto update
+- [Win] update version 2.0.1
+- [Win] support metro app 100%
+- [macOS] update version 2.0.1 build 45
+- update readme!
+- update readme
+- [macOS] update version 2.0.1 build 44
+- [macOS] fix show icon on dock
+- [macOS] update version 2.0.1
+- Add a ton of new features
+- [win] change UI, show Main control if OpenKey has already run when run again from exe file!
+- [Windows] correct author's email
+- [win] update version 2.0
+- [Windows] fix UI
+- new UI, fix some issue on Windows
+- update version 1.6.5 for macOS
+- [macOS] fix conflict with Adobe Photoshop and Illutrator
+- update readme for Windows
+- update readme!
+- update readme!
+- [Win] fix run on start up
+- update windows version
+- update engine
+- [Win] fix `check spelling` doesn't save
+- [mac] update version 1.6.2 build 40
+- [mac] update version 1.6.2 build 39
+- [macOS] update 1.6.2 build 38
+- fix some issues
+- [Windows] AutoUpdate
+- version 1.6.2
+- update version 1.6.2
+- update smart switch
+- auto capitalize when use macro (on/off)
+- [Windows] Support Metro App
+- update readme
+- update correct var
+- update version 1.6
+- [Win] sync feature with macOS
+- [macOS] fix issue 103. import/export macro data. quick consonant.
+- [mac] sync engine code with [win] version
+- [Win] fix some issues
+- update version 1.5.2 build 35
+- fix issue #100
+- asking user for accessibility permission
+- update readme
+- update readme
+- update version 1.5.1, build 34
+- [macOS] fix crash issue #97
+- update main readme
+- update main readme
+- [Win32] update UI, readme
+- [Win32] Run as Admin (to typing Vietnamese in game, update same version with macOS.
+- Compile with xcode 10.1 on macOS 10.13
+- update readme
+- update version 1.5 build 33
+- add new features
+- update UI
+- Source code for Win32 application - Visual Studio 2017
+- Source code for Win32 application - Visual Studio 2017
+- cross platforms for macOS, Windows, Linux
+- update readme
+- update version 1.4.1 build 32
+- fix main hot key when dont use hot key
+- Fix hot key issue, don't has sound when use Smart Switch Key
+- update version 1.4 (build 31)
+- update ConvertTool
+- update readme, delete image
+- Add ConvertTool feature
+- update readme
+- update version for AutoUpdate
+- Can edit previous word. Improve typing with VNI font, support 100% Unicode Compound for Apple's apps.
+- update readme!
+- update readme!
+- Correct bundle path for Auto Update feature
+- implement Auto Update feature
+- prepare auto update feature
+- update About dialog, changelog
+- fix issue #85 #86
+- improve macro table
+- improve macro table (implement feature #65)
+- improve mark performance. Fix issue #84, #83, #70
+- update engine: build compatible with linux
+- Update README.md - homebrew upgrade
+- sorry, this is correct readme!
+- update correct readme!
+- update readme! - how to setup by homebrew
+
+##### VOpenKey 3.1.0 (build 52): (14/10/2026)
+- chore: release v3.0.0 of forked VOpenKey
+- feat(macOS): release v3.0.0 with modern macOS UI and features
+- chore(macOS ModernKey): delete unused PNG assets
+- feat: add contextual word suggestion bar for macOS Vietnamese typing
+- fix(status menu): match native layout for language menu checkmarks
+- feat(macOS): add dynamic flag icons, fix menu and permission window UI
+- feat(macOS): rebrand to VOpenKey and modernize the macOS UI
+- feat(macos): add secure input support and event tap recovery
+- Fix macOS UI and Spotlight composition
+- feat: Enable multi-user support by allowing multiple instances of OpenKey for different mac users
+- Fix "á" and "huỵch"
+- [Win] Sửa thuật toán parse version cho an toàn hơn
+- [Win] Thay hàm GetCurrentDirectory bằng hàm GetTempPath2
+- Tạo MSBuild pipeline
+- Xóa file OpenKey.aps
+- Xử lý trường hợp thỉnh thoảng mất system tray icon
+- Restore win32.h
+- Code formatting
+- Update UI
+- Fix build errors
+- Add allow other languages options to win32
+- Add win32 ignore
+- [Win] Reliably check caps lock for every key press
+- Update gitignore
+- Dvorak support
+- reverse dev team name and min macos target
+- Thêm checkbox, biến cho mode "tắt tiếng Việt khi bộ gõ hệ thống khác English". Thêm Carbon.Framework để chạy code phát hiện bộ gõ hệ thống.
+- Không gõ tiếng Việt khi đang gõ Microsoft IME
+- Add "Simple Telex 2"
+- Create macOS_Build.md
+- [Windows] Update theme for Windows 11
+- Use gray icon by default.
+- Resolve error Implicit declaration of function 'AXAPIEnabled' is invalid in C99
+- optimize
+- sync project
+- chores: update homebrew's installation commands
+- Support Telex entry on different keyboard layouts
+- update version
+- [macOS] correct sendkey.
+- update version
+- [mac] improve UI, feature
+- [Win] Fix some issues on Windows
+- improve spelling check
+- update readme!
+- [win] fix auto update
+- [Win] update version 2.0.1
+- [Win] support metro app 100%
+- [macOS] update version 2.0.1 build 45
+- update readme!
+- update readme
+- [macOS] update version 2.0.1 build 44
+- [macOS] fix show icon on dock
+- [macOS] update version 2.0.1
+- Add a ton of new features
+- [win] change UI, show Main control if OpenKey has already run when run again from exe file!
+- [Windows] correct author's email
+- [win] update version 2.0
+- [Windows] fix UI
+- new UI, fix some issue on Windows
+- update version 1.6.5 for macOS
+- [macOS] fix conflict with Adobe Photoshop and Illutrator
+- update readme for Windows
+- update readme!
+- update readme!
+- [Win] fix run on start up
+- update windows version
+- update engine
+- [Win] fix `check spelling` doesn't save
+- [mac] update version 1.6.2 build 40
+- [mac] update version 1.6.2 build 39
+- [macOS] update 1.6.2 build 38
+- fix some issues
+- [Windows] AutoUpdate
+- version 1.6.2
+- update version 1.6.2
+- update smart switch
+- auto capitalize when use macro (on/off)
+- [Windows] Support Metro App
+- update readme
+- update correct var
+- update version 1.6
+- [Win] sync feature with macOS
+- [macOS] fix issue 103. import/export macro data. quick consonant.
+- [mac] sync engine code with [win] version
+- [Win] fix some issues
+- update version 1.5.2 build 35
+- fix issue #100
+- asking user for accessibility permission
+- update readme
+- update readme
+- update version 1.5.1, build 34
+- [macOS] fix crash issue #97
+- update main readme
+- update main readme
+- [Win32] update UI, readme
+- [Win32] Run as Admin (to typing Vietnamese in game, update same version with macOS.
+- Compile with xcode 10.1 on macOS 10.13
+- update readme
+- update version 1.5 build 33
+- add new features
+- update UI
+- Source code for Win32 application - Visual Studio 2017
+- Source code for Win32 application - Visual Studio 2017
+- cross platforms for macOS, Windows, Linux
+- update readme
+- update version 1.4.1 build 32
+- fix main hot key when dont use hot key
+- Fix hot key issue, don't has sound when use Smart Switch Key
+- update version 1.4 (build 31)
+- update ConvertTool
+- update readme, delete image
+- Add ConvertTool feature
+- update readme
+- update version for AutoUpdate
+- Can edit previous word. Improve typing with VNI font, support 100% Unicode Compound for Apple's apps.
+- update readme!
+- update readme!
+- Correct bundle path for Auto Update feature
+- implement Auto Update feature
+- prepare auto update feature
+- update About dialog, changelog
+- fix issue #85 #86
+- improve macro table
+- improve macro table (implement feature #65)
+- improve mark performance. Fix issue #84, #83, #70
+- update engine: build compatible with linux
+- Update README.md - homebrew upgrade
+- sorry, this is correct readme!
+- update correct readme!
+- update readme! - how to setup by homebrew
+
+##### VOpenKey 3.0.1 (build 51): (14/10/2026)
+- **Xử lý Secure Input trên macOS:** Khi ứng dụng nền bật Secure Input, nếu bộ gõ Vietnamese của macOS đã được bật, VOpenKey tạm chuyển sang bộ gõ đó và khôi phục bộ gõ trước khi Secure Input tắt (nếu người dùng chưa tự đổi bộ gõ). Không tự chuyển trong ứng dụng đang được sử dụng để tránh ảnh hưởng đến trường mật khẩu; trạng thái được hiển thị trong menu.
+- **Hoàn thiện thanh gợi ý khi gõ:** Gợi ý từ theo ngữ cảnh, từ ghép và từ kế tiếp; có thể học từ cách gõ trên máy. Giữ `⌥` và bấm `1`–`5` để chọn; tùy chọn bật `Tab` cho gợi ý đầu tiên. Tính năng mặc định tắt.
+- **Làm mới giao diện macOS:** Đồng bộ bố cục Cài đặt, menu trạng thái, cửa sổ gõ tắt và Chuyển mã theo phong cách macOS; biểu tượng thích ứng giao diện sáng/tối.
+- **Menu trạng thái gọn hơn:** Bỏ các mục công cụ ít dùng, thêm mục bật/tắt nhanh thanh gợi ý; cấu hình phím tắt Chuyển mã nhanh trong Cài đặt > Gõ tắt.
+- **Tùy chỉnh phím tắt:** Ghi phím tắt bằng cách nhấn tổ hợp phím, cảnh báo khi trùng với phím tắt khác.
+- **Quản lý thiết lập theo ứng dụng:** Xem, sửa hoặc xóa chế độ gõ và bảng mã đã ghi nhớ cho từng ứng dụng.
+- **Bộ gõ tắt mẫu:** Thêm các viết tắt tiếng Việt phổ biến mà không ghi đè mục gõ tắt hiện có.
+
 ##### VOpenKey 3.0.0 (build 50): (14/10/2026)
 - Thanh gợi ý khi gõ theo phong cách macOS (chất liệu menu, bo góc đồng tâm, sáng/tối tự theo hệ thống), kiểu bảng ứng viên của bộ gõ Hán tự: hiện các từ có thể gõ tiếp ngay dưới từ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác; chọn xong tự thêm dấu cách và dự đoán từ kế tiếp. Mặc định tắt, bật trong Cài đặt > Gõ tắt.
 - Engine gợi ý dùng chung cho mọi nền tảng (`engine/Suggest*.{h,cpp}`): từ điển là file text, đoán theo ngữ cảnh 2 từ trước (bigram/trigram), gõ không dấu vẫn ra từ có dấu, tự học từ cách gõ (lưu ở `~/Library/Application Support/VOpenKey/learned.txt`).

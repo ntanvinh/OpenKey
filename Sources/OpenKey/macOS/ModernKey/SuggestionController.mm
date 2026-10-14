@@ -15,6 +15,7 @@ int vSuggestEnabled = 0;
 int vSuggestNextWord = 1;
 int vSuggestLearn = 1;
 int vSuggestCompounds = 1;
+int vSuggestTabAccepts = 0;
 
 static NSString* const kExcludedAppsKey = @"SuggestionExcludedApps"; //optional: extra bundle ids to leave alone
 
@@ -161,7 +162,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 +(void)registerDefaults {
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"SuggestionNextWord": @1, @"SuggestionLearn": @1,
-                                                              @"SuggestionCompounds": @1}];
+                                                              @"SuggestionCompounds": @1, @"SuggestionTab": @0}];
 }
 
 +(void)start {
@@ -183,6 +184,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     vSuggestNextWord = (int)[defaults integerForKey:@"SuggestionNextWord"];
     vSuggestLearn = (int)[defaults integerForKey:@"SuggestionLearn"];
     vSuggestCompounds = (int)[defaults integerForKey:@"SuggestionCompounds"];
+    vSuggestTabAccepts = (int)[defaults integerForKey:@"SuggestionTab"];
 
     _accessibilityQueue = dispatch_queue_create("vn.io.lssoft.vopenkey.suggestion.accessibility", DISPATCH_QUEUE_SERIAL);
     _manualAccessibility = [NSMutableSet set];
@@ -347,6 +349,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         _panel = [[SuggestionPanel alloc] init];
     _lastWords = words;
     _lastTyped = typed;
+    _panel.firstWordUsesTab = vSuggestTabAccepts != 0;
     [_panel setWords:words];
 
     //the bar stays where the word started while it is being typed, a new word is a new place

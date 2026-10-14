@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build VOpenKey for development, sign it, put it in ~/Applications and open it.
+# Bump the patch version, build VOpenKey for development, sign it, put it in ~/Applications and open it.
 #
 # Why not just run it from Xcode or from the build folder: macOS only lists an app in
 # System Settings > Privacy & Security when it can find it, and an app that runs from a hidden build folder is
@@ -19,6 +19,9 @@ for arg in "$@"; do
         *) die "unknown option: $arg" ;;
     esac
 done
+
+say "Bumping patch version for this dev build"
+"$ROOT/scripts/version.sh" bump patch
 
 DERIVED="$ROOT/build/dev"
 mkdir -p "$ROOT/build"

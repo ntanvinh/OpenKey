@@ -1,0 +1,53 @@
+;VOpenKey - bảng gõ tắt tiếng Việt phổ biến. Mỗi dòng một gõ tắt, dạng từ gõ tắt, dấu hai chấm, nội dung đầy đủ
+; nhắn tin
+ko:không
+dc:được
+vs:với
+vd:ví dụ
+ntn:như thế nào
+nt:nhắn tin
+mn:mọi người
+ae:anh em
+ace:anh chị em
+cx:cũng
+bt:bình thường
+bth:bình thường
+hqua:hôm qua
+hnay:hôm nay
+ngta:người ta
+tks:cảm ơn
+thks:cảm ơn
+thx:cảm ơn
+cmon:cảm ơn
+xc:xin chào
+sn:sinh nhật
+hpbd:chúc mừng sinh nhật
+sdt:số điện thoại
+stk:số tài khoản
+; công việc
+cty:công ty
+vp:văn phòng
+nv:nhân viên
+sp:sản phẩm
+ctv:cộng tác viên
+kgui:Kính gửi
+; học tập và nghề nghiệp
+gv:giáo viên
+sv:sinh viên
+dh:đại học
+thcs:trung học cơ sở
+thpt:trung học phổ thông
+ths:thạc sĩ
+bs:bác sĩ
+ks:kỹ sư
+gs:giáo sư
+pgs:phó giáo sư
+; địa danh và cơ quan
+vn:Việt Nam
+hn:Hà Nội
+sg:Sài Gòn
+hcm:Hồ Chí Minh
+tphcm:Thành phố Hồ Chí Minh
+qh:quốc hội
+ubnd:Ủy ban nhân dân
+hdnd:Hội đồng nhân dân

@@ -21,6 +21,7 @@ static const NSTimeInterval kFadeIn = 0.12;
 
 @interface SuggestionItemsView : NSView
 @property (nonatomic, copy) NSArray<NSString*>* words;
+@property (nonatomic) BOOL firstWordUsesTab;
 -(NSSize)contentSize;
 @end
 
@@ -34,9 +35,11 @@ static const NSTimeInterval kFadeIn = 0.12;
     return NO;
 }
 
-//Tab for the first, ⌥2... for the others, in the way macOS writes shortcuts
+//⌥1, ⌥2... in the way macOS writes shortcuts; Tab for the first one when it is allowed to
 -(NSString*)hintAtIndex:(NSUInteger)index {
-    return index == 0 ? @"⇥" : [NSString stringWithFormat:@"⌥%lu", (unsigned long)index + 1];
+    if (index == 0 && self.firstWordUsesTab)
+        return @"⇥";
+    return [NSString stringWithFormat:@"⌥%lu", (unsigned long)index + 1];
 }
 
 -(NSDictionary*)wordAttributes:(BOOL)selected {
@@ -122,6 +125,7 @@ static NSImage* BarMask(void) {
 
 @implementation SuggestionPanel {
     SuggestionItemsView* _items;
+    BOOL _firstWordUsesTab;
 }
 
 -(instancetype)init {
@@ -166,6 +170,11 @@ static NSImage* BarMask(void) {
 
 -(BOOL)canBecomeMainWindow {
     return NO;
+}
+
+-(void)setFirstWordUsesTab:(BOOL)uses {
+    _firstWordUsesTab = uses;
+    _items.firstWordUsesTab = uses;
 }
 
 -(void)setWords:(NSArray<NSString*>*)words {

@@ -8,10 +8,10 @@
 #import "AppInfo.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
+#import "SuggestionController.h"
 #import "VOKUI.h"
 
 extern AppDelegate* appDelegate;
-extern int convertToolHotKey;
 
 //"Telex" and the like, in the order of the InputType setting
 static NSArray<NSString*>* InputTypeNames(void) {
@@ -21,44 +21,6 @@ static NSArray<NSString*>* InputTypeNames(void) {
 //the order of the CodeTable setting
 static NSArray<NSString*>* CodeTableNames(void) {
     return @[@"Unicode dựng sẵn", @"TCVN3 (ABC)", @"VNI Windows", @"Unicode tổ hợp", @"Vietnamese Locale CP 1258"];
-}
-
-//Shows a global shortcut (modifier bits 0x100 ⌃, 0x200 ⌥, 0x400 ⌘, 0x800 ⇧ and the character in the top byte)
-//on the right of a menu item the way macOS shows shortcuts.
-static void ApplyShortcut(NSMenuItem* item, int data) {
-    NSEventModifierFlags modifiers = 0;
-    if (data & 0x100) modifiers |= NSEventModifierFlagControl;
-    if (data & 0x200) modifiers |= NSEventModifierFlagOption;
-    if (data & 0x400) modifiers |= NSEventModifierFlagCommand;
-    if (data & 0x800) modifiers |= NSEventModifierFlagShift;
-    unsigned key = ((unsigned)data >> 24) & 0xFF;
-    //0xFE: no key, the shortcut is made of modifiers only, which a menu cannot show
-    if (key == 0xFE || key == 0 || modifiers == 0) {
-        item.keyEquivalent = @"";
-        item.keyEquivalentModifierMask = 0;
-        return;
-    }
-    item.keyEquivalent = [[NSString stringWithFormat:@"%c", key] lowercaseString];
-    item.keyEquivalentModifierMask = modifiers;
-}
-
-//The checkmark of the selected language sits at the trailing edge of the menu, in the column where the other rows have
-//their arrows and shortcuts, while the rows keep the native size and spacing of AppKit.
-//A menu is as wide as its widest row. Putting the right tab stop wider than every other row makes these two the
-//widest ones, so the stop is the trailing edge of the menu whatever the other rows hold or the system font is
-//(a smaller number leaves the checkmark floating in the middle of a wider menu). The text starts after the flag.
-static const CGFloat kLanguageRowTextWidth = 262;
-
-static NSAttributedString* LanguageMenuTitle(NSString* title, BOOL selected) {
-    NSString* value = [title stringByAppendingFormat:@"\t%@", selected ? @"✓" : @""];
-    NSMutableParagraphStyle* paragraphStyle = [[NSMutableParagraphStyle alloc] init];
-    paragraphStyle.alignment = NSTextAlignmentLeft;
-    paragraphStyle.tabStops = @[[[NSTextTab alloc] initWithTextAlignment:NSTextAlignmentRight
-                                                                 location:kLanguageRowTextWidth
-                                                                  options:@{}]];
-    return [[NSAttributedString alloc] initWithString:value attributes:@{
-        NSParagraphStyleAttributeName: paragraphStyle
-    }];
 }
 
 //A small gray heading over a group of items, like the ones macOS uses (14 and later have a real one)
@@ -93,9 +55,9 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _englishItem;
     NSMenuItem* _inputTypeParent;
     NSMenuItem* _codeTableParent;
+    NSMenuItem* _suggestionItem;
     NSArray<NSMenuItem*>* _inputTypeItems;
     NSArray<NSMenuItem*>* _codeTableItems;
-    NSMenuItem* _quickConvertItem;
 }
 
 -(instancetype)init {
@@ -140,7 +102,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:_secureItem];
     [_menu addItem:_noticeSeparator];
 
-    //Typing language, with the flag at the leading edge and the selected checkmark trailing.
+    //Typing language, with the native checkmark in the leading state column.
     _vietnameseItem = MakeItem(@"Tiếng Việt", nil, self, @selector(selectVietnamese:));
     _vietnameseItem.image = VOKFlagImage(@"vn");
     _englishItem = MakeItem(@"English", nil, self, @selector(selectEnglish:));
@@ -162,10 +124,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _codeTableItems = items;
     [_menu addItem:[NSMenuItem separatorItem]];
 
-    [_menu addItem:MakeItem(@"Công cụ chuyển mã…", @"arrow.left.arrow.right", self, @selector(openConvertTool:))];
-    _quickConvertItem = MakeItem(@"Chuyển mã nhanh", @"doc.on.clipboard", self, @selector(quickConvert:));
-    [_menu addItem:_quickConvertItem];
-    [_menu addItem:MakeItem(@"Gõ tắt…", @"text.badge.plus", self, @selector(openMacro:))];
+    _suggestionItem = MakeItem(@"Thanh gợi ý khi gõ", @"text.magnifyingglass", self, @selector(toggleSuggestion:));
+    [_menu addItem:_suggestionItem];
     [_menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem* settings = MakeItem(@"Cài đặt…", @"gearshape", self, @selector(openSettings:));
@@ -198,22 +158,20 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _statusItem.button.alternateImage = [NSImage imageNamed:vietnamese ? @"StatusHighlighted" : @"StatusHighlightedEng"];
     _statusItem.button.toolTip = [SecureInputMonitor statusDescription];
 
-    //Language switching is available through the app-wide shortcut, but the
-    //menu uses its trailing checkmark to show the current selection.
-    _vietnameseItem.attributedTitle = LanguageMenuTitle(@"Tiếng Việt", language == 1);
-    _englishItem.attributedTitle = LanguageMenuTitle(@"English", language != 1);
+    //Language switching is available through the app-wide shortcut; show the selection like other menu toggles.
+    _vietnameseItem.state = language == 1 ? NSControlStateValueOn : NSControlStateValueOff;
+    _englishItem.state = language != 1 ? NSControlStateValueOn : NSControlStateValueOff;
 
     for (NSMenuItem* item in _inputTypeItems)
         item.state = item.tag == inputType ? NSControlStateValueOn : NSControlStateValueOff;
     for (NSMenuItem* item in _codeTableItems)
         item.state = item.tag == codeTable ? NSControlStateValueOn : NSControlStateValueOff;
+    _suggestionItem.state = vSuggestEnabled ? NSControlStateValueOn : NSControlStateValueOff;
     if (@available(macOS 14.4, *)) {
         //what is selected, written under the name of the submenu
         _inputTypeParent.subtitle = inputType >= 0 && inputType < (NSInteger)InputTypeNames().count ? InputTypeNames()[inputType] : nil;
         _codeTableParent.subtitle = codeTable >= 0 && codeTable < (NSInteger)CodeTableNames().count ? CodeTableNames()[codeTable] : nil;
     }
-
-    ApplyShortcut(_quickConvertItem, convertToolHotKey);
 
     BOOL needsPermission = ![OpenKeyManager isInited];
     NSString* secureDescription = [SecureInputMonitor statusDescription];
@@ -258,16 +216,11 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [appDelegate onCodeTableChanged:(int)sender.tag];
 }
 
--(void)openConvertTool:(id)sender {
-    [appDelegate onConvertTool];
-}
-
--(void)quickConvert:(id)sender {
-    [appDelegate onQuickConvert];
-}
-
--(void)openMacro:(id)sender {
-    [appDelegate onMacroSelected];
+-(void)toggleSuggestion:(id)sender {
+    vSuggestEnabled = !vSuggestEnabled;
+    [[NSUserDefaults standardUserDefaults] setInteger:vSuggestEnabled forKey:@"SuggestionEnabled"];
+    [SuggestionController reloadSettings];
+    [self refresh];
 }
 
 -(void)openSettings:(id)sender {

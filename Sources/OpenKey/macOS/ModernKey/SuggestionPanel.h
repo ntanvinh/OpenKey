@@ -11,7 +11,10 @@
 
 @interface SuggestionPanel : NSPanel
 
-/// The first word is the one Tab accepts, the others are chosen with ⌥2, ⌥3...
+/// What the first word is chosen with: ⌥1, or Tab when that is allowed. The others are ⌥2, ⌥3...
+@property (nonatomic) BOOL firstWordUsesTab;
+
+/// The first word is the highlighted one, the others follow it.
 -(void)setWords:(NSArray<NSString*>*)words;
 
 /// Puts the bar under a rectangle (the word being typed), in Cocoa screen coordinates; above it when

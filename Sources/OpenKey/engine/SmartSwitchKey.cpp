@@ -71,3 +71,17 @@ void setAppInputMethodStatus(const string& bundleId, const int& language) {
     _cacheKey = bundleId;
     _cacheData = language;
 }
+
+void getAllAppInputMethodStatus(vector<pair<string, int> >& out) {
+    out.clear();
+    for (map<string, Int8>::iterator it = _smartSwitchKeyData.begin(); it != _smartSwitchKeyData.end(); ++it) {
+        out.push_back(make_pair(it->first, (int)it->second));
+    }
+}
+
+void removeAppInputMethodStatus(const string& bundleId) {
+    _smartSwitchKeyData.erase(bundleId);
+    if (_cacheKey.compare(bundleId) == 0) { //the cache would answer with what was just removed
+        _cacheKey = "";
+    }
+}

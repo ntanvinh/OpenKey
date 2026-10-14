@@ -12,7 +12,7 @@ Dự án nằm ở `Sources/OpenKey/macOS/OpenKey.xcodeproj` (target và scheme 
 scripts/dev.sh
 ```
 
-Lệnh này build bản Debug, ký, cài vào `~/Applications/VOpenKey.app` rồi mở. Thêm `--reset-permissions` để xóa quyền đã cấp và xem lại cửa sổ cấp quyền lần đầu, `--no-open` để chỉ cài.
+Mỗi lần chạy, script tự tăng patch version (ví dụ `3.0.0` thành `3.0.1`) bằng `scripts/version.sh bump patch`, rồi build bản Debug, ký, cài vào `~/Applications/VOpenKey.app` và mở. Phiên bản được đồng bộ trong cấu hình macOS, Windows và changelog; `version.json` không đổi nên bản dev không được công bố là bản cập nhật. Thêm `--reset-permissions` để xóa quyền đã cấp và xem lại cửa sổ cấp quyền lần đầu, `--no-open` để chỉ cài.
 
 Nên chạy bằng lệnh này thay vì bấm Run trong Xcode hoặc mở thẳng từ thư mục build: macOS chỉ liệt kê app trong *Cài đặt hệ thống -> Quyền riêng tư & Bảo mật* khi tìm thấy nó, mà thư mục build nằm ẩn (`~/Library/Developer/Xcode/DerivedData`) nên app không hiện trong danh sách, nút "+" cũng khó chọn tới. Ký bằng cùng một chứng chỉ mỗi lần còn giúp các quyền đã cấp được giữ qua các lần build.
 

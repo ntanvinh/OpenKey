@@ -13,6 +13,7 @@
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
 #import "SuggestionController.h"
+#import "ShortcutRecorder.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -205,6 +206,28 @@ extern "C" {
         [prefs setObject:_data forKey:@"smartSwitchKey"];
     }
     
+    //What was remembered for each application (language and code table), for the Settings window to show and edit.
+    //Each item: @"id" the bundle identifier, @"value" language | (code table << 1)
+    NSArray<NSDictionary*>* RememberedApps() {
+        vector<pair<string, int>> all;
+        getAllAppInputMethodStatus(all);
+        NSMutableArray* items = [NSMutableArray array];
+        for (const auto& app : all) {
+            [items addObject:@{@"id": [NSString stringWithUTF8String:app.first.c_str()] ?: @"", @"value": @(app.second)}];
+        }
+        return items;
+    }
+
+    void SetRememberedApp(NSString* bundleId, int value) {
+        setAppInputMethodStatus(string(bundleId.UTF8String), value);
+        saveSmartSwitchKeyData();
+    }
+
+    void ForgetRememberedApp(NSString* bundleId) {
+        removeAppInputMethodStatus(string(bundleId.UTF8String));
+        saveSmartSwitchKeyData();
+    }
+
     void OnActiveAppChanged() { //use for smart switch key; improved on Sep 28th, 2019
         queryFrontMostApp();
         _languageTemp = getAppInputMethodStatus(string(_frontMostApp.UTF8String), vLanguage | (vCodeTable << 1));
@@ -585,7 +608,8 @@ extern "C" {
         return length > 0 ? [NSString stringWithCharacters:buffer length:length] : @"";
     }
 
-    //Tab chooses the first suggestion, ⌥1 to ⌥5 choose suggestion 1 to 5. -1 for any other key.
+    //⌥1 to ⌥5 choose suggestion 1 to 5; Tab chooses the first one only when the user allowed it, otherwise it goes on to
+    //the application (it moves to the next field of a form). -1 for any other key.
     int SuggestionSlotForKey(CGKeyCode keycode, CGEventFlags flags) {
         if (flags & (kCGEventFlagMaskCommand | kCGEventFlagMaskControl))
             return -1;
@@ -594,7 +618,7 @@ extern "C" {
         if (shift)
             return -1;
         if (keycode == KEY_TAB)
-            return option ? -1 : 0;
+            return (option || !vSuggestTabAccepts) ? -1 : 0;
         if (!option)
             return -1;
         switch (keycode) {
@@ -686,6 +710,11 @@ extern "C" {
 
         //dont handle my event
         if (CGEventGetIntegerValueField(event, kCGEventSourceStateID) == CGEventSourceGetSourceStateID(myEventSource)) {
+            return event;
+        }
+
+        //a field is waiting for the user to press a shortcut: the keys are for it, not for the language switch or the typing
+        if (vRecordingShortcut) {
             return event;
         }
         

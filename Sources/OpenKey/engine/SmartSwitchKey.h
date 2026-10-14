@@ -11,6 +11,8 @@
 
 #include "DataType.h"
 #include <string>
+#include <utility>
+#include <vector>
 
 using namespace std;
 
@@ -32,7 +34,18 @@ int getAppInputMethodStatus(const string& bundleId, const int& currentInputMetho
 
 /**
  * Set default language for this @bundleId
+ * (the value is the language, 0 or 1, plus the code table times two: what the apps remember is `language | (codeTable << 1)`)
  */
 void setAppInputMethodStatus(const string& bundleId, const int& language);
+
+/**
+ * Everything that was remembered, for showing and editing it: application and value as above
+ */
+void getAllAppInputMethodStatus(vector<pair<string, int> >& out);
+
+/**
+ * Forget an application: the next time it is used it is remembered again, from what is selected then
+ */
+void removeAppInputMethodStatus(const string& bundleId);
 
 #endif /* SmartSwitchKey_h */
