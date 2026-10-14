@@ -1,5 +1,9 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.1.2 (build 54): (14/10/2026)
+- feat(vi macros): add common Vietnamese chat abbreviations and fix bt mapping
+- feat(macOS): add tab toggle, remembered apps, and macro presets
+
 ##### VOpenKey 3.1.1 (build 53): (14/10/2026)
 - chore: release v3.0.0 of forked VOpenKey
 - feat(macOS): release v3.0.0 with modern macOS UI and features
