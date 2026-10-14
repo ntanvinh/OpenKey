@@ -12,6 +12,7 @@
 #import "AppDelegate.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
+#import "SuggestionController.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -79,6 +80,7 @@ extern "C" {
     int _i, _j, _k;
     Uint32 _tempChar;
     bool _hasJustUsedHotKey = false;
+    int _swallowedKeyCode = -1; //key that chose a suggestion: its key up and key repeats must not reach the application either
 
     int _languageTemp = 0; //use for smart switch key
     vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
@@ -538,6 +540,7 @@ extern "C" {
             NSBeep();
         [appDelegate onImputMethodChanged:YES];
         startNewSession();
+        [SuggestionController reset];
     }
     
     void handleMacro() {
@@ -566,6 +569,69 @@ extern "C" {
             }
         }
         SendKeyCode(_keycode | (_flag & kCGEventFlagMaskShift ? CAPS_MASK : 0));
+    }
+
+    //The word being typed, as the typing engine has it (empty if none). Only meaningful with the Unicode table.
+    NSString* CurrentTypingWord() {
+        Uint16 buffer[MAX_BUFF];
+        int length = vGetTypingWord(buffer, MAX_BUFF);
+        return length > 0 ? [NSString stringWithCharacters:buffer length:length] : @"";
+    }
+
+    //The keys pressed for the word being typed, before Telex/VNI changed them ("hoso" when the screen shows an accent)
+    NSString* CurrentRawTypingWord() {
+        Uint16 buffer[MAX_BUFF];
+        int length = vGetTypingRawWord(buffer, MAX_BUFF);
+        return length > 0 ? [NSString stringWithCharacters:buffer length:length] : @"";
+    }
+
+    //Tab chooses the first suggestion, ⌥1 to ⌥5 choose suggestion 1 to 5. -1 for any other key.
+    int SuggestionSlotForKey(CGKeyCode keycode, CGEventFlags flags) {
+        if (flags & (kCGEventFlagMaskCommand | kCGEventFlagMaskControl))
+            return -1;
+        bool option = flags & kCGEventFlagMaskAlternate;
+        bool shift = flags & kCGEventFlagMaskShift;
+        if (shift)
+            return -1;
+        if (keycode == KEY_TAB)
+            return option ? -1 : 0;
+        if (!option)
+            return -1;
+        switch (keycode) {
+            case KEY_1: return 0;
+            case KEY_2: return 1;
+            case KEY_3: return 2;
+            case KEY_4: return 3;
+            case KEY_5: return 4;
+        }
+        return -1;
+    }
+
+    //Replaces the word that was typed with the chosen suggestion
+    void SendSuggestionText(NSString* text, NSUInteger eraseCount) {
+        //same preparation as for a macro: the address bar of a browser may have added a proposal
+        //that the first backspace would remove instead of a letter
+        if (eraseCount > 0 && shouldUseRecommendWorkaround(FRONT_APP)) {
+            SendEmptyCharacter();
+            eraseCount++;
+        }
+        for (NSUInteger i = 0; i < eraseCount; i++) {
+            SendBackspace();
+        }
+        NSUInteger length = text.length;
+        UniChar chunk[16];
+        for (NSUInteger start = 0; start < length; start += 16) {
+            NSUInteger count = MIN((NSUInteger)16, length - start);
+            [text getCharacters:chunk range:NSMakeRange(start, count)];
+            CGEventRef down = CGEventCreateKeyboardEvent(myEventSource, 0, true);
+            CGEventRef up = CGEventCreateKeyboardEvent(myEventSource, 0, false);
+            CGEventKeyboardSetUnicodeString(down, count, chunk);
+            CGEventKeyboardSetUnicodeString(up, count, chunk);
+            CGEventTapPostEvent(_proxy, down);
+            CGEventTapPostEvent(_proxy, up);
+            CFRelease(down);
+            CFRelease(up);
+        }
     }
 
     // TODO: Research API to convert character into CGKeyCode more elegantly!
@@ -608,6 +674,9 @@ extern "C" {
         //secure input is on and macOS' own Vietnamese input source is typing for us, converting here as well
         //would do it twice
         if ([SecureInputMonitor isFallbackActive]) {
+            if ([SuggestionController isShowing]) {
+                [SuggestionController reset];
+            }
             if (type == kCGEventKeyDown || type == kCGEventKeyUp || type == kCGEventFlagsChanged) {
                 //keys only reach an event tap once secure input has been released
                 [SecureInputMonitor secureInputMayHaveEnded];
@@ -622,6 +691,19 @@ extern "C" {
         
         _flag = CGEventGetFlags(event);
         _keycode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+
+        if (_swallowedKeyCode >= 0 && (type == kCGEventKeyDown || type == kCGEventKeyUp)) {
+            bool sameKey = _keycode == _swallowedKeyCode;
+            if (type == kCGEventKeyUp && sameKey) {
+                _swallowedKeyCode = -1;
+                return NULL;
+            }
+            if (type == kCGEventKeyDown) {
+                if (sameKey && CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat) != 0)
+                    return NULL;
+                _swallowedKeyCode = -1;
+            }
+        }
         
         if (type == kCGEventKeyDown && vPerformLayoutCompat) {
             // If conversion fail, use current keycode
@@ -686,6 +768,9 @@ extern "C" {
         
         //If is in english mode
         if (vLanguage == 0) {
+            if ([SuggestionController isShowing]) {
+                [SuggestionController reset];
+            }
             if (vUseMacro && vUseMacroInEnglishMode && type == kCGEventKeyDown) {
                 vEnglishMode((type == kCGEventKeyDown ? vKeyEventState::KeyDown : vKeyEventState::MouseDown),
                              _keycode,
@@ -703,6 +788,7 @@ extern "C" {
         //handle mouse
         if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown || type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged) {
             RequestNewSession();
+            [SuggestionController reset];
             return event;
         }
 
@@ -725,6 +811,21 @@ extern "C" {
             }
         }
         
+        //Tab or ⌥1-5 chooses a suggestion from the bar
+        if (type == kCGEventKeyDown && vSuggestEnabled && [SuggestionController isShowing]) {
+            int slot = SuggestionSlotForKey(_keycode, _flag);
+            if (slot >= 0) {
+                NSString* suggestion = nil;
+                NSUInteger eraseCount = 0;
+                if ([SuggestionController acceptSlot:slot currentWord:CurrentTypingWord() text:&suggestion erase:&eraseCount]) {
+                    SendSuggestionText(suggestion, eraseCount);
+                    RequestNewSession(); //the word on screen is no longer what the typing engine has
+                    _swallowedKeyCode = (int)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+                    return NULL;
+                }
+            }
+        }
+
         //handle keyboard
         if (type == kCGEventKeyDown) {
             //send event signal to Engine
@@ -733,6 +834,15 @@ extern "C" {
                             _keycode,
                             _flag & kCGEventFlagMaskShift ? 1 : (_flag & kCGEventFlagMaskAlphaShift ? 2 : 0),
                             OTHER_CONTROL_KEY);
+            if (vSuggestEnabled) {
+                VOKSuggestionKey kind = VOKSuggestionKeyOther;
+                if (_keycode == KEY_SPACE && !(OTHER_CONTROL_KEY) && pData->code == vDoNothing) {
+                    kind = VOKSuggestionKeySpace;
+                } else if (_keycode == KEY_DELETE) {
+                    kind = VOKSuggestionKeyDelete;
+                }
+                [SuggestionController keyProcessed:kind word:CurrentTypingWord() raw:CurrentRawTypingWord()];
+            }
             if (pData->code == vDoNothing) { //do nothing
                 if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
                     if (pData->extCode == 1) { //break key

@@ -22,6 +22,7 @@
 #import "AboutPanel.h"
 #import "AppPermissions.h"
 #import "PermissionWindowController.h"
+#import "SuggestionController.h"
 
 AppDelegate* appDelegate;
 extern void OnTableCodeChange(void);
@@ -184,6 +185,7 @@ extern bool convertToolDontAlertWhenCompleted;
 - (void)applicationWillTerminate:(NSNotification *)aNotification {
     // give the keyboard back if macOS' input source was standing in for OpenKey
     [SecureInputMonitor stop];
+    [SuggestionController stop];
 }
 
 -(void)setQuickConvertString {
@@ -213,6 +215,11 @@ extern bool convertToolDontAlertWhenCompleted;
     vRememberCode = 1;[[NSUserDefaults standardUserDefaults] setInteger:vRememberCode forKey:@"vRememberCode"];
     vOtherLanguage = 1;[[NSUserDefaults standardUserDefaults] setInteger:vOtherLanguage forKey:@"vOtherLanguage"];
     vTempOffOpenKey = 0;[[NSUserDefaults standardUserDefaults] setInteger:vTempOffOpenKey forKey:@"vTempOffOpenKey"];
+    vSuggestEnabled = 0;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestEnabled forKey:@"SuggestionEnabled"];
+    vSuggestNextWord = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestNextWord forKey:@"SuggestionNextWord"];
+    vSuggestLearn = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestLearn forKey:@"SuggestionLearn"];
+    vSuggestCompounds = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestCompounds forKey:@"SuggestionCompounds"];
+    [SuggestionController reloadSettings];
     vShowIconOnDock = 0;[[NSUserDefaults standardUserDefaults] setInteger:vShowIconOnDock forKey:@"vShowIconOnDock"];
     vFixChromiumBrowser = 0;[[NSUserDefaults standardUserDefaults] setInteger:vFixChromiumBrowser forKey:@"vFixChromiumBrowser"];
     vPerformLayoutCompat = 0;[[NSUserDefaults standardUserDefaults] setInteger:vPerformLayoutCompat forKey:@"vPerformLayoutCompat"];

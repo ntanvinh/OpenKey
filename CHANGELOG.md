@@ -1,5 +1,12 @@
 # OpenKey Change Log
 
+##### Chưa phát hành
+- Thanh gợi ý khi gõ, kiểu bảng ứng viên của bộ gõ Hán tự: hiện các từ có thể gõ tiếp ngay dưới từ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác; chọn xong tự thêm dấu cách và dự đoán từ kế tiếp. Mặc định tắt, bật trong Cài đặt > Gõ tắt.
+- Engine gợi ý dùng chung cho mọi nền tảng (`engine/Suggest*.{h,cpp}`): từ điển là file text, đoán theo ngữ cảnh 2 từ trước (bigram/trigram), gõ không dấu vẫn ra từ có dấu, tự học từ cách gõ (lưu ở `~/Library/Application Support/VOpenKey/learned.txt`).
+- Gợi ý từ ghép: gõ liền không dấu, ví dụ `thietke`, ra `thiết kế`; gõ dở như `thiet` ra `thiết kế`, `thiết bị`... Từ ghép viết `thiết_kế` trong file từ điển, hoặc viết cách bình thường dưới dòng `#!compounds`. Tìm cả bằng phím thô khi Telex đã đổi chữ trên màn hình (`hoso` ra `hồ sơ`).
+- Kèm sẵn khoảng 36.000 từ ghép và 5.000 âm tiết từ [Wiktionary tiếng Việt](https://vi.wiktionary.org) (CC BY-SA 4.0, chỉ lấy tên mục từ), tạo bằng `scripts/fetch-wiktionary-dictionary.py`; ghi nguồn trong cửa sổ About và `engine/dictionaries/README.md`.
+- Bổ sung từ điển bằng cách thả file `.txt` vào thư mục Dictionaries; `scripts/build-dictionary.py` tạo từ điển lớn từ văn bản tiếng Việt.
+
 ##### VOpenKey 2.1.0 (build 49): (13/10/2026)
 VOpenKey là bản fork của OpenKey 2.0.4 do LSSoft phát triển.
 - Đổi tên thành VOpenKey, bundle ID `vn.io.lssoft.vopenkey`. Lần đầu mở sẽ tự nhập cài đặt từ OpenKey gốc.

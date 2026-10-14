@@ -142,6 +142,39 @@ void* vKeyInit() {
     return &HookState;
 }
 
+int vGetTypingWord(Uint16* out, const int& maxCount) {
+    //the buffer only mirrors the screen while a word is really being typed
+    if (_index == 0 || _index > maxCount || _spaceCount > 0 || _willTempOffEngine ||
+        _specialChar.size() > 0 || _longWordHelper.size() > 0 || vCodeTable != 0)
+        return 0;
+    Uint32 code;
+    for (int n = 0; n < _index; n++) {
+        code = getCharacterCode(TypingWord[n]);
+        if (code & PURE_CHARACTER_MASK) {
+            out[n] = (Uint16)code;
+        } else if (code & CHAR_CODE_MASK) {
+            out[n] = (Uint16)code; //Unicode table: low 16 bits are the character
+        } else {
+            out[n] = keyCodeToCharacter(code);
+            if (out[n] == 0)
+                return 0;
+        }
+    }
+    return _index;
+}
+
+int vGetTypingRawWord(Uint16* out, const int& maxCount) {
+    if (_index == 0 || _stateIndex == 0 || _stateIndex > maxCount || _spaceCount > 0 || _willTempOffEngine ||
+        _specialChar.size() > 0 || _longWordHelper.size() > 0)
+        return 0;
+    for (int n = 0; n < _stateIndex; n++) {
+        out[n] = keyCodeToCharacter(KeyStates[n]);
+        if (out[n] == 0)
+            return 0;
+    }
+    return _stateIndex;
+}
+
 bool isWordBreak(const vKeyEvent& event, const vKeyEventState& state, const Uint16& data) {
     if (event == vKeyEvent::Mouse)
         return true;

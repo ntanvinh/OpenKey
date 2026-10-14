@@ -26,9 +26,30 @@ BUILT="$(build_app Debug "$DERIVED" OTHER_CODE_SIGN_FLAGS="--timestamp=none")"
 [ -d "$BUILT" ] || die "build did not produce $BUILT"
 
 DEST="$HOME/Applications/$APP_NAME.app"
+APP_PROCESS="$DEST/Contents/MacOS/$APP_NAME"
+is_app_running() {
+    pgrep -f "$APP_PROCESS" >/dev/null 2>&1
+}
+
+wait_for_app_to_exit() {
+    for _ in $(seq 1 20); do
+        is_app_running || return 0
+        sleep 0.25
+    done
+    return 1
+}
+
 say "Closing $APP_NAME if it is running"
 osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
-for _ in $(seq 1 20); do pgrep -f "$DEST/Contents/MacOS/$APP_NAME" >/dev/null || break; sleep 0.25; done
+if ! wait_for_app_to_exit; then
+    say "$APP_NAME is still running; sending TERM"
+    pkill -TERM -f "$APP_PROCESS" || true
+fi
+if ! wait_for_app_to_exit; then
+    say "$APP_NAME is still running; sending KILL"
+    pkill -KILL -f "$APP_PROCESS" || true
+fi
+wait_for_app_to_exit || die "could not stop the running app; refusing to replace it"
 
 say "Installing to $DEST"
 mkdir -p "$HOME/Applications"

@@ -1,0 +1,1056 @@
+# VOpenKey base dictionary (starter set, written by hand).
+# Format: word<TAB>count, or several words<TAB>count for a phrase. See engine/Suggest.h.
+# Replace or extend it with a large one built by scripts/build-dictionary.py from Vietnamese text.
+
+# ---- the most common words
+là	9000
+và	8000
+của	7500
+có	7000
+không	6800
+một	6000
+những	5500
+được	5200
+trong	5000
+cho	4800
+các	4700
+này	4500
+với	4300
+để	4200
+đã	4000
+khi	3800
+từ	3700
+người	3600
+như	3500
+cũng	3400
+đó	3300
+nhưng	3200
+sẽ	3100
+rất	3000
+nhiều	2900
+ra	2800
+lại	2700
+về	2700
+vào	2600
+mà	2600
+thì	2500
+ở	2400
+tôi	2400
+bạn	2300
+anh	2200
+họ	2000
+em	1700
+chị	1500
+nó	1600
+chúng	1500
+ta	1300
+mình	1600
+ông	1200
+bà	1100
+cô	900
+thầy	400
+con	1500
+mẹ	800
+bố	500
+cha	400
+ba	900
+
+# ---- verbs
+làm	2600
+đi	2500
+đến	2200
+nói	2000
+biết	1900
+thấy	1800
+muốn	1700
+cần	1600
+phải	2300
+nên	1500
+còn	1700
+vẫn	1200
+đang	1900
+bị	1100
+giúp	700
+dùng	800
+sử	600
+dụng	600
+gặp	600
+hỏi	600
+trả	500
+lời	700
+viết	700
+đọc	700
+học	1300
+hiểu	600
+nghĩ	800
+yêu	700
+thích	800
+ăn	700
+uống	400
+ngủ	400
+mua	600
+bán	500
+gửi	500
+nhận	600
+mở	500
+đóng	400
+chạy	400
+tìm	800
+xem	700
+nghe	600
+chờ	400
+đợi	300
+bắt	600
+đầu	900
+kết	600
+thúc	300
+tiếp	800
+tục	400
+thử	400
+chọn	400
+lưu	300
+sửa	300
+thêm	700
+cập	300
+nhật	400
+tải	300
+cài	200
+đặt	500
+gọi	500
+xin	1800
+chào	1500
+cảm	900
+ơn	900
+chúc	800
+mừng	500
+
+# ---- nouns
+việc	2300
+năm	1800
+ngày	1700
+tháng	900
+giờ	900
+lúc	700
+thời	900
+gian	700
+nhà	1000
+nước	900
+thành	1000
+phố	400
+trường	600
+lớp	300
+công	900
+ty	500
+việt	800
+nam	800
+hà	400
+nội	500
+hồ	300
+chí	300
+minh	300
+tiền	500
+giá	500
+sản	400
+phẩm	300
+dịch	300
+vụ	300
+khách	300
+hàng	600
+phần	500
+loại	400
+cách	800
+lần	700
+điều	1000
+vấn	400
+đề	500
+bài	400
+cuộc	500
+sống	400
+đời	300
+tình	400
+thông	700
+tin	700
+máy	500
+tính	500
+điện	500
+thoại	500
+tiếng	700
+anh	600
+gia	400
+đình	400
+bạn	300
+bè	300
+sức	300
+khỏe	500
+khoẻ	200
+tuần	400
+hôm	700
+nay	1200
+qua	800
+mai	500
+sáng	500
+chiều	400
+tối	500
+sinh	600
+viên	600
+giáo	300
+sinh	300
+tập	400
+tài	300
+khoản	300
+mật	200
+khẩu	200
+địa	300
+chỉ	700
+ngân	200
+
+# ---- questions, adjectives, connectors
+gì	1500
+sao	900
+đâu	700
+nào	1500
+thế	1500
+vậy	1300
+ai	600
+bao	500
+nhiêu	400
+mấy	400
+lắm	600
+quá	900
+hơn	1000
+nhất	900
+tốt	700
+xấu	200
+đẹp	400
+lớn	700
+nhỏ	500
+mới	1300
+cũ	300
+dài	200
+cao	300
+nhanh	400
+chậm	300
+dễ	500
+khó	600
+vui	500
+buồn	300
+hay	1500
+hoặc	400
+vì	1100
+nếu	1000
+tuy	300
+dù	300
+bởi	300
+theo	1100
+cùng	700
+giữa	400
+sau	1300
+trước	1200
+trên	800
+dưới	500
+ngoài	400
+bên	600
+tại	700
+do	800
+bằng	700
+đối	400
+bây	600
+hiện	700
+lòng	400
+trọng	500
+quan	600
+thiết	300
+đặc	300
+biệt	400
+định	600
+lẽ	400
+nghĩa	400
+tạm	200
+biệt	300
+lỗi	600
+lành	300
+mến	100
+ái	100
+kính	300
+gửi	200
+trân	200
+
+# ---- phrases: greetings and politeness
+xin chào	3000
+xin lỗi	2500
+xin cảm ơn	1500
+xin vui lòng	300
+xin hỏi	300
+cảm ơn	3500
+cảm ơn bạn	1200
+cảm ơn anh	600
+cảm ơn chị	400
+cảm ơn rất nhiều	500
+rất nhiều	1500
+rất vui	900
+rất vui được gặp bạn	300
+rất tốt	500
+rất quan trọng	250
+chúc mừng	1200
+chúc mừng năm mới	800
+năm mới	1500
+chúc bạn	700
+chúc bạn một ngày tốt lành	200
+một ngày	1000
+ngày mới	500
+tốt lành	400
+chúc ngủ ngon	150
+ngủ ngon	200
+hẹn gặp lại	700
+gặp lại	700
+tạm biệt	500
+vui lòng	500
+làm ơn	300
+kính gửi	200
+kính chào	200
+kính chúc	100
+trân trọng	300
+trân trọng cảm ơn	150
+thân mến	150
+không sao	900
+
+# ---- phrases: common word pairs
+không biết	1500
+không có	2500
+không phải	2000
+không được	1500
+không thể	1400
+không còn	600
+không cần	400
+không muốn	400
+có thể	3500
+có thể làm	400
+có thể sử dụng	200
+có lẽ	600
+có nghĩa là	300
+nghĩa là	500
+như thế	800
+như vậy	1500
+như thế nào	900
+thế nào	1300
+làm sao	800
+tại sao	700
+vì sao	400
+bao nhiêu	800
+bao giờ	400
+khi nào	500
+ở đâu	800
+là gì	900
+là người	500
+là một	1400
+một số	1200
+một cách	600
+một chút	700
+một lần	500
+một người	800
+những người	1000
+những gì	400
+những điều	300
+các bạn	900
+các anh	200
+các em	300
+tôi là	800
+tôi không	900
+tôi có	700
+tôi muốn	600
+tôi sẽ	600
+tôi đã	600
+tôi cần	400
+tôi biết	400
+tôi nghĩ	500
+tôi thấy	400
+tôi yêu bạn	100
+bạn có	800
+bạn có thể	600
+bạn là	500
+bạn không	500
+bạn muốn	300
+bạn cần	300
+bạn đang	400
+bạn đã	300
+bạn sẽ	300
+anh ấy	600
+chị ấy	300
+cô ấy	400
+họ đã	400
+họ có	300
+họ là	300
+chúng tôi	1500
+chúng ta	1100
+chúng tôi là	300
+chúng tôi có	250
+chúng tôi sẽ	250
+
+# ---- phrases: work, study, technology
+sinh viên	600
+học sinh	700
+giáo viên	500
+học tập	400
+đại học	800
+trường đại học	400
+công ty	1000
+công việc	900
+công nghệ	400
+thông tin	1000
+dữ liệu	400
+phần mềm	500
+máy tính	600
+điện thoại	700
+điện thoại di động	150
+ứng dụng	500
+trang web	300
+mạng xã hội	300
+xã hội	500
+kinh tế	400
+chính phủ	300
+thành phố	700
+thành phố hồ chí minh	300
+hồ chí minh	500
+hà nội	700
+việt nam	1500
+người việt	400
+người việt nam	300
+tiếng việt	700
+tiếng anh	500
+sản phẩm	500
+dịch vụ	500
+khách hàng	500
+giá cả	200
+giá trị	400
+chất lượng	500
+số lượng	300
+số điện thoại	300
+địa chỉ	300
+tài khoản	300
+mật khẩu	200
+đăng nhập	200
+đăng ký	300
+thanh toán	250
+ngân hàng	300
+chuyển khoản	200
+
+# ---- phrases: time
+thời gian	1000
+trong thời gian	300
+hôm nay	1200
+hôm qua	500
+ngày mai	600
+buổi sáng	300
+buổi chiều	200
+buổi tối	300
+tối nay	300
+sáng nay	150
+cuối tuần	300
+tuần này	300
+tuần sau	200
+tháng này	150
+năm nay	400
+năm ngoái	200
+bây giờ	1200
+hiện nay	600
+hiện tại	500
+sau khi	900
+trước khi	800
+trong khi	500
+khi đó	400
+lúc đó	300
+lúc này	300
+cùng với	600
+cùng nhau	300
+với nhau	400
+
+# ---- phrases: verbs
+để có	300
+để làm	400
+để được	300
+để biết	200
+để cho	200
+đã được	1200
+đã có	700
+đã làm	300
+đã không	300
+sẽ được	600
+sẽ có	600
+sẽ không	500
+sẽ làm	300
+đang làm	400
+đang có	300
+đang ở	300
+làm việc	900
+làm gì	600
+làm cho	500
+làm được	400
+đi làm	400
+đi học	400
+đi chơi	300
+đi đến	300
+đi về	300
+tốt hơn	300
+hơn nữa	300
+nhiều hơn	300
+tốt nhất	400
+nhất định	400
+nhất là	300
+đặc biệt	400
+đặc biệt là	250
+quan trọng	700
+cần thiết	300
+cần phải	500
+phải làm	300
+phải có	300
+
+# ---- phrases: daily life
+tình yêu	300
+cuộc sống	600
+cuộc họp	300
+cuộc gọi	150
+bài viết	300
+bài hát	300
+bài tập	250
+câu hỏi	400
+câu trả lời	250
+trả lời	600
+gửi cho	300
+gửi lại	150
+tin nhắn	250
+nhận được	600
+sức khỏe	500
+sức khoẻ	200
+gia đình	600
+bố mẹ	300
+ông bà	200
+anh chị	300
+anh chị em	150
+bạn bè	400
+trẻ em	200
+ăn cơm	200
+ăn sáng	150
+ăn trưa	150
+ăn tối	150
+đi ngủ	200
+ngon miệng	100
+
+# ---- compound words: typing them together without spaces or accents, e.g. thietke, offers the whole word
+#!compounds
+
+# ---- design, software, technology
+thiết kế	900
+thiết bị	700
+thiết lập	400
+thiết kế web	150
+thiết kế đồ họa	200
+đồ họa	300
+giao diện	500
+trải nghiệm	500
+người dùng	800
+trải nghiệm người dùng	300
+lập trình	700
+lập trình viên	400
+phát triển	900
+phần mềm	800
+phần cứng	300
+ứng dụng	800
+cơ sở dữ liệu	400
+dữ liệu	800
+hệ thống	900
+hệ điều hành	300
+mạng máy tính	150
+máy tính	900
+máy chủ	300
+điện thoại	900
+điện thoại thông minh	200
+thông minh	400
+trí tuệ nhân tạo	400
+học máy	200
+học sâu	100
+bảo mật	400
+an toàn	500
+an ninh	300
+kiểm thử	300
+kiểm tra	700
+triển khai	400
+vận hành	300
+bảo trì	250
+nâng cấp	400
+cập nhật	600
+tải xuống	300
+tải lên	250
+cài đặt	600
+tài liệu	700
+yêu cầu	800
+quản lý	900
+quản trị	400
+dự án	800
+kế hoạch	800
+báo cáo	700
+phân tích	600
+đánh giá	600
+tối ưu	400
+tối ưu hóa	300
+hiệu suất	400
+hiệu quả	700
+chất lượng	800
+tính năng	600
+chức năng	600
+cấu hình	400
+tùy chỉnh	300
+tùy chọn	300
+tìm kiếm	600
+kết nối	700
+truy cập	500
+đăng nhập	500
+đăng ký	600
+đăng xuất	200
+mật khẩu	400
+tài khoản	600
+thông báo	600
+thông tin	1000
+liên hệ	500
+liên kết	400
+trang chủ	400
+trang web	500
+mạng xã hội	500
+truyền thông	300
+quảng cáo	500
+tiếp thị	300
+thương hiệu	400
+
+# ---- business, work
+sản phẩm	900
+dịch vụ	800
+khách hàng	800
+doanh nghiệp	600
+công ty	1000
+công việc	900
+nhân viên	700
+nhân sự	400
+giám đốc	500
+trưởng phòng	200
+trưởng nhóm	200
+đồng nghiệp	400
+hợp đồng	600
+thanh toán	500
+hóa đơn	400
+ngân hàng	600
+chuyển khoản	300
+tiền mặt	250
+kinh doanh	700
+kinh tế	600
+tài chính	600
+đầu tư	600
+thị trường	600
+cạnh tranh	300
+lợi nhuận	300
+doanh thu	400
+chi phí	400
+ngân sách	300
+giá cả	300
+giá trị	600
+số lượng	400
+số liệu	300
+thống kê	300
+biểu đồ	300
+bảng biểu	150
+
+# ---- education
+sinh viên	700
+học sinh	800
+giáo viên	700
+giảng viên	300
+học tập	500
+học hành	200
+đại học	900
+trường học	500
+lớp học	400
+khóa học	500
+bài học	400
+bài tập	400
+bài giảng	250
+kiến thức	600
+kỹ năng	600
+kinh nghiệm	700
+nghiên cứu	600
+thực hành	300
+lý thuyết	300
+kỳ thi	300
+tốt nghiệp	400
+
+# ---- family, daily life
+gia đình	800
+bạn bè	500
+bố mẹ	400
+ông bà	300
+anh chị	400
+anh em	300
+trẻ em	300
+con cái	250
+vợ chồng	250
+người yêu	300
+tình yêu	500
+hạnh phúc	600
+sức khỏe	700
+bệnh viện	400
+bác sĩ	400
+thể thao	400
+bóng đá	400
+âm nhạc	400
+phim ảnh	250
+du lịch	500
+khách sạn	400
+nhà hàng	400
+món ăn	300
+thức ăn	300
+đồ ăn	300
+đồ uống	200
+cà phê	500
+thời tiết	400
+thời gian	1000
+hôm nay	900
+hôm qua	500
+ngày mai	600
+ngày mới	300
+buổi sáng	300
+buổi chiều	250
+buổi tối	300
+cuối tuần	400
+sinh nhật	500
+năm mới	500
+ngày lễ	250
+kỳ nghỉ	250
+sinh hoạt	300
+cuộc sống	700
+cuộc họp	400
+cuộc gọi	250
+cuộc thi	250
+
+# ---- greetings, feelings
+xin chào	800
+xin lỗi	700
+cảm ơn	1000
+tạm biệt	400
+chúc mừng	500
+hẹn gặp lại	300
+vui vẻ	500
+vui lòng	600
+thành công	800
+thất bại	250
+bình thường	600
+bình an	250
+may mắn	400
+cố gắng	600
+nỗ lực	300
+cẩn thận	400
+nhanh chóng	400
+đơn giản	500
+phức tạp	300
+quan trọng	800
+cần thiết	500
+đặc biệt	600
+chính xác	500
+rõ ràng	500
+cụ thể	400
+chi tiết	500
+tổng quan	300
+tổng hợp	300
+tổng cộng	200
+chào mừng	400
+mong muốn	400
+hy vọng	400
+mong đợi	200
+đồng ý	600
+
+# ---- places
+việt nam	1000
+hà nội	800
+hồ chí minh	700
+thành phố hồ chí minh	600
+sài gòn	500
+đà nẵng	400
+hải phòng	300
+cần thơ	250
+nha trang	250
+đà lạt	300
+vũng tàu	150
+trung quốc	300
+hàn quốc	300
+nhật bản	300
+hoa kỳ	200
+thế giới	600
+quốc gia	400
+quốc tế	500
+thành phố	800
+nông thôn	200
+
+# ---- society
+chính phủ	400
+nhà nước	400
+chính trị	300
+xã hội	600
+pháp luật	400
+luật sư	200
+công an	250
+giáo dục	600
+y tế	500
+môi trường	500
+năng lượng	300
+giao thông	500
+xe máy	400
+ô tô	400
+máy bay	300
+
+# ---- discussion
+phản hồi	400
+trả lời	600
+câu hỏi	500
+câu trả lời	300
+giải đáp	200
+giải thích	400
+giải quyết	600
+giải pháp	600
+vấn đề	800
+nguyên nhân	400
+kết quả	800
+kết luận	300
+mục tiêu	600
+mục đích	500
+nhiệm vụ	400
+trách nhiệm	600
+quyền lợi	300
+quy định	500
+quy trình	500
+quy mô	300
+tiêu chuẩn	500
+tiêu chí	250
+phương pháp	500
+phương án	400
+phương tiện	300
+phương thức	250
+công cụ	500
+công nghệ	700
+công nghiệp	400
+nông nghiệp	250
+
+# ---- time and quantity
+bây giờ	700
+hiện nay	500
+hiện tại	500
+tương lai	400
+quá khứ	200
+trước đây	400
+sau này	300
+ngay lập tức	300
+thỉnh thoảng	250
+thường xuyên	400
+đôi khi	250
+luôn luôn	250
+nhất định	400
+tất nhiên	300
+tất cả	800
+mọi người	800
+mọi thứ	400
+một số	600
+một vài	400
+nhiều người	400
+làm việc	800
+làm ơn	300
+làm sao	500
+nghỉ ngơi	300
+
+#!context
+
+# ---- unigram counts of the syllables that start compounds, so that "hoc" is a word before it is "hoc sinh"
+an	2400
+biểu	900
+buổi	2550
+bài	2750
+bác	1200
+báo	2100
+bây	1500
+bình	2550
+bóng	1200
+bảng	450
+bảo	650
+bệnh	1200
+bố	700
+chi	2700
+chuyển	900
+chính	3600
+chúc	700
+chất	2400
+chức	1800
+cuối	1200
+cuộc	4300
+cà	500
+cài	1600
+câu	2400
+công	10350
+cơ	400
+cạnh	900
+cảm	2100
+cấu	1200
+cần	650
+cẩn	1200
+cập	1500
+cố	1800
+cụ	1200
+doanh	3000
+du	1500
+dịch	2100
+dữ	2400
+dự	2400
+gia	2000
+giao	3000
+giá	2200
+giám	1500
+giáo	3600
+giải	5400
+giảng	900
+hiện	2300
+hiệu	3300
+hoa	200
+hy	1200
+hà	400
+hàn	300
+hóa	1200
+hôm	3500
+hạnh	1800
+hải	300
+hẹn	900
+hệ	3600
+học	4100
+hồ	400
+hợp	1800
+khách	3300
+khóa	1500
+kinh	6000
+kiến	1800
+kiểm	3000
+kế	800
+kết	4800
+kỳ	1650
+kỹ	1800
+liên	2700
+luôn	750
+luật	600
+làm	2200
+lý	900
+lập	3300
+lớp	900
+lợi	900
+may	1200
+mong	1800
+máy	4000
+món	900
+môi	1500
+mạng	1950
+mật	1000
+mọi	3600
+mục	3300
+ngay	900
+nghiên	1800
+nghỉ	900
+nguyên	1200
+ngày	1750
+ngân	2500
+nha	250
+nhanh	800
+nhiệm	1200
+nhà	1400
+nhân	3300
+nhất	300
+nâng	1200
+nông	1350
+năng	900
+nỗ	900
+phim	750
+pháp	1200
+phát	2700
+phân	1800
+phương	4350
+phản	1200
+phần	2800
+phức	900
+quan	1800
+quy	3900
+quyền	900
+quản	3900
+quảng	1500
+quốc	2700
+rõ	1500
+sinh	3600
+sài	500
+sản	2300
+số	2100
+sức	1800
+thanh	1500
+thiết	6750
+thành	5600
+thông	5300
+thương	1200
+thường	1200
+thất	750
+thế	300
+thể	1200
+thỉnh	750
+thị	1800
+thống	900
+thời	3300
+thức	900
+thực	900
+tiêu	2250
+tiếp	100
+tiền	250
+trang	2700
+triển	1200
+trung	300
+truy	1500
+truyền	900
+trách	1800
+trí	400
+trường	900
+trưởng	1200
+trả	1300
+trải	2400
+trẻ	900
+tài	5400
+tìm	1000
+tình	1100
+tính	1300
+tùy	1800
+tương	1200
+tạm	200
+tải	1350
+tất	3300
+tối	1600
+tốt	500
+tổng	2400
+việt	200
+vui	2800
+vũng	150
+vấn	2000
+vận	900
+vợ	750
+xe	1200
+xin	2700
+xã	1800
+y	1500
+yêu	1700
+âm	1200
+ô	1200
+điện	2800
+đà	700
+đánh	1800
+đôi	750
+đăng	3900
+đơn	1500
+đại	2700
+đầu	900
+đặc	1500
+đồ	2400
+đồng	3000
+ứng	2400

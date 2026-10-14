@@ -29,6 +29,9 @@
     addLink(@"Mã nguồn VOpenKey", VOK_REPO_URL);
     addText(@"  ·  ");
     addLink(@"OpenKey gốc", VOK_UPSTREAM_URL);
+    addText(@"\n\nTừ điển gợi ý dùng các mục từ của ");
+    addLink(@"Wiktionary tiếng Việt", @"https://vi.wiktionary.org");
+    addText(@",\ngiấy phép CC BY-SA 4.0.");
     return credits;
 }
 

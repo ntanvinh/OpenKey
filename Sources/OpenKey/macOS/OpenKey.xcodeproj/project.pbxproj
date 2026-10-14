@@ -38,6 +38,12 @@
 		5EC0DE10B11639488171E80C /* AboutPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE100726B5EE2214140E /* AboutPanel.m */; };
 		2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 2389467C21FDDB920030A13B /* OpenKeyManager.m */; };
 		5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1020261013000A0002 /* SecureInputMonitor.m */; };
+		5EC0DE1120261014000A0003 /* Suggest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A0002 /* Suggest.cpp */; };
+		5EC0DE1120261014000A0006 /* SuggestSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A0005 /* SuggestSession.cpp */; };
+		5EC0DE1120261014000A0009 /* SuggestionPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A0008 /* SuggestionPanel.m */; };
+		5EC0DE1120261014000A000C /* SuggestionController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A000B /* SuggestionController.mm */; };
+		5EC0DE1120261014000A000E /* vi-base.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A000D /* vi-base.txt */; };
+		5EC0DE1120261014000A0010 /* vi-wiktionary.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1120261014000A000F /* vi-wiktionary.txt */; };
 		238AF96522042C1600AEFA17 /* OK@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96422042C1600AEFA17 /* OK@2x.png */; };
 		238AF96722042D4900AEFA17 /* ExitButton@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96622042D4900AEFA17 /* ExitButton@2x.png */; };
 		238AF96922042E2500AEFA17 /* ThumbUp@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 238AF96822042E2500AEFA17 /* ThumbUp@2x.png */; };
@@ -126,6 +132,16 @@
 		5EC0DE1020261014000A0001 /* AppInfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppInfo.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0001 /* SecureInputMonitor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecureInputMonitor.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0002 /* SecureInputMonitor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SecureInputMonitor.m; sourceTree = "<group>"; };
+		5EC0DE1120261014000A0001 /* Suggest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Suggest.h; sourceTree = "<group>"; };
+		5EC0DE1120261014000A0002 /* Suggest.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Suggest.cpp; sourceTree = "<group>"; };
+		5EC0DE1120261014000A0004 /* SuggestSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SuggestSession.h; sourceTree = "<group>"; };
+		5EC0DE1120261014000A0005 /* SuggestSession.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SuggestSession.cpp; sourceTree = "<group>"; };
+		5EC0DE1120261014000A0007 /* SuggestionPanel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SuggestionPanel.h; sourceTree = "<group>"; };
+		5EC0DE1120261014000A0008 /* SuggestionPanel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SuggestionPanel.m; sourceTree = "<group>"; };
+		5EC0DE1120261014000A000A /* SuggestionController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SuggestionController.h; sourceTree = "<group>"; };
+		5EC0DE1120261014000A000B /* SuggestionController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SuggestionController.mm; sourceTree = "<group>"; };
+		5EC0DE1120261014000A000D /* vi-base.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-base.txt; path = dictionaries/vi-base.txt; sourceTree = "<group>"; };
+		5EC0DE1120261014000A000F /* vi-wiktionary.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-wiktionary.txt; path = dictionaries/vi-wiktionary.txt; sourceTree = "<group>"; };
 		238AF96422042C1600AEFA17 /* OK@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "OK@2x.png"; sourceTree = "<group>"; };
 		238AF96622042D4900AEFA17 /* ExitButton@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ExitButton@2x.png"; sourceTree = "<group>"; };
 		238AF96822042E2500AEFA17 /* ThumbUp@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ThumbUp@2x.png"; sourceTree = "<group>"; };
@@ -242,6 +258,10 @@
 				5EC0DE1020261014000A0001 /* AppInfo.h */,
 				5EC0DE1020261013000A0001 /* SecureInputMonitor.h */,
 				5EC0DE1020261013000A0002 /* SecureInputMonitor.m */,
+				5EC0DE1120261014000A0007 /* SuggestionPanel.h */,
+				5EC0DE1120261014000A0008 /* SuggestionPanel.m */,
+				5EC0DE1120261014000A000A /* SuggestionController.h */,
+				5EC0DE1120261014000A000B /* SuggestionController.mm */,
 				23CA6D1522F0439100804D6E /* MyTextField.h */,
 				23CA6D1622F0439100804D6E /* MyTextField.m */,
 				2345899822F720D7003E0923 /* MacroViewController.h */,
@@ -338,6 +358,12 @@
 				23E2E49A2314FD3A006CCC3E /* Engine.cpp */,
 				233C4A6F231F937900DD7052 /* ConvertTool.cpp */,
 				233C4A71231F938800DD7052 /* ConvertTool.h */,
+				5EC0DE1120261014000A0001 /* Suggest.h */,
+				5EC0DE1120261014000A0002 /* Suggest.cpp */,
+				5EC0DE1120261014000A0004 /* SuggestSession.h */,
+				5EC0DE1120261014000A0005 /* SuggestSession.cpp */,
+				5EC0DE1120261014000A000D /* vi-base.txt */,
+				5EC0DE1120261014000A000F /* vi-wiktionary.txt */,
 			);
 			name = engine;
 			path = ../engine;
@@ -421,6 +447,8 @@
 				232EDA5E21F1B33F0085D362 /* Assets.xcassets in Resources */,
 				232EDA6121F1B33F0085D362 /* Main.storyboard in Resources */,
 				2383405D2320F8170020F857 /* StartConvert@2x.png in Resources */,
+				5EC0DE1120261014000A000E /* vi-base.txt in Resources */,
+				5EC0DE1120261014000A0010 /* vi-wiktionary.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -442,6 +470,10 @@
 				5EC0DE10B11639488171E80C /* AboutPanel.m in Sources */,
 				2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */,
 				5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */,
+				5EC0DE1120261014000A0003 /* Suggest.cpp in Sources */,
+				5EC0DE1120261014000A0006 /* SuggestSession.cpp in Sources */,
+				5EC0DE1120261014000A0009 /* SuggestionPanel.m in Sources */,
+				5EC0DE1120261014000A000C /* SuggestionController.mm in Sources */,
 				23E2E4A02314FD3A006CCC3E /* Vietnamese.cpp in Sources */,
 				23CA6D1722F0439100804D6E /* MyTextField.m in Sources */,
 				232EDA6421F1B33F0085D362 /* main.m in Sources */,

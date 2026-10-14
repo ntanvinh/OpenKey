@@ -9,6 +9,7 @@
 #import "AppPermissions.h"
 #import "MyTextField.h"
 #import "OpenKeyManager.h"
+#import "SuggestionController.h"
 #import "VOKUI.h"
 
 extern AppDelegate* appDelegate;
@@ -140,7 +141,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         _tabs = [[SettingsTabs alloc] init];
         _tabs.tabStyle = NSTabViewControllerTabStyleToolbar;
         [self addPage:@"Bộ gõ" symbol:@"keyboard" sections:@[[self sectionTyping], [self sectionSpelling]]];
-        [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionQuickTyping]]];
+        [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionSuggestion], [self sectionQuickTyping]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
         [self addPage:@"Hệ thống" symbol:@"gearshape" sections:@[[self sectionStartup], [self sectionPermissions], [self sectionAbout]]];
         NSInteger saved = [[NSUserDefaults standardUserDefaults] integerForKey:kSelectedTabKey];
@@ -384,6 +385,37 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     return [self sectionWithTitle:@"Gõ tắt" rows:rows];
 }
 
+-(NSView*)sectionSuggestion {
+    void (^changed)(BOOL) = ^(BOOL on) { [SuggestionController reloadSettings]; };
+    SettingsToggle* enabled = [SettingsToggle title:@"Thanh gợi ý khi gõ"
+                                             detail:@"Hiện các từ có thể gõ tiếp. Bấm Tab để chọn từ đầu tiên, ⌥1–⌥5 để chọn từ khác. Chỉ dùng được với bảng mã Unicode, tự tắt trong Terminal."
+                                                key:@"SuggestionEnabled" variable:&vSuggestEnabled];
+    enabled.onChange = changed;
+    SettingsToggle* nextWord = [SettingsToggle title:@"Dự đoán từ kế tiếp" detail:@"Gợi ý ngay sau dấu cách, trước khi bạn gõ chữ nào."
+                                                 key:@"SuggestionNextWord" variable:&vSuggestNextWord];
+    nextWord.onChange = changed;
+    nextWord.parent = enabled;
+    SettingsToggle* compounds = [SettingsToggle title:@"Gợi ý từ ghép"
+                                               detail:@"Gõ liền không dấu cũng ra từ ghép có dấu, ví dụ thietke ra thiết kế."
+                                                  key:@"SuggestionCompounds" variable:&vSuggestCompounds];
+    compounds.onChange = changed;
+    compounds.parent = enabled;
+    SettingsToggle* learn = [SettingsToggle title:@"Học từ cách gõ của bạn"
+                                           detail:@"Nhớ những từ và cụm từ bạn hay dùng. Chỉ lưu trên máy này, trong file learned.txt."
+                                              key:@"SuggestionLearn" variable:&vSuggestLearn];
+    learn.onChange = changed;
+    learn.parent = enabled;
+
+    NSMutableArray* rows = [NSMutableArray array];
+    for (SettingsToggle* toggle in @[enabled, compounds, nextWord, learn])
+        [rows addObject:[self rowForToggle:toggle]];
+    NSButton* folder = [NSButton buttonWithTitle:@"Mở thư mục từ điển…" target:self action:@selector(openDictionaryFolder:)];
+    [rows addObject:[self buttonRowWithTitle:@"Từ điển" detail:@"Thả thêm file .txt vào đó để bổ sung từ và cụm từ." button:folder]];
+    NSButton* reload = [NSButton buttonWithTitle:@"Tải lại" target:self action:@selector(reloadDictionaries:)];
+    [rows addObject:[self buttonRowWithTitle:@"Tải lại từ điển" detail:@"Sau khi thêm hoặc sửa file từ điển." button:reload]];
+    return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows];
+}
+
 -(NSView*)sectionQuickTyping {
     SettingsToggle* quick = [SettingsToggle title:@"Gõ nhanh" detail:@"cc=ch, gg=gi, kk=kh, nn=ng, qq=qu, pp=ph, tt=th"
                                               key:@"QuickTelex" variable:&vQuickTelex];
@@ -552,6 +584,14 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     vSwitchKeyStatus |= ((unsigned int)character << 24);
     [[NSUserDefaults standardUserDefaults] setInteger:vSwitchKeyStatus forKey:@"SwitchKeyStatus"];
     [appDelegate refreshMenu];
+}
+
+-(void)openDictionaryFolder:(id)sender {
+    [SuggestionController openDictionaryFolder];
+}
+
+-(void)reloadDictionaries:(id)sender {
+    [SuggestionController reloadDictionaries];
 }
 
 -(void)openMacroTable:(id)sender {

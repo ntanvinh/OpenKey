@@ -217,6 +217,19 @@ void vKeyHandleEvent(const vKeyEvent& event,
 void startNewSession();
 
 /**
+ * Copy the word that is being typed (what is on screen right now) as UTF-16 into out.
+ * Returns the length, or 0 when there is no word in progress or it cannot be mirrored
+ * (only the Unicode table is supported). Read only, does not change the engine state.
+ */
+int vGetTypingWord(Uint16* out, const int& maxCount);
+
+/**
+ * The keys pressed for the word being typed, before Telex/VNI turned them into accents ("hoso" even
+ * if the screen shows "ho" with an accent). Same rules as vGetTypingWord, but works with any code table.
+ */
+int vGetTypingRawWord(Uint16* out, const int& maxCount);
+
+/**
  * do some task in english mode (use for macro)
  */
 void vEnglishMode(const vKeyEventState& state, const Uint16& data, const bool& isCaps, const bool& otherControlKey);

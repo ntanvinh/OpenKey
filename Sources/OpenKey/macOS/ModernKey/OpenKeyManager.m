@@ -8,6 +8,7 @@
 
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
+#import "SuggestionController.h"
 #import "AppInfo.h"
 
 extern void OpenKeyInit(void);
@@ -78,6 +79,9 @@ static CFRunLoopSourceRef runLoopSource;
     
     // macOS hides keys from event taps while secure input is on, see SecureInputMonitor
     [SecureInputMonitor start];
+
+    //suggestion bar: dictionaries, learned words
+    [SuggestionController start];
 
     return YES;
 }
