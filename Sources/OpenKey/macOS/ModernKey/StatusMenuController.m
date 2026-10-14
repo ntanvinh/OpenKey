@@ -11,7 +11,6 @@
 #import "VOKUI.h"
 
 extern AppDelegate* appDelegate;
-extern int vSwitchKeyStatus;
 extern int convertToolHotKey;
 
 //"Telex" and the like, in the order of the InputType setting
@@ -24,8 +23,8 @@ static NSArray<NSString*>* CodeTableNames(void) {
     return @[@"Unicode dựng sẵn", @"TCVN3 (ABC)", @"VNI Windows", @"Unicode tổ hợp", @"Vietnamese Locale CP 1258"];
 }
 
-//Shows a global shortcut of the app (modifier bits 0x100 ⌃, 0x200 ⌥, 0x400 ⌘, 0x800 ⇧ and the character in the top
-//byte, see vSwitchKeyStatus) on the right of a menu item the way macOS shows shortcuts.
+//Shows a global shortcut (modifier bits 0x100 ⌃, 0x200 ⌥, 0x400 ⌘, 0x800 ⇧ and the character in the top byte)
+//on the right of a menu item the way macOS shows shortcuts.
 static void ApplyShortcut(NSMenuItem* item, int data) {
     NSEventModifierFlags modifiers = 0;
     if (data & 0x100) modifiers |= NSEventModifierFlagControl;
@@ -41,6 +40,21 @@ static void ApplyShortcut(NSMenuItem* item, int data) {
     }
     item.keyEquivalent = [[NSString stringWithFormat:@"%c", key] lowercaseString];
     item.keyEquivalentModifierMask = modifiers;
+}
+
+//Keep the language checkmark in a trailing column, while retaining AppKit's
+//native menu row sizing and spacing. The right tab stop is inside the title
+//column, after the flag image.
+static NSAttributedString* LanguageMenuTitle(NSString* title, BOOL selected) {
+    NSString* value = [title stringByAppendingFormat:@"\t%@", selected ? @"✓" : @""];
+    NSMutableParagraphStyle* paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+    paragraphStyle.alignment = NSTextAlignmentLeft;
+    paragraphStyle.tabStops = @[[[NSTextTab alloc] initWithTextAlignment:NSTextAlignmentRight
+                                                                 location:190
+                                                                  options:@{}]];
+    return [[NSAttributedString alloc] initWithString:value attributes:@{
+        NSParagraphStyleAttributeName: paragraphStyle
+    }];
 }
 
 //A small gray heading over a group of items, like the ones macOS uses (14 and later have a real one)
@@ -122,7 +136,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:_secureItem];
     [_menu addItem:_noticeSeparator];
 
-    //typing language, picked like an input source in the Input menu: a check mark and the flag of the language
+    //Typing language, with the flag at the leading edge and the selected checkmark trailing.
     _vietnameseItem = MakeItem(@"Tiếng Việt", nil, self, @selector(selectVietnamese:));
     _vietnameseItem.image = VOKFlagImage(@"vn");
     _englishItem = MakeItem(@"English", nil, self, @selector(selectEnglish:));
@@ -180,11 +194,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _statusItem.button.alternateImage = [NSImage imageNamed:vietnamese ? @"StatusHighlighted" : @"StatusHighlightedEng"];
     _statusItem.button.toolTip = [SecureInputMonitor statusDescription];
 
-    _vietnameseItem.state = language == 1 ? NSControlStateValueOn : NSControlStateValueOff;
-    _englishItem.state = language == 1 ? NSControlStateValueOff : NSControlStateValueOn;
-    //the shortcut switches to the language that is not selected, so that is where it is shown
-    ApplyShortcut(_vietnameseItem, language == 1 ? 0 : vSwitchKeyStatus);
-    ApplyShortcut(_englishItem, language == 1 ? vSwitchKeyStatus : 0);
+    //Language switching is available through the app-wide shortcut, but the
+    //menu uses its trailing checkmark to show the current selection.
+    _vietnameseItem.attributedTitle = LanguageMenuTitle(@"Tiếng Việt", language == 1);
+    _englishItem.attributedTitle = LanguageMenuTitle(@"English", language != 1);
 
     for (NSMenuItem* item in _inputTypeItems)
         item.state = item.tag == inputType ? NSControlStateValueOn : NSControlStateValueOff;
