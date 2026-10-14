@@ -467,7 +467,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(NSView*)sectionSuggestion {
     void (^changed)(BOOL) = ^(BOOL on) { [SuggestionController reloadSettings]; };
     SettingsToggle* enabled = [SettingsToggle title:@"Thanh gợi ý khi gõ"
-                                             detail:@"Hiện từ gợi ý dưới chữ đang gõ. Giữ ⌥ và bấm số 1–5 để chọn."
+                                             detail:@"Hiện từ gợi ý dưới chữ đang gõ. Tab chọn từ đầu, ⌥1–⌥5 chọn từ khác."
                                                 key:@"SuggestionEnabled" variable:&vSuggestEnabled];
     enabled.onChange = changed;
     SettingsToggle* compounds = [SettingsToggle title:@"Gợi ý từ ghép"
@@ -480,7 +480,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     nextWord.onChange = changed;
     nextWord.parent = enabled;
     SettingsToggle* tab = [SettingsToggle title:@"Dùng Tab để chọn gợi ý đầu tiên"
-                                          detail:@"Khi bật, Tab không còn chuyển sang ô kế tiếp trong form lúc thanh gợi ý đang hiện."
+                                          detail:@"Muốn chuyển sang ô kế tiếp trong form khi thanh gợi ý đang hiện, bấm ⌥Tab: nó là Tab thường. Tắt thì Tab luôn là Tab thường."
                                              key:@"SuggestionTab" variable:&vSuggestTabAccepts];
     tab.onChange = changed;
     tab.parent = enabled;

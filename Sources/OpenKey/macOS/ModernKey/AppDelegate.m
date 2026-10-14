@@ -220,7 +220,7 @@ extern bool convertToolDontAlertWhenCompleted;
     vSuggestNextWord = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestNextWord forKey:@"SuggestionNextWord"];
     vSuggestLearn = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestLearn forKey:@"SuggestionLearn"];
     vSuggestCompounds = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestCompounds forKey:@"SuggestionCompounds"];
-    vSuggestTabAccepts = 0;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestTabAccepts forKey:@"SuggestionTab"];
+    vSuggestTabAccepts = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestTabAccepts forKey:@"SuggestionTab"];
     [SuggestionController reloadSettings];
     vShowIconOnDock = 0;[[NSUserDefaults standardUserDefaults] setInteger:vShowIconOnDock forKey:@"vShowIconOnDock"];
     vFixChromiumBrowser = 0;[[NSUserDefaults standardUserDefaults] setInteger:vFixChromiumBrowser forKey:@"vFixChromiumBrowser"];

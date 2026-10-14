@@ -48,8 +48,11 @@ static NSString* const kCodeColumn = @"code";
     NSWindow* _parent;
     NSTableView* _table;
     NSTextField* _empty;
+    NSSearchField* _searchField;
+    NSPopUpButton* _languageFilter;
     NSSegmentedControl* _plusMinus;
     NSMutableArray<RememberedApp*>* _apps;
+    NSArray<RememberedApp*>* _visibleApps;
 }
 
 static RememberedAppsController* current; //alive while the sheet is up
@@ -90,12 +93,33 @@ static RememberedAppsController* current; //alive while the sheet is up
         return [a.name localizedCaseInsensitiveCompare:b.name];
     }];
     _apps = apps;
+    [self applyFilter];
+}
+
+-(void)applyFilter {
+    NSString* query = [_searchField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSInteger languageFilter = _languageFilter.indexOfSelectedItem;
+    NSMutableArray<RememberedApp*>* visible = [NSMutableArray array];
+    for (RememberedApp* app in _apps) {
+        BOOL matchesQuery = query.length == 0 ||
+            [app.name localizedCaseInsensitiveContainsString:query] ||
+            [app.identifier localizedCaseInsensitiveContainsString:query];
+        BOOL matchesLanguage = languageFilter == 0 || app.language == languageFilter - 1;
+        if (matchesQuery && matchesLanguage)
+            [visible addObject:app];
+    }
+    _visibleApps = visible;
     [_table reloadData];
     [self refreshState];
 }
 
 -(void)refreshState {
-    _empty.hidden = _apps.count > 0;
+    _empty.hidden = _visibleApps.count > 0;
+    if (_apps.count == 0) {
+        _empty.stringValue = @"Chưa có ứng dụng nào.\nVOpenKey sẽ ghi nhớ khi bạn đổi chế độ gõ hoặc bảng mã trong một ứng dụng.";
+    } else {
+        _empty.stringValue = @"Không tìm thấy ứng dụng phù hợp.";
+    }
     [_plusMinus setEnabled:_table.selectedRowIndexes.count > 0 forSegment:1];
 }
 
@@ -135,6 +159,29 @@ static RememberedAppsController* current; //alive while the sheet is up
     NSView* card = VOKCard(scroll);
     [card.heightAnchor constraintEqualToConstant:kTableHeight].active = YES;
 
+    _searchField = [[NSSearchField alloc] init];
+    _searchField.placeholderString = @"Tìm ứng dụng";
+    _searchField.sendsSearchStringImmediately = YES;
+    _searchField.target = self;
+    _searchField.action = @selector(filterChanged:);
+    [_searchField setContentHuggingPriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+    _languageFilter = [[NSPopUpButton alloc] init];
+    _languageFilter.controlSize = NSControlSizeSmall;
+    [_languageFilter addItemsWithTitles:@[@"Tất cả chế độ", @"English", @"Tiếng Việt"]];
+    [_languageFilter selectItemAtIndex:0];
+    _languageFilter.target = self;
+    _languageFilter.action = @selector(filterChanged:);
+    [_languageFilter setContentHuggingPriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [_languageFilter setContentCompressionResistancePriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+    NSStackView* filters = [NSStackView stackViewWithViews:@[_searchField, _languageFilter]];
+    filters.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    filters.alignment = NSLayoutAttributeCenterY;
+    filters.spacing = 12;
+    filters.translatesAutoresizingMaskIntoConstraints = NO;
+    [_languageFilter.widthAnchor constraintEqualToConstant:150].active = YES;
+
     _empty = VOKLabel(@"Chưa có ứng dụng nào.\nVOpenKey sẽ ghi nhớ khi bạn đổi chế độ gõ hoặc bảng mã trong một ứng dụng.",
                       12, NSFontWeightRegular, [NSColor tertiaryLabelColor]);
     _empty.alignment = NSTextAlignmentCenter;
@@ -163,16 +210,18 @@ static RememberedAppsController* current; //alive while the sheet is up
     bar.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     bar.alignment = NSLayoutAttributeCenterY;
 
-    NSStackView* stack = [NSStackView stackViewWithViews:@[title, explanation, card, bar]];
+    NSStackView* stack = [NSStackView stackViewWithViews:@[title, explanation, filters, card, bar]];
     stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     stack.alignment = NSLayoutAttributeLeading;
     stack.spacing = 12;
     [stack setCustomSpacing:4 afterView:title];
-    [stack setCustomSpacing:16 afterView:explanation];
+    [stack setCustomSpacing:12 afterView:explanation];
+    [stack setCustomSpacing:8 afterView:filters];
     [stack setCustomSpacing:16 afterView:card];
     stack.edgeInsets = NSEdgeInsetsMake(kMargin, kMargin, kMargin, kMargin);
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     [card.widthAnchor constraintEqualToConstant:kSheetWidth - 2 * kMargin].active = YES;
+    [filters.widthAnchor constraintEqualToConstant:kSheetWidth - 2 * kMargin].active = YES;
     [bar.widthAnchor constraintEqualToConstant:kSheetWidth - 2 * kMargin].active = YES;
 
     NSView* content = _sheet.contentView;
@@ -210,15 +259,19 @@ static RememberedAppsController* current; //alive while the sheet is up
 #pragma mark - Table
 
 -(NSInteger)numberOfRowsInTableView:(NSTableView*)tableView {
-    return (NSInteger)_apps.count;
+    return (NSInteger)_visibleApps.count;
 }
 
 -(void)tableViewSelectionDidChange:(NSNotification*)notification {
     [self refreshState];
 }
 
+-(void)filterChanged:(id)sender {
+    [self applyFilter];
+}
+
 -(NSView*)tableView:(NSTableView*)tableView viewForTableColumn:(NSTableColumn*)column row:(NSInteger)row {
-    RememberedApp* app = _apps[row];
+    RememberedApp* app = _visibleApps[row];
     if ([column.identifier isEqualToString:kAppColumn]) {
         NSTableCellView* cell = [[NSTableCellView alloc] init];
         NSImageView* icon = [NSImageView imageViewWithImage:app.icon];
@@ -272,13 +325,14 @@ static RememberedAppsController* current; //alive while the sheet is up
 }
 
 -(void)languageChanged:(NSPopUpButton*)sender {
-    RememberedApp* app = _apps[sender.tag];
+    RememberedApp* app = _visibleApps[sender.tag];
     app.value = (app.value & ~1) | (int)sender.indexOfSelectedItem;
     SetRememberedApp(app.identifier, app.value);
+    [self applyFilter];
 }
 
 -(void)codeChanged:(NSPopUpButton*)sender {
-    RememberedApp* app = _apps[sender.tag];
+    RememberedApp* app = _visibleApps[sender.tag];
     app.value = (app.value & 1) | ((int)sender.indexOfSelectedItem << 1);
     SetRememberedApp(app.identifier, app.value);
 }
@@ -315,10 +369,12 @@ static RememberedAppsController* current; //alive while the sheet is up
             if (!known)
                 SetRememberedApp(identifier, (vLanguage & 1) | (vCodeTable << 1));
         }
+        self->_searchField.stringValue = @"";
+        [self->_languageFilter selectItemAtIndex:0];
         [self loadApps];
         NSMutableIndexSet* rows = [NSMutableIndexSet indexSet];
-        for (NSUInteger i = 0; i < self->_apps.count; i++) {
-            if ([chosen containsObject:self->_apps[i].identifier])
+        for (NSUInteger i = 0; i < self->_visibleApps.count; i++) {
+            if ([chosen containsObject:self->_visibleApps[i].identifier])
                 [rows addIndex:i];
         }
         [self->_table selectRowIndexes:rows byExtendingSelection:NO];
@@ -332,7 +388,7 @@ static RememberedAppsController* current; //alive while the sheet is up
     if (rows.count == 0)
         return;
     [rows enumerateIndexesUsingBlock:^(NSUInteger row, BOOL* stop) {
-        ForgetRememberedApp(self->_apps[row].identifier);
+        ForgetRememberedApp(self->_visibleApps[row].identifier);
     }];
     [self loadApps];
 }

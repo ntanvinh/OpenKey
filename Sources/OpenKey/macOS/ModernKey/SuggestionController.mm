@@ -16,7 +16,7 @@ int vSuggestEnabled = 0;
 int vSuggestNextWord = 1;
 int vSuggestLearn = 1;
 int vSuggestCompounds = 1;
-int vSuggestTabAccepts = 0;
+int vSuggestTabAccepts = 1;
 
 static NSString* const kExcludedAppsKey = @"SuggestionExcludedApps"; //optional: extra bundle ids to leave alone
 
@@ -164,7 +164,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 +(void)registerDefaults {
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"SuggestionNextWord": @1, @"SuggestionLearn": @1,
-                                                              @"SuggestionCompounds": @1, @"SuggestionTab": @0}];
+                                                              @"SuggestionCompounds": @1, @"SuggestionTab": @1}];
 }
 
 +(void)start {

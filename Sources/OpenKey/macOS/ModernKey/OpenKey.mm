@@ -14,6 +14,7 @@
 #import "SecureInputMonitor.h"
 #import "SuggestionController.h"
 #import "ShortcutRecorder.h"
+#import "SuggestionKeys.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -82,6 +83,7 @@ extern "C" {
     Uint32 _tempChar;
     bool _hasJustUsedHotKey = false;
     int _swallowedKeyCode = -1; //key that chose a suggestion: its key up and key repeats must not reach the application either
+    bool _optionTabRewritten = false; //a ⌥Tab was turned into a Tab: its key up gets the same treatment
 
     int _languageTemp = 0; //use for smart switch key
     vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
@@ -608,29 +610,6 @@ extern "C" {
         return length > 0 ? [NSString stringWithCharacters:buffer length:length] : @"";
     }
 
-    //⌥1 to ⌥5 choose suggestion 1 to 5; Tab chooses the first one only when the user allowed it, otherwise it goes on to
-    //the application (it moves to the next field of a form). -1 for any other key.
-    int SuggestionSlotForKey(CGKeyCode keycode, CGEventFlags flags) {
-        if (flags & (kCGEventFlagMaskCommand | kCGEventFlagMaskControl))
-            return -1;
-        bool option = flags & kCGEventFlagMaskAlternate;
-        bool shift = flags & kCGEventFlagMaskShift;
-        if (shift)
-            return -1;
-        if (keycode == KEY_TAB)
-            return (option || !vSuggestTabAccepts) ? -1 : 0;
-        if (!option)
-            return -1;
-        switch (keycode) {
-            case KEY_1: return 0;
-            case KEY_2: return 1;
-            case KEY_3: return 2;
-            case KEY_4: return 3;
-            case KEY_5: return 4;
-        }
-        return -1;
-    }
-
     //Replaces the word that was typed with the chosen suggestion
     void SendSuggestionText(NSString* text, NSUInteger eraseCount) {
         //same preparation as for a macro: the address bar of a browser may have added a proposal
@@ -720,6 +699,19 @@ extern "C" {
         
         _flag = CGEventGetFlags(event);
         _keycode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+
+        //⌥Tab while the bar is up is a Tab that the bar does not take (to go on to the next field of a form). The Option is
+        //taken off the key here, so the typing engine and the application both see an ordinary Tab
+        bool tabForTheApplication = false;
+        if (type == kCGEventKeyDown && vSuggestEnabled && SuggestionIsOptionTab(_keycode, _flag) && [SuggestionController isShowing]) {
+            _flag = SuggestionTakeOptionOff(event);
+            _optionTabRewritten = true;
+            tabForTheApplication = true;
+        } else if (type == kCGEventKeyUp && _optionTabRewritten && _keycode == KEY_TAB) {
+            SuggestionTakeOptionOff(event);
+            _optionTabRewritten = false;
+            return event;
+        }
 
         if (_swallowedKeyCode >= 0 && (type == kCGEventKeyDown || type == kCGEventKeyUp)) {
             bool sameKey = _keycode == _swallowedKeyCode;
@@ -841,8 +833,8 @@ extern "C" {
         }
         
         //Tab or ⌥1-5 chooses a suggestion from the bar
-        if (type == kCGEventKeyDown && vSuggestEnabled && [SuggestionController isShowing]) {
-            int slot = SuggestionSlotForKey(_keycode, _flag);
+        if (type == kCGEventKeyDown && vSuggestEnabled && !tabForTheApplication && [SuggestionController isShowing]) {
+            int slot = SuggestionSlotForKey(_keycode, _flag, vSuggestTabAccepts != 0);
             if (slot >= 0) {
                 NSString* suggestion = nil;
                 NSUInteger eraseCount = 0;

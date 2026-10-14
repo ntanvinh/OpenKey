@@ -151,6 +151,7 @@
 		5EC0DE1420261017000A0001 /* MacroPresets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MacroPresets.h; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0002 /* MacroPresets.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MacroPresets.mm; sourceTree = "<group>"; };
 		5EC0DE1620261019000A0001 /* CaretLocator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CaretLocator.m; sourceTree = "<group>"; };
+		5EC0DE1720261020000A0001 /* SuggestionKeys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SuggestionKeys.h; sourceTree = "<group>"; };
 		5EC0DE1620261019000A0003 /* CaretLocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CaretLocator.h; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0004 /* vi-macros.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-macros.txt; path = dictionaries/vi-macros.txt; sourceTree = "<group>"; };
 		238AF97022042EC600AEFA17 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
@@ -271,6 +272,7 @@
 				5EC0DE1420261017000A0002 /* MacroPresets.mm */,
 				5EC0DE1620261019000A0003 /* CaretLocator.h */,
 				5EC0DE1620261019000A0001 /* CaretLocator.m */,
+				5EC0DE1720261020000A0001 /* SuggestionKeys.h */,
 				5EC0DE1120261014000A0007 /* SuggestionPanel.h */,
 				5EC0DE1120261014000A0008 /* SuggestionPanel.m */,
 				5EC0DE1120261014000A000A /* SuggestionController.h */,
@@ -652,7 +654,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 54;
+				CURRENT_PROJECT_VERSION = 55;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -661,7 +663,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.1.2;
+				MARKETING_VERSION = 3.1.3;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -679,7 +681,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 54;
+				CURRENT_PROJECT_VERSION = 55;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -688,7 +690,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.1.2;
+				MARKETING_VERSION = 3.1.3;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

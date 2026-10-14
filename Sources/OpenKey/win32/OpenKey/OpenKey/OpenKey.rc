@@ -405,8 +405,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,1,2,54
- PRODUCTVERSION 3,1,2,54
+ FILEVERSION 3,1,3,55
+ PRODUCTVERSION 3,1,3,55
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -423,12 +423,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "LSSoft"
             VALUE "FileDescription", "OpenKey - Bộ gõ Tiếng Việt nguồn mở"
-            VALUE "FileVersion", "3.1.2.54"
+            VALUE "FileVersion", "3.1.3.55"
             VALUE "InternalName", "OpenKey.exe"
             VALUE "LegalCopyright", "Copyright (C) 2019 - Mai Vũ Tuyên. Fork VOpenKey by LSSoft, GPL-3.0"
             VALUE "OriginalFilename", "OpenKey.exe"
             VALUE "ProductName", "OpenKey"
-            VALUE "ProductVersion", "3.1.2.54"
+            VALUE "ProductVersion", "3.1.3.55"
         END
     END
     BLOCK "VarFileInfo"

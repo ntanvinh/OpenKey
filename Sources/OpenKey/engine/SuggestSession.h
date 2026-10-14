@@ -9,8 +9,10 @@
 //
 //  Keys, the same on every platform:
 //      Alt/Option+1-5 accepts suggestion 1-5 (slot 0-4)
-//      Tab            accepts the first suggestion (slot 0) ONLY if the user turned that on: Tab is also the key that
-//                     moves to the next field of a form, and a suggestion must never take it by surprise
+//      Tab            accepts the first suggestion (slot 0); a platform may let the user turn that off
+//      Alt/Option+Tab is an ordinary Tab: the way to go on to the next field of a form while the bar is up (Tab is also
+//                     the key that moves between fields). The platform turns it into a plain Tab and lets it through,
+//                     the session sees it as any other key that is not part of a word.
 //  Accepting replaces the word typed so far with the suggestion followed by a space, and the bar
 //  goes on with the next word prediction, so a sentence can be typed with Tab Tab Tab.
 //

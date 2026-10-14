@@ -11,7 +11,7 @@
 
 @interface SuggestionPanel : NSPanel
 
-/// What the first word is chosen with: ⌥1, or Tab when that is allowed. The others are ⌥2, ⌥3...
+/// What the first word is chosen with: Tab (the default), or ⌥1 when the user turned Tab off. The others are ⌥2, ⌥3...
 @property (nonatomic) BOOL firstWordUsesTab;
 
 /// The first word is the highlighted one, the others follow it.
