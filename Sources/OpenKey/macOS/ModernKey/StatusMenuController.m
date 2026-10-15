@@ -5,6 +5,8 @@
 
 #import "StatusMenuController.h"
 #import "AppDelegate.h"
+#import "AIAssistant.h"
+#import "AISettings.h"
 #import "AppInfo.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
@@ -59,6 +61,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _codeTableParent;
     NSMenuItem* _suggestionItem;
     NSMenuItem* _snippetItem;
+    NSMenuItem* _aiItem;
     NSArray<NSMenuItem*>* _inputTypeItems;
     NSArray<NSMenuItem*>* _codeTableItems;
 }
@@ -131,6 +134,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:_suggestionItem];
     _snippetItem = MakeItem(@"Snippet…", @"text.insert", self, @selector(openSnippets:));
     [_menu addItem:_snippetItem];
+    _aiItem = MakeItem(@"Trợ lý AI…", @"sparkles", self, @selector(openAI:));
+    [_menu addItem:_aiItem];
     [_menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem* settings = MakeItem(@"Cài đặt…", @"gearshape", self, @selector(openSettings:));
@@ -176,6 +181,9 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     BOOL snippetShortcut = vSnippetsEnabled && !VOKShortcutIsEmpty(vSnippetHotKey);
     _snippetItem.keyEquivalent = snippetShortcut ? VOKShortcutKeyEquivalent(vSnippetHotKey) : @"";
     _snippetItem.keyEquivalentModifierMask = snippetShortcut ? VOKShortcutModifierMask(vSnippetHotKey) : 0;
+    BOOL aiShortcut = vAIEnabled && !VOKShortcutIsEmpty(vAIHotKey);
+    _aiItem.keyEquivalent = aiShortcut ? VOKShortcutKeyEquivalent(vAIHotKey) : @"";
+    _aiItem.keyEquivalentModifierMask = aiShortcut ? VOKShortcutModifierMask(vAIHotKey) : 0;
     if (@available(macOS 14.4, *)) {
         //what is selected, written under the name of the submenu
         _inputTypeParent.subtitle = inputType >= 0 && inputType < (NSInteger)InputTypeNames().count ? InputTypeNames()[inputType] : nil;
@@ -234,6 +242,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
 -(void)openSnippets:(id)sender {
     [SnippetPalette show];
+}
+
+-(void)openAI:(id)sender {
+    [AIAssistant show];
 }
 
 -(void)openSettings:(id)sender {

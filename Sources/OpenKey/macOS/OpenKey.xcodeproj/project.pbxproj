@@ -67,6 +67,23 @@
 		5EC0DE1A202610140014 /* SnippetSearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1A202610140013 /* SnippetSearch.cpp */; };
 		5EC0DE1B202610140004 /* WordRestore.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1B202610140003 /* WordRestore.m */; };
 		5EC0DE1B202610140008 /* ShortcutConflicts.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1B202610140007 /* ShortcutConflicts.m */; };
+		5EC0DE1C202610150004 /* AIProvider.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C202610150003 /* AIProvider.m */; };
+		5EC0DE1C202610150008 /* AIKeychain.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C202610150007 /* AIKeychain.m */; };
+		5EC0DE1C20261015000C /* AISettings.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C20261015000B /* AISettings.m */; };
+		5EC0DE1C202610150010 /* AIClient.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C20261015000F /* AIClient.m */; };
+		5EC0DE1C202610150014 /* AISelection.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C202610150013 /* AISelection.m */; };
+		5EC0DE1C202610150018 /* AIAssistant.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C202610150017 /* AIAssistant.m */; };
+		5EC0DE1D20261015000A0002 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE1D20261015000A0001 /* Security.framework */; };
+		5EC0DE30202610160004 /* AIHardware.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160003 /* AIHardware.m */; };
+		5EC0DE30202610160008 /* AILocalModels.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160007 /* AILocalModels.m */; };
+		5EC0DE3020261016000C /* AIModelAdvisor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016000B /* AIModelAdvisor.m */; };
+		5EC0DE30202610160010 /* AIOllama.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016000F /* AIOllama.m */; };
+		5EC0DE30202610160014 /* AIOllamaInstaller.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160013 /* AIOllamaInstaller.m */; };
+		5EC0DE30202610160018 /* AIOllamaRuntime.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160017 /* AIOllamaRuntime.m */; };
+		5EC0DE3020261016001C /* AILocalSetup.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016001B /* AILocalSetup.m */; };
+		5EC0DE30202610160020 /* AILocalSetupController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016001F /* AILocalSetupController.m */; };
+		5EC0DE30202610160022 /* local-models.json in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160021 /* local-models.json */; };
+		5EC0DE30202610170001 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23A984BE220ED07E000914A2 /* IOKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -203,6 +220,36 @@
 		5EC0DE1B202610140003 /* WordRestore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WordRestore.m; sourceTree = "<group>"; };
 		5EC0DE1B202610140005 /* ShortcutConflicts.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShortcutConflicts.h; sourceTree = "<group>"; };
 		5EC0DE1B202610140007 /* ShortcutConflicts.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ShortcutConflicts.m; sourceTree = "<group>"; };
+		5EC0DE1C202610150001 /* AIProvider.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIProvider.h; sourceTree = "<group>"; };
+		5EC0DE1C202610150003 /* AIProvider.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIProvider.m; sourceTree = "<group>"; };
+		5EC0DE1C202610150005 /* AIKeychain.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIKeychain.h; sourceTree = "<group>"; };
+		5EC0DE1C202610150007 /* AIKeychain.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIKeychain.m; sourceTree = "<group>"; };
+		5EC0DE1C202610150009 /* AISettings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AISettings.h; sourceTree = "<group>"; };
+		5EC0DE1C20261015000B /* AISettings.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AISettings.m; sourceTree = "<group>"; };
+		5EC0DE1C20261015000D /* AIClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIClient.h; sourceTree = "<group>"; };
+		5EC0DE1C20261015000F /* AIClient.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIClient.m; sourceTree = "<group>"; };
+		5EC0DE1C202610150011 /* AISelection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AISelection.h; sourceTree = "<group>"; };
+		5EC0DE1C202610150013 /* AISelection.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AISelection.m; sourceTree = "<group>"; };
+		5EC0DE1C202610150015 /* AIAssistant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIAssistant.h; sourceTree = "<group>"; };
+		5EC0DE1C202610150017 /* AIAssistant.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIAssistant.m; sourceTree = "<group>"; };
+		5EC0DE1D20261015000A0001 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		5EC0DE30202610160001 /* AIHardware.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIHardware.h; sourceTree = "<group>"; };
+		5EC0DE30202610160003 /* AIHardware.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIHardware.m; sourceTree = "<group>"; };
+		5EC0DE30202610160005 /* AILocalModels.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILocalModels.h; sourceTree = "<group>"; };
+		5EC0DE30202610160007 /* AILocalModels.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILocalModels.m; sourceTree = "<group>"; };
+		5EC0DE30202610160009 /* AIModelAdvisor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIModelAdvisor.h; sourceTree = "<group>"; };
+		5EC0DE3020261016000B /* AIModelAdvisor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIModelAdvisor.m; sourceTree = "<group>"; };
+		5EC0DE3020261016000D /* AIOllama.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIOllama.h; sourceTree = "<group>"; };
+		5EC0DE3020261016000F /* AIOllama.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIOllama.m; sourceTree = "<group>"; };
+		5EC0DE30202610160011 /* AIOllamaInstaller.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIOllamaInstaller.h; sourceTree = "<group>"; };
+		5EC0DE30202610160013 /* AIOllamaInstaller.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIOllamaInstaller.m; sourceTree = "<group>"; };
+		5EC0DE30202610160015 /* AIOllamaRuntime.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIOllamaRuntime.h; sourceTree = "<group>"; };
+		5EC0DE30202610160017 /* AIOllamaRuntime.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIOllamaRuntime.m; sourceTree = "<group>"; };
+		5EC0DE30202610160019 /* AILocalSetup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILocalSetup.h; sourceTree = "<group>"; };
+		5EC0DE3020261016001B /* AILocalSetup.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILocalSetup.m; sourceTree = "<group>"; };
+		5EC0DE3020261016001D /* AILocalSetupController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILocalSetupController.h; sourceTree = "<group>"; };
+		5EC0DE3020261016001F /* AILocalSetupController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILocalSetupController.m; sourceTree = "<group>"; };
+		5EC0DE30202610160021 /* local-models.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = local-models.json; path = ai/local-models.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -212,7 +259,9 @@
 			files = (
 				A534F32629D8B78100296F25 /* Carbon.framework in Frameworks */,
 				233C4A6E231F923D00DD7052 /* AppKit.framework in Frameworks */,
+				5EC0DE30202610170001 /* IOKit.framework in Frameworks */,
 				23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */,
+				5EC0DE1D20261015000A0002 /* Security.framework in Frameworks */,
 				5EC0DE1520261018000A0002 /* UniformTypeIdentifiers.framework in Frameworks */,
 				23851A0121F1C1A400E79A41 /* CoreGraphics.framework in Frameworks */,
 				23851A0021F1BFA300E79A41 /* Cocoa.framework in Frameworks */,
@@ -266,6 +315,34 @@
 		232EDA5621F1B33E0085D362 /* ModernKey */ = {
 			isa = PBXGroup;
 			children = (
+				5EC0DE3020261016001F /* AILocalSetupController.m */,
+				5EC0DE3020261016001D /* AILocalSetupController.h */,
+				5EC0DE3020261016001B /* AILocalSetup.m */,
+				5EC0DE30202610160019 /* AILocalSetup.h */,
+				5EC0DE30202610160017 /* AIOllamaRuntime.m */,
+				5EC0DE30202610160015 /* AIOllamaRuntime.h */,
+				5EC0DE30202610160013 /* AIOllamaInstaller.m */,
+				5EC0DE30202610160011 /* AIOllamaInstaller.h */,
+				5EC0DE3020261016000F /* AIOllama.m */,
+				5EC0DE3020261016000D /* AIOllama.h */,
+				5EC0DE3020261016000B /* AIModelAdvisor.m */,
+				5EC0DE30202610160009 /* AIModelAdvisor.h */,
+				5EC0DE30202610160007 /* AILocalModels.m */,
+				5EC0DE30202610160005 /* AILocalModels.h */,
+				5EC0DE30202610160003 /* AIHardware.m */,
+				5EC0DE30202610160001 /* AIHardware.h */,
+				5EC0DE1C202610150017 /* AIAssistant.m */,
+				5EC0DE1C202610150015 /* AIAssistant.h */,
+				5EC0DE1C202610150013 /* AISelection.m */,
+				5EC0DE1C202610150011 /* AISelection.h */,
+				5EC0DE1C20261015000F /* AIClient.m */,
+				5EC0DE1C20261015000D /* AIClient.h */,
+				5EC0DE1C20261015000B /* AISettings.m */,
+				5EC0DE1C202610150009 /* AISettings.h */,
+				5EC0DE1C202610150007 /* AIKeychain.m */,
+				5EC0DE1C202610150005 /* AIKeychain.h */,
+				5EC0DE1C202610150003 /* AIProvider.m */,
+				5EC0DE1C202610150001 /* AIProvider.h */,
 				5EC0DE1B202610140007 /* ShortcutConflicts.m */,
 				5EC0DE1B202610140005 /* ShortcutConflicts.h */,
 				5EC0DE1B202610140003 /* WordRestore.m */,
@@ -377,6 +454,7 @@
 				233C4A6D231F923D00DD7052 /* AppKit.framework */,
 				23A984BE220ED07E000914A2 /* IOKit.framework */,
 				23963B4F22040C720097189E /* ServiceManagement.framework */,
+				5EC0DE1D20261015000A0001 /* Security.framework */,
 				5EC0DE1520261018000A0001 /* UniformTypeIdentifiers.framework */,
 				23874B0F220160A500000BC8 /* Carbon.framework */,
 				238519FD21F1BF5100E79A41 /* EventKit.framework */,
@@ -405,6 +483,7 @@
 		23E2E4932314FD3A006CCC3E /* engine */ = {
 			isa = PBXGroup;
 			children = (
+				5EC0DE30202610160021 /* local-models.json */,
 				5EC0DE1A202610140013 /* SnippetSearch.cpp */,
 				5EC0DE1A202610140011 /* SnippetSearch.h */,
 				5EC0DE19202610140003 /* default-snippets.json */,
@@ -495,6 +574,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5EC0DE30202610160022 /* local-models.json in Resources */,
 				5EC0DE19202610140004 /* default-snippets.json in Resources */,
 				5EC0DE19202610140002 /* lss-logo.png in Resources */,
 				234F70AC21FB50BD00D2F2CA /* StatusHighlightedEng.png in Resources */,
@@ -521,6 +601,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5EC0DE30202610160020 /* AILocalSetupController.m in Sources */,
+				5EC0DE3020261016001C /* AILocalSetup.m in Sources */,
+				5EC0DE30202610160018 /* AIOllamaRuntime.m in Sources */,
+				5EC0DE30202610160014 /* AIOllamaInstaller.m in Sources */,
+				5EC0DE30202610160010 /* AIOllama.m in Sources */,
+				5EC0DE3020261016000C /* AIModelAdvisor.m in Sources */,
+				5EC0DE30202610160008 /* AILocalModels.m in Sources */,
+				5EC0DE30202610160004 /* AIHardware.m in Sources */,
+				5EC0DE1C202610150018 /* AIAssistant.m in Sources */,
+				5EC0DE1C202610150014 /* AISelection.m in Sources */,
+				5EC0DE1C202610150010 /* AIClient.m in Sources */,
+				5EC0DE1C20261015000C /* AISettings.m in Sources */,
+				5EC0DE1C202610150008 /* AIKeychain.m in Sources */,
+				5EC0DE1C202610150004 /* AIProvider.m in Sources */,
 				5EC0DE1B202610140008 /* ShortcutConflicts.m in Sources */,
 				5EC0DE1B202610140004 /* WordRestore.m in Sources */,
 				5EC0DE1A202610140014 /* SnippetSearch.cpp in Sources */,

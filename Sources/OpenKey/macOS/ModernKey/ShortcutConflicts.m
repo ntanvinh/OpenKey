@@ -5,6 +5,7 @@
 
 #import "ShortcutConflicts.h"
 #import "ShortcutRecorder.h"
+#import "AISettings.h"
 #import "SnippetPalette.h"
 #import "WordRestore.h"
 
@@ -20,5 +21,7 @@ NSString* VOKShortcutConflict(int data, VOKShortcutOwner owner) {
         return @"Mở snippet";
     if (owner != VOKShortcutOwnerRestore && VOKShortcutsEqual(data, vRestoreHotKey))
         return @"Khôi phục từ đang gõ";
+    if (owner != VOKShortcutOwnerAI && vAIEnabled && VOKShortcutsEqual(data, vAIHotKey))
+        return @"Mở trợ lý AI";
     return nil;
 }

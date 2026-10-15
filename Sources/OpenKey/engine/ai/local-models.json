@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "tag": "gemma3:1b",
+      "name": "Gemma 3 1B",
+      "family": "Gemma 3 (Google)",
+      "parameters": "1B",
+      "quality": 1,
+      "speed": 5,
+      "vietnamese": "Cơ bản",
+      "summary": "Nhỏ nhất dùng được. Viết ngắn và sửa lỗi đơn giản được, nhưng hay sai ý và tiếng Việt còn gượng. Hợp để thử hoặc máy rất yếu.",
+      "bytes": 806067407
+    },
+    {
+      "tag": "qwen2.5:3b",
+      "name": "Qwen 2.5 3B",
+      "family": "Qwen 2.5 (Alibaba)",
+      "parameters": "3B",
+      "quality": 2,
+      "speed": 5,
+      "vietnamese": "Cơ bản",
+      "summary": "Nhẹ và nhanh, dịch và viết lại câu ngắn ổn. Chạy được trên Mac 8 GB mà vẫn để chỗ cho ứng dụng khác.",
+      "bytes": 1929912432
+    },
+    {
+      "tag": "gemma3:4b",
+      "name": "Gemma 3 4B",
+      "family": "Gemma 3 (Google)",
+      "parameters": "4B",
+      "quality": 3,
+      "speed": 4,
+      "vietnamese": "Khá",
+      "summary": "Cân bằng tốt cho máy ít RAM: viết, dịch, tóm tắt khá ổn, tiếng Việt tự nhiên hơn các model cùng cỡ.",
+      "bytes": 3350272403
+    },
+    {
+      "tag": "qwen2.5:7b",
+      "name": "Qwen 2.5 7B",
+      "family": "Qwen 2.5 (Alibaba)",
+      "parameters": "7B",
+      "quality": 3,
+      "speed": 4,
+      "vietnamese": "Khá",
+      "summary": "Lựa chọn quen thuộc cho Mac 16 GB: làm theo yêu cầu tốt, viết gọn, dịch Việt - Anh ổn.",
+      "bytes": 4683087332
+    },
+    {
+      "tag": "gemma3:12b",
+      "name": "Gemma 3 12B",
+      "family": "Gemma 3 (Google)",
+      "parameters": "12B",
+      "quality": 4,
+      "speed": 3,
+      "vietnamese": "Tốt",
+      "summary": "Viết văn bản dài và tiếng Việt tốt rõ rệt so với 4B.",
+      "bytes": 8164039732
+    },
+    {
+      "tag": "qwen2.5:14b",
+      "name": "Qwen 2.5 14B",
+      "family": "Qwen 2.5 (Alibaba)",
+      "parameters": "14B",
+      "quality": 4,
+      "speed": 3,
+      "vietnamese": "Tốt",
+      "summary": "Làm theo chỉ dẫn chính xác, hợp việc biên tập, tóm tắt và viết nội dung công việc.",
+      "bytes": 8988124069
+    },
+    {
+      "tag": "gemma3:27b",
+      "name": "Gemma 3 27B",
+      "family": "Gemma 3 (Google)",
+      "parameters": "27B",
+      "quality": 5,
+      "speed": 2,
+      "vietnamese": "Rất tốt",
+      "summary": "Chất lượng gần với các dịch vụ trả phí cho việc viết và dịch. Nặng, trả lời chậm hơn các model nhỏ.",
+      "bytes": 17413409652
+    },
+    {
+      "tag": "qwen2.5:32b",
+      "name": "Qwen 2.5 32B",
+      "family": "Qwen 2.5 (Alibaba)",
+      "parameters": "32B",
+      "quality": 5,
+      "speed": 2,
+      "vietnamese": "Rất tốt",
+      "summary": "Mạnh nhất trong danh sách cho văn bản dài và yêu cầu phức tạp. Rất nặng, trả lời chậm hơn các model nhỏ.",
+      "bytes": 19851349669
+    }
+  ]
+}

@@ -5,6 +5,11 @@
 
 #import "SettingsWindowController.h"
 #import "AppDelegate.h"
+#import "AIClient.h"
+#import "AIKeychain.h"
+#import "AILocalSetupController.h"
+#import "AIOllamaRuntime.h"
+#import "AISettings.h"
 #import "AppInfo.h"
 #import "AppPermissions.h"
 #import "RememberedAppsController.h"
@@ -21,6 +26,9 @@
 
 extern AppDelegate* appDelegate;
 extern void OnSpellCheckingChanged(void);
+
+@interface SettingsWindowController () <NSTextFieldDelegate, NSComboBoxDelegate>
+@end
 
 //the engine reads these, see Engine.h for what each one does
 extern int vSwitchKeyStatus;
@@ -150,6 +158,25 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     ShortcutRecorder* _convertRecorder;
     ShortcutRecorder* _snippetRecorder;
     ShortcutRecorder* _restoreRecorder;
+
+    //the AI tab
+    ShortcutRecorder* _aiRecorder;
+    NSPopUpButton* _aiProvider;
+    NSTextField* _aiNote;
+    NSSecureTextField* _aiKey;
+    NSTextField* _aiKeyStatus;
+    NSButton* _aiSaveKey;
+    NSButton* _aiRemoveKey;
+    NSButton* _aiKeyPage;
+    NSTextField* _aiURL;
+    NSTextField* _aiURLStatus;
+    NSComboBox* _aiModel;
+    NSTextField* _aiModelStatus;
+    NSButton* _aiTestButton;
+    NSTextField* _aiTestStatus;
+    NSTextField* _aiPrompt;
+    NSTextField* _aiLocalStatus;
+    AIClient* _aiTestClient;
     NSTextField* _accessibilityStatus;
     NSTextField* _inputMonitoringStatus;
     NSButton* _checkUpdateButton;
@@ -173,6 +200,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionConvertShortcut], [self sectionQuickTyping]]];
         [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion]]];
         [self addPage:@"Snippet" symbol:@"text.insert" sections:@[[self sectionSnippets]]];
+        [self addPage:@"AI" symbol:@"sparkles" sections:@[[self sectionAI], [self sectionAILocal], [self sectionAIConnection]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
         [self addPage:@"Hệ thống" symbol:@"gearshape" sections:@[[self sectionStartup], [self sectionPermissions], [self sectionAbout]]];
         NSInteger saved = [[NSUserDefaults standardUserDefaults] integerForKey:kSelectedTabKey];
@@ -183,6 +211,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         window.delegate = self;
         [window center];
         [self reload];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(aiLocalSetupFinished:) name:VOKAILocalSetupDidFinishNotification object:nil];
     }
     return self;
 }
@@ -191,6 +220,14 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [self reload];
     [NSApp activateIgnoringOtherApps:YES];
     [self.window makeKeyAndOrderFront:nil];
+}
+
+-(void)showTabTitled:(NSString*)title {
+    for (NSUInteger i = 0; i < _tabs.tabViewItems.count; i++) {
+        if ([_tabs.tabViewItems[i].label isEqualToString:title])
+            _tabs.selectedTabViewItemIndex = (NSInteger)i;
+    }
+    [self show];
 }
 
 -(void)windowDidBecomeKey:(NSNotification*)notification {
@@ -331,6 +368,9 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [textStack.trailingAnchor constraintLessThanOrEqualToAnchor:control.leadingAnchor constant:-kRowSpacing],
         [control.trailingAnchor constraintEqualToAnchor:row.trailingAnchor constant:-kRowInset],
         [control.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        //a control taller than the text (a field with a line of status under it) makes the row taller
+        [control.topAnchor constraintGreaterThanOrEqualToAnchor:row.topAnchor constant:kRowPadding],
+        [control.bottomAnchor constraintLessThanOrEqualToAnchor:row.bottomAnchor constant:-kRowPadding],
         [row.heightAnchor constraintGreaterThanOrEqualToConstant:kRowMinHeight],
     ]];
     return row;
@@ -571,6 +611,381 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
              @"và {time} bằng giờ hiện tại (09:05). Snippet được dán bằng ⌘V, sau đó clipboard của bạn được trả lại như cũ."];
 }
 
+#pragma mark - Tab "AI"
+
+-(NSTextField*)aiStatusLabelWithWidth:(CGFloat)width {
+    NSTextField* label = VOKLabel(@"", 11, NSFontWeightRegular, [NSColor secondaryLabelColor]);
+    label.preferredMaxLayoutWidth = width;
+    [label.widthAnchor constraintEqualToConstant:width].active = YES;
+    return label;
+}
+
+-(NSTextField*)aiFieldWithWidth:(CGFloat)width placeholder:(NSString*)placeholder secure:(BOOL)secure {
+    NSTextField* field = secure ? [[NSSecureTextField alloc] init] : [[NSTextField alloc] init];
+    field.placeholderString = placeholder;
+    field.delegate = self;
+    field.translatesAutoresizingMaskIntoConstraints = NO;
+    [field.widthAnchor constraintEqualToConstant:width].active = YES;
+    return field;
+}
+
+-(NSStackView*)aiStack:(NSArray<NSView*>*)views vertical:(BOOL)vertical spacing:(CGFloat)spacing {
+    NSStackView* stack = [NSStackView stackViewWithViews:views];
+    stack.orientation = vertical ? NSUserInterfaceLayoutOrientationVertical : NSUserInterfaceLayoutOrientationHorizontal;
+    stack.alignment = vertical ? NSLayoutAttributeLeading : NSLayoutAttributeCenterY;
+    stack.spacing = spacing;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    return stack;
+}
+
+//what the shortcut does, and how the selected text is found
+-(NSView*)sectionAI {
+    SettingsToggle* enabled = [SettingsToggle title:@"Mở trợ lý AI bằng phím tắt"
+                                             detail:@"Chọn một đoạn văn rồi bấm phím tắt để nhờ AI dịch, sửa, tóm tắt. Không chọn gì thì nhờ viết nội dung mới."
+                                                key:@"AIEnabled" variable:&vAIEnabled];
+    enabled.onChange = ^(BOOL on) { [appDelegate refreshMenu]; };
+
+    _aiRecorder = [[ShortcutRecorder alloc] init];
+    _aiRecorder.value = vAIHotKey;
+    _aiRecorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    _aiRecorder.conflict = ^NSString*(int data) {
+        return VOKShortcutConflict(data, VOKShortcutOwnerAI);
+    };
+    _aiRecorder.onChange = ^(int data) {
+        vAIHotKey = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:vAIHotKey forKey:@"AIHotKey"];
+        [appDelegate refreshMenu]; //the shortcut is shown on the menu
+    };
+
+    SettingsToggle* copy = [SettingsToggle title:@"Lấy chữ đang chọn bằng ⌘C khi cần"
+                                          detail:@"Trình duyệt, Trae, VS Code… không cho đọc vùng chọn trực tiếp. VOpenKey bấm ⌘C rồi trả clipboard về như cũ."
+                                             key:@"AICopySelection" variable:&vAICopySelection];
+    return [self sectionWithTitle:@"Trợ lý AI" rows:@[
+        [self rowForToggle:enabled],
+        [self rowWithTitle:@"Phím tắt mở trợ lý AI" detail:@"Bấm vào ô rồi nhấn tổ hợp phím mới." control:_aiRecorder indent:0],
+        [self rowForToggle:copy],
+    ]];
+}
+
+//an AI that runs on this Mac: installed from a window of its own, that checks the Mac first
+-(NSView*)sectionAILocal {
+    const CGFloat width = 300;
+    NSButton* install = [NSButton buttonWithTitle:@"Cài AI chạy trên máy…" target:self action:@selector(aiOpenLocalSetup:)];
+    install.bezelStyle = NSBezelStyleRounded;
+    VOKSetButtonSymbol(install, @"arrow.down.circle", 13);
+    _aiLocalStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* control = [self aiStack:@[install, _aiLocalStatus] vertical:YES spacing:4];
+    NSView* section = [self sectionWithTitle:@"AI chạy trên máy" rows:@[
+        [self rowWithTitle:@"Dùng AI không cần internet"
+                    detail:@"Không cần API key, không tính tiền theo lượt dùng, chữ của bạn không rời khỏi máy. VOpenKey kiểm tra cấu hình máy, khuyên model phù hợp rồi tự cài."
+                   control:control indent:0],
+    ] footer:@"Cần macOS 14 trở lên, chip Apple Silicon (M1 trở lên) và RAM từ 8 GB. Mac chip Intel chạy được nhưng chậm. "
+             @"Model nhỏ cần vài GB ổ đĩa, model lớn tới hàng chục GB; cửa sổ cài đặt nói rõ trước khi tải."];
+    [self reloadAILocalStatus];
+    return section;
+}
+
+-(void)aiOpenLocalSetup:(id)sender {
+    [AILocalSetupController show];
+}
+
+-(void)aiLocalSetupFinished:(NSNotification*)notification {
+    [self reloadAI];                    //the assistant now uses the model that was installed
+}
+
+//what is on this Mac, read without starting anything
+-(void)reloadAILocalStatus {
+    if (_aiLocalStatus == nil)
+        return;
+    BOOL installed = [AIOllamaRuntime shared].isInstalled;
+    AIProvider* provider = AISettings.provider;
+    NSString* text;
+    if ([provider.identifier isEqualToString:@"ollama"])
+        text = [NSString stringWithFormat:@"Trợ lý AI đang dùng model %@ chạy trên máy.", [AISettings modelForProvider:provider]];
+    else
+        text = installed ? @"Đã có Ollama trên máy. Chọn dịch vụ “Ollama” bên dưới để dùng." : @"Chưa cài. Bấm nút để kiểm tra máy và cài.";
+    _aiLocalStatus.stringValue = text;
+}
+
+//which AI, with what key
+-(NSView*)sectionAIConnection {
+    const CGFloat width = 300;
+
+    _aiProvider = [[NSPopUpButton alloc] init];
+    for (AIProvider* provider in [AIProvider allProviders])
+        [_aiProvider addItemWithTitle:provider.name];
+    _aiProvider.target = self;
+    _aiProvider.action = @selector(aiProviderChanged:);
+    _aiProvider.translatesAutoresizingMaskIntoConstraints = NO;
+    [_aiProvider.widthAnchor constraintEqualToConstant:width].active = YES;
+    _aiNote = [self aiStatusLabelWithWidth:width];
+    _aiKeyPage = [NSButton buttonWithTitle:@"Lấy key…" target:self action:@selector(aiOpenKeyPage:)];
+    _aiKeyPage.bezelStyle = NSBezelStyleInline;
+    _aiKeyPage.controlSize = NSControlSizeSmall;
+    NSStackView* providerControl = [self aiStack:@[_aiProvider, _aiNote, _aiKeyPage] vertical:YES spacing:4];
+
+    //the key: typed once, then it only lives in the keychain
+    _aiKey = (NSSecureTextField*)[self aiFieldWithWidth:width - 150 placeholder:@"Dán API key vào đây" secure:YES];
+    _aiSaveKey = [NSButton buttonWithTitle:@"Lưu" target:self action:@selector(aiSaveKey:)];
+    _aiRemoveKey = [NSButton buttonWithTitle:@"Xóa key" target:self action:@selector(aiRemoveKey:)];
+    for (NSButton* button in @[_aiSaveKey, _aiRemoveKey])
+        button.bezelStyle = NSBezelStyleRounded;
+    _aiKeyStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* keyControl = [self aiStack:@[[self aiStack:@[_aiKey, _aiSaveKey, _aiRemoveKey] vertical:NO spacing:6], _aiKeyStatus] vertical:YES spacing:4];
+
+    _aiURL = [self aiFieldWithWidth:width placeholder:@"https://máy-chủ/v1" secure:NO];
+    _aiURLStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* urlControl = [self aiStack:@[_aiURL, _aiURLStatus] vertical:YES spacing:4];
+
+    _aiModel = [[NSComboBox alloc] init];
+    _aiModel.delegate = self;
+    _aiModel.completes = NO;
+    _aiModel.numberOfVisibleItems = 12;
+    _aiModel.placeholderString = @"Tên model";
+    _aiModel.translatesAutoresizingMaskIntoConstraints = NO;
+    [_aiModel.widthAnchor constraintEqualToConstant:width - 120].active = YES;
+    NSButton* list = [NSButton buttonWithTitle:@"Tải danh sách" target:self action:@selector(aiListModels:)];
+    list.bezelStyle = NSBezelStyleRounded;
+    _aiModelStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* modelControl = [self aiStack:@[[self aiStack:@[_aiModel, list] vertical:NO spacing:6], _aiModelStatus] vertical:YES spacing:4];
+
+    _aiTestButton = [NSButton buttonWithTitle:@"Kiểm tra kết nối" target:self action:@selector(aiTest:)];
+    _aiTestButton.bezelStyle = NSBezelStyleRounded;
+    _aiTestStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* testControl = [self aiStack:@[_aiTestButton, _aiTestStatus] vertical:YES spacing:4];
+
+    _aiPrompt = [self aiFieldWithWidth:width placeholder:[AISettings defaultSystemPrompt] secure:NO];
+    _aiPrompt.usesSingleLineMode = NO;
+    _aiPrompt.lineBreakMode = NSLineBreakByWordWrapping;
+    _aiPrompt.cell.wraps = YES;
+    _aiPrompt.cell.scrollable = NO;
+    _aiPrompt.maximumNumberOfLines = 6;
+    [_aiPrompt.heightAnchor constraintEqualToConstant:92].active = YES;
+    _aiPrompt.stringValue = AISettings.systemPrompt;
+    NSButton* resetPrompt = [NSButton buttonWithTitle:@"Dùng lời nhắc mặc định" target:self action:@selector(aiResetPrompt:)];
+    resetPrompt.bezelStyle = NSBezelStyleInline;
+    resetPrompt.controlSize = NSControlSizeSmall;
+    NSStackView* promptControl = [self aiStack:@[_aiPrompt, resetPrompt] vertical:YES spacing:4];
+
+    NSView* section = [self sectionWithTitle:@"Dịch vụ AI" rows:@[
+        [self rowWithTitle:@"Dịch vụ" detail:nil control:providerControl indent:0],
+        [self rowWithTitle:@"API key" detail:@"Lưu trong Keychain của tài khoản macOS này." control:keyControl indent:0],
+        [self rowWithTitle:@"Địa chỉ máy chủ" detail:nil control:urlControl indent:0],
+        [self rowWithTitle:@"Model" detail:nil control:modelControl indent:0],
+        [self rowWithTitle:@"Kết nối" detail:nil control:testControl indent:0],
+        [self rowWithTitle:@"Lời nhắc hệ thống" detail:@"Dặn AI cách trả lời, gửi kèm mọi yêu cầu." control:promptControl indent:0],
+    ] footer:@"API key chỉ được lưu trong Keychain của tài khoản macOS đang dùng, không ghi ra file, không đồng bộ iCloud. "
+             @"Tài khoản macOS khác trên máy này phải nhập key riêng. Nội dung bạn nhập và chữ đang chọn được gửi tới dịch vụ bạn chọn; "
+             @"AI chạy trên máy (Ollama, LM Studio) thì không rời khỏi máy."];
+    [self reloadAI];
+    return section;
+}
+
+-(AIProvider*)aiProviderInUse {
+    return AISettings.provider;
+}
+
+//puts what is saved for the provider in use into the controls
+-(void)reloadAI {
+    if (_aiProvider == nil)
+        return;
+    AIProvider* provider = [self aiProviderInUse];
+    [_aiProvider selectItemAtIndex:(NSInteger)[[AIProvider allProviders] indexOfObject:provider]];
+    _aiNote.stringValue = provider.note ?: @"";
+    _aiNote.hidden = provider.note.length == 0;
+    _aiKeyPage.hidden = provider.keyPageURL.length == 0;
+
+    BOOL hasKey = [AIKeychain hasKeyForProvider:provider.identifier];
+    _aiKey.stringValue = @"";
+    _aiKey.placeholderString = hasKey ? @"•••••••••••• (đã lưu)" : (provider.needsKey ? @"Dán API key vào đây" : @"Không bắt buộc");
+    [self aiShow:hasKey ? @"Đã lưu trong Keychain." : (provider.needsKey ? @"Chưa có key." : @"Dịch vụ này không cần key.") in:_aiKeyStatus error:NO];
+    _aiSaveKey.enabled = NO;
+    _aiRemoveKey.enabled = hasKey;
+
+    _aiURL.stringValue = [AISettings baseURLForProvider:provider];
+    _aiURL.placeholderString = provider.defaultBaseURL.length > 0 ? provider.defaultBaseURL : @"https://máy-chủ/v1";
+    [self aiShow:@"" in:_aiURLStatus error:NO];
+    _aiModel.stringValue = [AISettings modelForProvider:provider];
+    [_aiModel removeAllItems];
+    [self aiShow:@"" in:_aiModelStatus error:NO];
+    [self aiShow:@"" in:_aiTestStatus error:NO];
+    _aiPrompt.stringValue = AISettings.systemPrompt;
+    [self reloadAILocalStatus];
+}
+
+-(void)aiShow:(NSString*)message in:(NSTextField*)label error:(BOOL)error {
+    label.stringValue = message ?: @"";
+    label.textColor = error ? [NSColor systemRedColor] : [NSColor secondaryLabelColor];
+    label.hidden = label.stringValue.length == 0;   //an empty line would still take room under the field
+}
+
+-(void)aiProviderChanged:(NSPopUpButton*)sender {
+    NSInteger index = sender.indexOfSelectedItem;
+    NSArray<AIProvider*>* all = [AIProvider allProviders];
+    if (index >= 0 && index < (NSInteger)all.count)
+        AISettings.providerIdentifier = all[index].identifier;
+    [self reloadAI];
+}
+
+-(void)aiOpenKeyPage:(id)sender {
+    NSString* page = [self aiProviderInUse].keyPageURL;
+    if (page.length > 0)
+        [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:page]];
+}
+
+//What is typed in the fields. The key field enables its button as soon as something is in it; the others are saved when the
+//user is done with them.
+-(void)controlTextDidChange:(NSNotification*)notification {
+    if (notification.object == _aiKey)
+        _aiSaveKey.enabled = _aiKey.stringValue.length > 0;
+}
+
+-(void)controlTextDidEndEditing:(NSNotification*)notification {
+    id field = notification.object;
+    if (field == _aiURL)
+        [self aiCommitURL];
+    else if (field == _aiModel)
+        [self aiCommitModel];
+    else if (field == _aiPrompt)
+        AISettings.systemPrompt = _aiPrompt.stringValue;
+    else if (field == _aiKey && _aiKey.stringValue.length > 0 && [notification.userInfo[@"NSTextMovement"] integerValue] == NSReturnTextMovement)
+        [self aiSaveKey:nil];
+}
+
+-(void)comboBoxSelectionDidChange:(NSNotification*)notification {
+    //the text of the box is not updated yet when this is called
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSInteger index = self->_aiModel.indexOfSelectedItem;
+        if (index >= 0)
+            self->_aiModel.stringValue = [self->_aiModel itemObjectValueAtIndex:index];
+        [self aiCommitModel];
+    });
+}
+
+-(BOOL)aiCommitURL {
+    AIProvider* provider = [self aiProviderInUse];
+    NSString* typed = _aiURL.stringValue;
+    if (typed.length == 0 && provider.defaultBaseURL.length == 0) {
+        [AISettings setBaseURL:@"" forProvider:provider];
+        [self aiShow:@"Chưa nhập địa chỉ máy chủ." in:_aiURLStatus error:YES];
+        return NO;
+    }
+    if (typed.length == 0) {
+        [AISettings setBaseURL:@"" forProvider:provider];       //back to the address of the service
+        _aiURL.stringValue = provider.defaultBaseURL;
+        [self aiShow:@"" in:_aiURLStatus error:NO];
+        return YES;
+    }
+    NSString* reason = nil;
+    NSString* clean = VOKAICleanBaseURL(typed, &reason);
+    if (clean == nil) {
+        [self aiShow:reason in:_aiURLStatus error:YES];          //not saved: the one that works stays
+        return NO;
+    }
+    [AISettings setBaseURL:clean forProvider:provider];
+    _aiURL.stringValue = clean;
+    [self aiShow:@"" in:_aiURLStatus error:NO];
+    return YES;
+}
+
+-(void)aiCommitModel {
+    [AISettings setModel:_aiModel.stringValue forProvider:[self aiProviderInUse]];
+}
+
+-(void)aiSaveKey:(id)sender {
+    AIProvider* provider = [self aiProviderInUse];
+    NSString* reason = nil;
+    NSString* key = VOKAICleanKey(_aiKey.stringValue, &reason);
+    if (key == nil) {
+        [self aiShow:reason in:_aiKeyStatus error:YES];
+        return;
+    }
+    NSError* error = nil;
+    if (![AIKeychain setKey:key forProvider:provider.identifier error:&error]) {
+        [self aiShow:error.localizedDescription in:_aiKeyStatus error:YES];
+        return;
+    }
+    [self reloadAI];                                              //the field is emptied: the key is not shown again
+    [self aiShow:@"Đã lưu vào Keychain của tài khoản macOS này." in:_aiKeyStatus error:NO];
+}
+
+-(void)aiRemoveKey:(id)sender {
+    AIProvider* provider = [self aiProviderInUse];
+    NSAlert* alert = [[NSAlert alloc] init];
+    alert.messageText = [NSString stringWithFormat:@"Xóa API key của %@?", provider.name];
+    alert.informativeText = @"Key bị xóa khỏi Keychain. Bạn cần nhập lại nếu muốn dùng dịch vụ này.";
+    [alert addButtonWithTitle:@"Hủy"];
+    [alert addButtonWithTitle:@"Xóa"].hasDestructiveAction = YES;
+    [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse code) {
+        if (code != NSAlertSecondButtonReturn)
+            return;
+        [AIKeychain removeKeyForProvider:provider.identifier];
+        [self reloadAI];
+        [self aiShow:@"Đã xóa key." in:self->_aiKeyStatus error:NO];
+    }];
+}
+
+-(void)aiResetPrompt:(id)sender {
+    AISettings.systemPrompt = nil;
+    _aiPrompt.stringValue = AISettings.systemPrompt;
+}
+
+-(void)aiListModels:(id)sender {
+    AIProvider* provider = [self aiProviderInUse];
+    if (![self aiCommitURL])
+        return;
+    NSError* error = nil;
+    AIConfiguration* configuration = [AISettings configurationForListingModelsOfProvider:provider error:&error];
+    if (configuration == nil) {
+        [self aiShow:error.localizedDescription in:_aiModelStatus error:YES];
+        return;
+    }
+    [self aiShow:@"Đang tải danh sách…" in:_aiModelStatus error:NO];
+    [AIClient listModelsForConfiguration:configuration completion:^(NSArray<NSString*>* models, NSError* failure) {
+        if (provider != [self aiProviderInUse])
+            return;                                               //the user went to another service meanwhile
+        if (failure != nil) {
+            [self aiShow:failure.localizedDescription in:self->_aiModelStatus error:YES];
+            return;
+        }
+        [self->_aiModel removeAllItems];
+        [self->_aiModel addItemsWithObjectValues:models];
+        [self aiShow:[NSString stringWithFormat:@"Tìm thấy %lu model. Bấm vào mũi tên ở ô model để chọn.", (unsigned long)models.count] in:self->_aiModelStatus error:NO];
+    }];
+}
+
+//a real request, the smallest one: it tells at once whether the address, the key and the model work together
+-(void)aiTest:(id)sender {
+    AIProvider* provider = [self aiProviderInUse];
+    if (![self aiCommitURL])
+        return;
+    [self aiCommitModel];
+    NSError* error = nil;
+    AIConfiguration* configuration = [AISettings configurationForProvider:provider error:&error];
+    if (configuration == nil) {
+        [self aiShow:error.localizedDescription in:_aiTestStatus error:YES];
+        return;
+    }
+    configuration.systemPrompt = @"Reply with the single word OK.";
+    _aiTestButton.enabled = NO;
+    [self aiShow:@"Đang kiểm tra…" in:_aiTestStatus error:NO];
+    AIClient* client = [[AIClient alloc] initWithConfiguration:configuration];
+    _aiTestClient = client;
+    __block NSMutableString* answer = [NSMutableString string];
+    [client generateWithPrompt:@"Say OK" onText:^(NSString* piece) { [answer appendString:piece]; }
+                    completion:^(NSError* failure) {
+        self->_aiTestClient = nil;
+        self->_aiTestButton.enabled = YES;
+        if (failure != nil) {
+            [self aiShow:failure.localizedDescription in:self->_aiTestStatus error:YES];
+            return;
+        }
+        NSString* shown = answer.length > 40 ? [[answer substringToIndex:40] stringByAppendingString:@"…"] : answer;
+        [self aiShow:[NSString stringWithFormat:@"Kết nối tốt. %@ trả lời: “%@”.", provider.name, [shown stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]]
+                  in:self->_aiTestStatus error:NO];
+    }];
+}
+
 -(NSView*)sectionQuickTyping {
     SettingsToggle* quick = [SettingsToggle title:@"Gõ nhanh" detail:@"cc=ch, gg=gi, kk=kh, nn=ng, qq=qu, pp=ph, tt=th"
                                               key:@"QuickTelex" variable:&vQuickTelex];
@@ -701,6 +1116,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _convertRecorder.value = convertToolHotKey;
     _snippetRecorder.value = vSnippetHotKey;
     _restoreRecorder.value = vRestoreHotKey;
+    _aiRecorder.value = vAIHotKey;
+    [self reloadAI];
 
     [self showStatus:[AppPermissions accessibilityGranted] in:_accessibilityStatus];
     [self showStatus:[AppPermissions inputMonitoringGranted] in:_inputMonitoringStatus];
@@ -803,7 +1220,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(void)resetToDefaults:(id)sender {
     NSAlert* alert = [[NSAlert alloc] init];
     alert.messageText = @"Khôi phục cấu hình mặc định?";
-    alert.informativeText = @"Mọi tùy chọn sẽ trở về như lúc mới cài. Danh sách gõ tắt của bạn không bị xóa.";
+    alert.informativeText = @"Mọi tùy chọn sẽ trở về như lúc mới cài. Danh sách gõ tắt, snippet và API key của bạn không bị xóa.";
     [alert addButtonWithTitle:@"Hủy"];
     [alert addButtonWithTitle:@"Khôi phục"].hasDestructiveAction = YES;
     [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {

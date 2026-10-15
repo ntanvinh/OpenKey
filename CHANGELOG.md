@@ -1,6 +1,7 @@
 # OpenKey Change Log
 
 ##### VOpenKey 3.4.1 (build 61): (15/10/2026)
+- feat(macOS): Smart Language Detect nhận diện đoạn tiếng Anh khi đang gõ tiếng Việt và khôi phục nội dung tiếng Anh
 - feat: release v3.2.1 with snippets and input source guard
 - chore(release): publish VOpenKey 3.1.3 build 55
 - chore(release): release v3.1.2 build 54

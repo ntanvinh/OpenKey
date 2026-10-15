@@ -12,6 +12,10 @@
 #include <string>
 #import "AppDelegate.h"
 #import "OpenKeyManager.h"
+#import <objc/runtime.h>
+#import "AIAssistant.h"
+#import "AISettings.h"
+#import "ShortcutConflicts.h"
 #import "SnippetPalette.h"
 #import "SuggestionController.h"
 #import "ShortcutRecorder.h"
@@ -65,6 +69,8 @@ static int gQuickConverts = 0;
 @implementation OpenKeyManager
 +(void)reenableEventTap {}
 @end
+
+static int gAIToggles = 0;
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { printf("FAIL line %d: %s\n", __LINE__, #cond); failures++; } } while (0)
@@ -268,6 +274,94 @@ static void runTypingTests(const char* title) {
     vRestoreHotKey = saved;
 }
 
+static void Spin(double seconds) {
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
+}
+
+//The AI shortcut: the tap swallows it and asks the window to open (a second later on the main queue, not inside the callback).
+//+[AIAssistant toggle] is replaced by a counter, so that no window opens.
+static void runAITests() {
+    printf("-- AI shortcut\n");
+    Method toggle = class_getClassMethod([AIAssistant class], @selector(toggle));
+    IMP original = method_setImplementation(toggle, imp_implementationWithBlock(^{ gAIToggles++; }));
+    int savedSwitch = vSwitchKeyStatus;
+    vAIEnabled = 1;
+    vAIHotKey = VOK_AI_DEFAULT_HOTKEY;                       // ⌃⌥A
+    gLanguageSwitches = 0;
+
+    gAIToggles = 0;
+    newWord();
+    bool passed = sendKey(kVK_ANSI_A, kCGEventFlagMaskControl | kCGEventFlagMaskAlternate, 'a');
+    CHECK(!passed);                                           // the key is taken
+    CHECK(gAIToggles == 0);                                   // and the window is asked for later, not in the callback
+    Spin(0.1);
+    CHECK(gAIToggles == 1);
+    CHECK(utf8(gText).empty());                               // nothing was typed
+
+    //the key of the shortcut is a letter like any other: Vietnamese with many a's is typed as before
+    gAIToggles = 0;
+    CHECK(typedText("an ") == "an ");
+    CHECK(typedText("aas ") == "ấ ");
+    CHECK(typedText("xin chaof cacs banj ") == "xin chào các bạn ");
+    CHECK(typedText("Anh ") == "Anh ");
+    Spin(0.1);
+    CHECK(gAIToggles == 0);
+
+    //⌃⇧A is another shortcut of the applications: it opens nothing, and with ⌃⇧ as the switch it must not switch either
+    vSwitchKeyStatus = (int)0xFE0009FEu;
+    newWord();
+    sendFlags(kVK_Control, kCGEventFlagMaskControl);
+    sendFlags(kVK_Shift, kCGEventFlagMaskControl | kCGEventFlagMaskShift);
+    passed = sendKey(kVK_ANSI_A, kCGEventFlagMaskControl | kCGEventFlagMaskShift, 'a', false);
+    CHECK(passed);
+    sendFlags(kVK_Shift, kCGEventFlagMaskControl);
+    sendFlags(kVK_Control, 0);
+    Spin(0.1);
+    CHECK(gAIToggles == 0 && gLanguageSwitches == 0);
+    vSwitchKeyStatus = savedSwitch;
+
+    //switched off: the key is the application's
+    vAIEnabled = 0;
+    newWord();
+    passed = sendKey(kVK_ANSI_A, kCGEventFlagMaskControl | kCGEventFlagMaskAlternate, 'a');
+    CHECK(passed);
+    Spin(0.1);
+    CHECK(gAIToggles == 0);
+    vAIEnabled = 1;
+
+    //no shortcut
+    vAIHotKey = VOK_SHORTCUT_NONE;
+    passed = sendKey(kVK_ANSI_A, kCGEventFlagMaskControl | kCGEventFlagMaskAlternate, 'a');
+    CHECK(passed);
+    Spin(0.1);
+    CHECK(gAIToggles == 0);
+
+    //a shortcut of modifiers only opens it when they are let go
+    vAIHotKey = (int)0xFE000AFEu;                             // ⌥⇧
+    newWord();
+    sendFlags(kVK_Option, kCGEventFlagMaskAlternate);
+    sendFlags(kVK_Shift, kCGEventFlagMaskAlternate | kCGEventFlagMaskShift);
+    Spin(0.1);
+    CHECK(gAIToggles == 0);
+    sendFlags(kVK_Shift, kCGEventFlagMaskAlternate);
+    sendFlags(kVK_Option, 0);
+    Spin(0.1);
+    CHECK(gAIToggles == 1);
+    vAIHotKey = VOK_AI_DEFAULT_HOTKEY;
+
+    //no two things on one shortcut
+    CHECK([VOKShortcutConflict(VOK_AI_DEFAULT_HOTKEY, VOKShortcutOwnerRestore) isEqualToString:@"Mở trợ lý AI"]);
+    CHECK([VOKShortcutConflict(VOK_AI_DEFAULT_HOTKEY, VOKShortcutOwnerSwitch) isEqualToString:@"Mở trợ lý AI"]);
+    CHECK(VOKShortcutConflict(VOK_AI_DEFAULT_HOTKEY, VOKShortcutOwnerAI) == nil);          // its own is not a conflict
+    CHECK([VOKShortcutConflict(VOK_RESTORE_DEFAULT_HOTKEY, VOKShortcutOwnerAI) isEqualToString:@"Khôi phục từ đang gõ"]);
+    CHECK([VOKShortcutConflict(VOK_SNIPPET_DEFAULT_HOTKEY, VOKShortcutOwnerAI) isEqualToString:@"Mở snippet"]);
+    vAIEnabled = 0;
+    CHECK(VOKShortcutConflict(VOK_AI_DEFAULT_HOTKEY, VOKShortcutOwnerRestore) == nil);     // off: it does not hold the keys
+    vAIEnabled = 1;
+
+    method_setImplementation(toggle, original);
+}
+
 static void runShortcutTests() {
     printf("-- shortcuts\n");
     vRestoreIfWrongSpelling = 0;
@@ -332,6 +426,8 @@ int main() {
         vSnippetsEnabled = 1;
         vSnippetHotKey = VOK_SNIPPET_DEFAULT_HOTKEY;
         vRestoreHotKey = VOK_RESTORE_DEFAULT_HOTKEY;
+        vAIEnabled = 1;
+        vAIHotKey = VOK_AI_DEFAULT_HOTKEY;
 
         vFixRecommendBrowser = 0;
         runTypingTests("typing");
@@ -339,6 +435,7 @@ int main() {
         runTypingTests("typing, with the fix for suggestions of browsers");
         vFixRecommendBrowser = 0;
         runShortcutTests();
+        runAITests();
 
         printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
     }

@@ -32,6 +32,7 @@
 -(void)onConvertTool;
 -(void)onControlPanelSelected;
 -(void)onAboutSelected;
+-(void)onAISettingsSelected;
 -(void)refreshMenu;
 -(void)onQuickConvert;
 -(void)setQuickConvertString;

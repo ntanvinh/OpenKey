@@ -39,14 +39,14 @@ static CGKeyCode KeyCodeForLetter(UniChar letter, CGKeyCode fallback) {
     return result;
 }
 
-static void PostCommandV(void) {
+static void PostCommand(unichar letter) {
     CGEventSourceRef source = sEventSource;
     BOOL ownSource = NO;
     if (source == NULL) {
         source = CGEventSourceCreate(kCGEventSourceStatePrivate);
         ownSource = YES;
     }
-    CGKeyCode key = KeyCodeForLetter('v', 9);
+    CGKeyCode key = KeyCodeForLetter(letter, letter == 'c' ? 8 : 9);
     CGEventRef down = CGEventCreateKeyboardEvent(source, key, true);
     CGEventRef up = CGEventCreateKeyboardEvent(source, key, false);
     CGEventSetFlags(down, kCGEventFlagMaskCommand);
@@ -59,9 +59,78 @@ static void PostCommandV(void) {
         CFRelease(source);
 }
 
+@implementation VOKPasteboardSnapshot {
+    //one item, the usual case: the types of the clipboard by name. This way types that are not UTIs ("vscode-editor-data" of the
+    //VS Code family, written by Electron) survive, which NSPasteboardItem refuses.
+    NSDictionary<NSString*, NSData*>* _single;
+    NSArray<NSString*>* _singleOrder;
+    //several items (files copied in the Finder): item by item
+    NSArray<NSDictionary<NSString*, NSData*>*>* _items;
+}
+
++(instancetype)snapshotOfPasteboard:(NSPasteboard*)pasteboard {
+    VOKPasteboardSnapshot* snapshot = [[VOKPasteboardSnapshot alloc] init];
+    if (pasteboard.pasteboardItems.count <= 1) {
+        NSMutableDictionary* contents = [NSMutableDictionary dictionary];
+        NSMutableArray* order = [NSMutableArray array];
+        for (NSPasteboardType type in pasteboard.types) {
+            if ([type hasPrefix:@"dyn."]) //made up by macOS for the types it cannot name: it makes them again
+                continue;
+            NSData* data = [pasteboard dataForType:type];
+            if (data != nil) {
+                contents[type] = data;
+                [order addObject:type];
+            }
+        }
+        snapshot->_single = contents;
+        snapshot->_singleOrder = order;
+        return snapshot;
+    }
+    NSMutableArray* items = [NSMutableArray array];
+    for (NSPasteboardItem* item in pasteboard.pasteboardItems) {
+        NSMutableDictionary* contents = [NSMutableDictionary dictionary];
+        for (NSPasteboardType type in item.types) {
+            if ([type hasPrefix:@"dyn."])
+                continue;
+            NSData* data = [item dataForType:type];
+            if (data != nil)
+                contents[type] = data;
+        }
+        if (contents.count > 0)
+            [items addObject:contents];
+    }
+    snapshot->_items = items;
+    return snapshot;
+}
+
+-(void)restoreToPasteboard:(NSPasteboard*)pasteboard {
+    if (_single != nil) {
+        if (_singleOrder.count == 0) {
+            [pasteboard clearContents];
+            return;
+        }
+        [pasteboard declareTypes:_singleOrder owner:nil];
+        for (NSString* type in _singleOrder)
+            [pasteboard setData:_single[type] forType:type];
+        return;
+    }
+    [pasteboard clearContents];
+    NSMutableArray* items = [NSMutableArray array];
+    for (NSDictionary<NSString*, NSData*>* contents in _items) {
+        NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
+        for (NSPasteboardType type in contents)
+            [item setData:contents[type] forType:type];
+        [items addObject:item];
+    }
+    if (items.count > 0)
+        [pasteboard writeObjects:items];
+}
+
+@end
+
 @implementation SnippetInserter {
     //what the clipboard held before a snippet was put on it, waiting to be put back
-    NSArray<NSDictionary<NSString*, NSData*>*>* _saved;
+    VOKPasteboardSnapshot* _saved;
     NSInteger _changeCountAfterWrite;
     NSUInteger _generation;     //a restore that was scheduled for an earlier insertion must not act on a later one
 }
@@ -77,12 +146,16 @@ static void PostCommandV(void) {
     sEventSource = source;
 }
 
++(void)postCommandKey:(unichar)letter {
+    PostCommand(letter);
+}
+
 -(instancetype)init {
     self = [super init];
     if (self) {
         _pasteboard = [NSPasteboard generalPasteboard];
         _restoreDelay = 0.8;
-        _pasteCommand = ^{ PostCommandV(); };
+        _pasteCommand = ^{ PostCommand('v'); };
     }
     return self;
 }
@@ -108,42 +181,12 @@ static void PostCommandV(void) {
 
 #pragma mark - The clipboard
 
--(NSArray<NSDictionary<NSString*, NSData*>*>*)snapshot {
-    NSMutableArray* items = [NSMutableArray array];
-    for (NSPasteboardItem* item in _pasteboard.pasteboardItems) {
-        NSMutableDictionary* contents = [NSMutableDictionary dictionary];
-        for (NSPasteboardType type in item.types) {
-            if ([type hasPrefix:@"dyn."]) //made up by macOS for the types it cannot name: it makes them again
-                continue;
-            NSData* data = [item dataForType:type];
-            if (data != nil)
-                contents[type] = data;
-        }
-        if (contents.count > 0)
-            [items addObject:contents];
-    }
-    return items;
-}
-
--(void)restore:(NSArray<NSDictionary<NSString*, NSData*>*>*)snapshot {
-    [_pasteboard clearContents];
-    NSMutableArray* items = [NSMutableArray array];
-    for (NSDictionary<NSString*, NSData*>* contents in snapshot) {
-        NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
-        for (NSPasteboardType type in contents)
-            [item setData:contents[type] forType:type];
-        [items addObject:item];
-    }
-    if (items.count > 0)
-        [_pasteboard writeObjects:items];
-}
-
 //Puts the clipboard back now if a snippet is still on it
 -(void)restoreIfUntouched {
-    NSArray* saved = _saved;
+    VOKPasteboardSnapshot* saved = _saved;
     _saved = nil;
     if (saved != nil && _pasteboard.changeCount == _changeCountAfterWrite)
-        [self restore:saved];
+        [saved restoreToPasteboard:_pasteboard];
     //else: the user or an application copied something since, which is worth more than what was there before
 }
 
@@ -154,11 +197,20 @@ static void PostCommandV(void) {
     //the text of that snippet
     [self restoreIfUntouched];
 
-    NSString* text = [self expandedText:content];
+    [self pasteText:[self expandedText:content] application:application];
+}
+
+-(void)insertText:(NSString*)text application:(NSRunningApplication*)application {
+    [self restoreIfUntouched];
+    [self pasteText:text application:application];
+}
+
+//Puts the text on the clipboard, presses ⌘V in the application and gives the clipboard back
+-(void)pasteText:(NSString*)text application:(NSRunningApplication*)application {
     if (text.length == 0)
         return;
 
-    _saved = [self snapshot];
+    _saved = [VOKPasteboardSnapshot snapshotOfPasteboard:_pasteboard];
     [_pasteboard clearContents];
     NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
     [item setString:text forType:NSPasteboardTypeString];

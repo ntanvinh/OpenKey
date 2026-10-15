@@ -15,6 +15,8 @@
 #import "SuggestionController.h"
 #import "ShortcutRecorder.h"
 #import "SuggestionKeys.h"
+#import "AIAssistant.h"
+#import "AISettings.h"
 #import "SnippetPalette.h"
 #import "SnippetInserter.h"
 #import "WordRestore.h"
@@ -129,10 +131,12 @@ extern "C" {
         //the ⌘V that pastes a snippet is ours: the tap leaves it alone like the keys it sends itself
         [SnippetInserter useEventSource:myEventSource];
         //what is typed in the snippet window must not become part of the next word typed in another application
-        [SnippetPalette setTypingBoundaryHandler:^{
+        void (^typingBoundary)(void) = ^{
             RequestNewSession();
             [SuggestionController reset];
-        }];
+        };
+        [SnippetPalette setTypingBoundaryHandler:typingBoundary];
+        [AIAssistant setTypingBoundaryHandler:typingBoundary];
 
         eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
         eventBackSpaceUp = CGEventCreateKeyboardEvent (myEventSource, 51, false);
@@ -588,6 +592,19 @@ extern "C" {
         });
     }
 
+    //The windows that take the keyboard from the typing engine: the snippets and the AI assistant. While one is open the keys are
+    //for it: no suggestions, no restore shortcut.
+    bool OverlayHasKeyboard() {
+        return [SnippetPalette isVisible] || [AIAssistant isVisible];
+    }
+
+    //Opens the AI assistant, or closes it when it is open. Not inside the callback: the tap must answer at once.
+    void openAIAssistant() {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [AIAssistant toggle];
+        });
+    }
+
     void handleMacro() {
         //fix autocomplete
         if (shouldUseRecommendWorkaround(FRONT_APP)) {
@@ -815,7 +832,8 @@ extern "C" {
         if (type == kCGEventKeyDown) {
             bool isSnippetKey = vSnippetsEnabled && GET_SWITCH_KEY(vSnippetHotKey) == _keycode;
             bool isRestoreKey = GET_SWITCH_KEY(vRestoreHotKey) == _keycode;
-            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey) {
+            bool isAIKey = vAIEnabled && GET_SWITCH_KEY(vAIHotKey) == _keycode;
+            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey && !isAIKey) {
                 _lastFlag = 0;
             } else {
                 if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
@@ -836,8 +854,14 @@ extern "C" {
                     openSnippetPalette();
                     return NULL;
                 }
+                if (isAIKey && checkHotKey(vAIHotKey)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openAIAssistant();
+                    return NULL;
+                }
                 //restore the word being typed; with nothing to restore the key goes to the application (⌥Space is a space that does not break)
-                if (isRestoreKey && vLanguage == 1 && checkHotKey(vRestoreHotKey) && ![SnippetPalette isVisible]) {
+                if (isRestoreKey && vLanguage == 1 && checkHotKey(vRestoreHotKey) && !OverlayHasKeyboard()) {
                     _proxy = proxy;
                     if (restoreTypingWord()) {
                         _lastFlag = 0;
@@ -875,8 +899,15 @@ extern "C" {
                     openSnippetPalette();
                     return NULL;
                 }
+                //an AI shortcut that is made of modifiers only
+                if (vAIEnabled && GET_SWITCH_KEY(vAIHotKey) == 0xFE && checkHotKey(vAIHotKey, false)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openAIAssistant();
+                    return NULL;
+                }
                 //a restore shortcut that is made of modifiers only
-                if (vLanguage == 1 && GET_SWITCH_KEY(vRestoreHotKey) == 0xFE && checkHotKey(vRestoreHotKey, false) && ![SnippetPalette isVisible]) {
+                if (vLanguage == 1 && GET_SWITCH_KEY(vRestoreHotKey) == 0xFE && checkHotKey(vRestoreHotKey, false) && !OverlayHasKeyboard()) {
                     _proxy = proxy;
                     if (restoreTypingWord()) {
                         _lastFlag = 0;
@@ -950,7 +981,7 @@ extern "C" {
         }
         
         //Tab or ⌥1-5 chooses a suggestion from the bar
-        if (type == kCGEventKeyDown && vSuggestEnabled && !tabForTheApplication && [SuggestionController isShowing] && ![SnippetPalette isVisible]) {
+        if (type == kCGEventKeyDown && vSuggestEnabled && !tabForTheApplication && [SuggestionController isShowing] && !OverlayHasKeyboard()) {
             int slot = SuggestionSlotForKey(_keycode, _flag, vSuggestTabAccepts != 0);
             if (slot >= 0) {
                 NSString* suggestion = nil;
@@ -972,7 +1003,7 @@ extern "C" {
                             _keycode,
                             _flag & kCGEventFlagMaskShift ? 1 : (_flag & kCGEventFlagMaskAlphaShift ? 2 : 0),
                             OTHER_CONTROL_KEY);
-            if (vSuggestEnabled && ![SnippetPalette isVisible]) { //the snippet window is not a place to suggest words in
+            if (vSuggestEnabled && !OverlayHasKeyboard()) { //the windows of the snippets and of the AI are not places to suggest words in
                 VOKSuggestionKey kind = VOKSuggestionKeyOther;
                 if (_keycode == KEY_SPACE && !(OTHER_CONTROL_KEY) && pData->code == vDoNothing) {
                     kind = VOKSuggestionKeySpace;

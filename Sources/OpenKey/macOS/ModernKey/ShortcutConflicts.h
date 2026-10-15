@@ -12,7 +12,8 @@ typedef NS_ENUM(NSInteger, VOKShortcutOwner) {
     VOKShortcutOwnerSwitch,     //switch between Vietnamese and English
     VOKShortcutOwnerConvert,    //convert the code table of the clipboard
     VOKShortcutOwnerSnippet,    //open the snippets
-    VOKShortcutOwnerRestore     //give back the keys of the word being typed
+    VOKShortcutOwnerRestore,    //give back the keys of the word being typed
+    VOKShortcutOwnerAI          //open the AI assistant
 };
 
 #ifdef __cplusplus
@@ -20,7 +21,7 @@ extern "C" {
 #endif
 
 /// The name of what already uses `data` among the shortcuts of the app, other than `owner` (the one being recorded); nil
-/// when it is free. The shortcut of the snippets only counts while snippets are on.
+/// when it is free. The shortcuts of the snippets and of the AI assistant only count while they are on.
 NSString* VOKShortcutConflict(int data, VOKShortcutOwner owner);
 
 #ifdef __cplusplus

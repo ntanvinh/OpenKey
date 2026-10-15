@@ -15,6 +15,12 @@
 
 #import <Cocoa/Cocoa.h>
 
+/// What was on a clipboard, every type of every item, to put it back after the clipboard was used for something else.
+@interface VOKPasteboardSnapshot : NSObject
++(instancetype)snapshotOfPasteboard:(NSPasteboard*)pasteboard;
+-(void)restoreToPasteboard:(NSPasteboard*)pasteboard;
+@end
+
 @interface SnippetInserter : NSObject
 
 +(SnippetInserter*)shared;
@@ -31,6 +37,14 @@
 
 /// What presses ⌘V. A test replaces it.
 @property (nonatomic, copy) void (^pasteCommand)(void);
+
+/// Presses ⌘ and a letter in the application that has the keyboard (the letter of the key of the layout in use). The key is
+/// the one the application would get from the user, except that the event tap of VOpenKey leaves it alone.
++(void)postCommandKey:(unichar)letter;
+
+/// Inserts a text as it is (nothing is replaced in it), the same way: pasted into `application`, the clipboard put back. A
+/// selection in the application is replaced by the text.
+-(void)insertText:(NSString*)text application:(NSRunningApplication*)application;
 
 /// `text` with {clipboard}, {date} and {time} replaced by the current clipboard text and time.
 -(NSString*)expandedText:(NSString*)text;

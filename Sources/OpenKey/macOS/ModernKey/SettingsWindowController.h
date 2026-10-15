@@ -13,6 +13,9 @@
 // Brings the window to the front, for the menu item and for a click on the Dock icon.
 -(void)show;
 
+// Brings the window to the front on the tab with this title ("AI"), for the button of the AI window that opens its settings.
+-(void)showTabTitled:(NSString*)title;
+
 // Re-reads the saved settings into the controls, for when something else changed them.
 -(void)reload;
 

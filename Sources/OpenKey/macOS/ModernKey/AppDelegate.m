@@ -26,6 +26,10 @@
 #import "InputSourceGuard.h"
 #import "SnippetPalette.h"
 #import "SnippetStore.h"
+#import "AIAssistant.h"
+#import "AISettings.h"
+#import "AIOllamaInstaller.h"
+#import "AIOllamaRuntime.h"
 #import "WordRestore.h"
 
 AppDelegate* appDelegate;
@@ -118,6 +122,12 @@ extern bool convertToolDontAlertWhenCompleted;
     [WordRestore registerDefaults];
     [WordRestore migrateSettings]; //before the typing engine reads its settings
     [WordRestore start];
+    [AISettings registerDefaults];
+    [AISettings start];
+    [AIAssistant setSettingsHandler:^{ [self onAISettingsSelected]; }];
+    //a download of Ollama that was cut by quitting leaves its working folder behind
+    [AIOllamaInstaller removeLeftoversInWorkDirectory:[[[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject
+                                                       URLByAppendingPathComponent:@"VOpenKey" isDirectory:YES]];
     
     [self registerSupportedNotification];
     
@@ -198,6 +208,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [SecureInputMonitor stop];
     [SuggestionController stop];
     [SnippetStore flushShared];
+    [[AIOllamaRuntime shared] stopWaiting:3]; //the server of the AI on this Mac, if VOpenKey started it, quits with VOpenKey
 }
 
 -(void)setQuickConvertString {
@@ -238,6 +249,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [InputSourceGuard enforce];
     vSnippetsEnabled = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSnippetsEnabled forKey:@"SnippetsEnabled"];
     vSnippetHotKey = VOK_SNIPPET_DEFAULT_HOTKEY;[[NSUserDefaults standardUserDefaults] setInteger:vSnippetHotKey forKey:@"SnippetHotKey"];
+    [AISettings resetToDefaults]; //the keys stay in the keychain
     vShowIconOnDock = 0;[[NSUserDefaults standardUserDefaults] setInteger:vShowIconOnDock forKey:@"vShowIconOnDock"];
     vFixChromiumBrowser = 0;[[NSUserDefaults standardUserDefaults] setInteger:vFixChromiumBrowser forKey:@"vFixChromiumBrowser"];
     vPerformLayoutCompat = 0;[[NSUserDefaults standardUserDefaults] setInteger:vPerformLayoutCompat forKey:@"vPerformLayoutCompat"];
@@ -374,6 +386,13 @@ extern bool convertToolDontAlertWhenCompleted;
     
     [_macroWC.window makeKeyAndOrderFront:nil];
     [_macroWC.window setLevel:NSFloatingWindowLevel];
+}
+
+-(void)onAISettingsSelected {
+    if (_settingsWC == nil) {
+        _settingsWC = [[SettingsWindowController alloc] init];
+    }
+    [_settingsWC showTabTitled:@"AI"];
 }
 
 -(void) onAboutSelected {
