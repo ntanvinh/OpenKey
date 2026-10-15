@@ -8,6 +8,7 @@
 #import "AIAssistant.h"
 #import "AISettings.h"
 #import "AppInfo.h"
+#import "CaseBar.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
 #import "ShortcutRecorder.h"
@@ -62,6 +63,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _suggestionItem;
     NSMenuItem* _snippetItem;
     NSMenuItem* _aiItem;
+    NSMenuItem* _caseItem;
     NSArray<NSMenuItem*>* _inputTypeItems;
     NSArray<NSMenuItem*>* _codeTableItems;
 }
@@ -100,7 +102,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _menu.delegate = self;
 
     //notices, only there when there is something to tell
-    _permissionItem = MakeItem(@"Cấp quyền để VOpenKey hoạt động…", @"exclamationmark.shield", self, @selector(askPermissions:));
+    _permissionItem = MakeItem(@"Cấp quyền để VOpenKey AI hoạt động…", @"exclamationmark.shield", self, @selector(askPermissions:));
     _secureItem = MakeItem(@"Secure Input đang bật", @"exclamationmark.triangle", nil, nil);
     _secureItem.enabled = NO;
     _noticeSeparator = [NSMenuItem separatorItem];
@@ -136,6 +138,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:_snippetItem];
     _aiItem = MakeItem(@"Trợ lý AI…", @"sparkles", self, @selector(openAI:));
     [_menu addItem:_aiItem];
+    _caseItem = MakeItem(@"Đổi chữ hoa/thường…", @"textformat.abc", self, @selector(openCaseBar:));
+    [_menu addItem:_caseItem];
     [_menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem* settings = MakeItem(@"Cài đặt…", @"gearshape", self, @selector(openSettings:));
@@ -184,6 +188,9 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     BOOL aiShortcut = vAIEnabled && !VOKShortcutIsEmpty(vAIHotKey);
     _aiItem.keyEquivalent = aiShortcut ? VOKShortcutKeyEquivalent(vAIHotKey) : @"";
     _aiItem.keyEquivalentModifierMask = aiShortcut ? VOKShortcutModifierMask(vAIHotKey) : 0;
+    BOOL caseShortcut = !VOKShortcutIsEmpty(vCaseBarHotKey);
+    _caseItem.keyEquivalent = caseShortcut ? VOKShortcutKeyEquivalent(vCaseBarHotKey) : @"";
+    _caseItem.keyEquivalentModifierMask = caseShortcut ? VOKShortcutModifierMask(vCaseBarHotKey) : 0;
     if (@available(macOS 14.4, *)) {
         //what is selected, written under the name of the submenu
         _inputTypeParent.subtitle = inputType >= 0 && inputType < (NSInteger)InputTypeNames().count ? InputTypeNames()[inputType] : nil;
@@ -246,6 +253,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
 -(void)openAI:(id)sender {
     [AIAssistant show];
+}
+
+-(void)openCaseBar:(id)sender {
+    [CaseBar show];
 }
 
 -(void)openSettings:(id)sender {
