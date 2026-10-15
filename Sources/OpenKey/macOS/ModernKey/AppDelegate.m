@@ -28,6 +28,7 @@
 #import "SnippetStore.h"
 #import "AIAssistant.h"
 #import "AISettings.h"
+#import "CaseBar.h"
 #import "AIOllamaInstaller.h"
 #import "AIOllamaRuntime.h"
 #import "WordRestore.h"
@@ -124,6 +125,8 @@ extern bool convertToolDontAlertWhenCompleted;
     [WordRestore start];
     [AISettings registerDefaults];
     [AISettings start];
+    [CaseBar registerDefaults];
+    [CaseBar start];
     [AIAssistant setSettingsHandler:^{ [self onAISettingsSelected]; }];
     //a download of Ollama that was cut by quitting leaves its working folder behind
     [AIOllamaInstaller removeLeftoversInWorkDirectory:[[[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject
@@ -250,6 +253,8 @@ extern bool convertToolDontAlertWhenCompleted;
     vSnippetsEnabled = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSnippetsEnabled forKey:@"SnippetsEnabled"];
     vSnippetHotKey = VOK_SNIPPET_DEFAULT_HOTKEY;[[NSUserDefaults standardUserDefaults] setInteger:vSnippetHotKey forKey:@"SnippetHotKey"];
     [AISettings resetToDefaults]; //the keys stay in the keychain
+    vCaseBarAuto = 1;[[NSUserDefaults standardUserDefaults] setInteger:vCaseBarAuto forKey:@"CaseBarAuto"];
+    vCaseBarHotKey = VOK_CASEBAR_DEFAULT_HOTKEY;[[NSUserDefaults standardUserDefaults] setInteger:vCaseBarHotKey forKey:@"CaseBarHotKey"];
     vShowIconOnDock = 0;[[NSUserDefaults standardUserDefaults] setInteger:vShowIconOnDock forKey:@"vShowIconOnDock"];
     vFixChromiumBrowser = 0;[[NSUserDefaults standardUserDefaults] setInteger:vFixChromiumBrowser forKey:@"vFixChromiumBrowser"];
     vPerformLayoutCompat = 0;[[NSUserDefaults standardUserDefaults] setInteger:vPerformLayoutCompat forKey:@"vPerformLayoutCompat"];

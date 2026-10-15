@@ -1,5 +1,9 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.6.1 (build 70): (15/10/2026)
+- **Thanh chuyển chữ hoa/thường (Case Bar):** Khi chọn văn bản, hiển thị menu để đổi kiểu chữ: CHỮ HOA, Chữ Hoa Từ, camelCase, snake_case, kebab-case, v.v. Bật tự động theo lựa chọn chuột (double-click, drag, Shift+arrows, ⌘A), hoặc gọi bằng phím tắt ⌃⌥C; hỗ trợ Unicode (tiếng Việt, Hy Lạp, Thái, v.v.). Tính năng mặc định bật trong Cài đặt > Gợi ý.
+- feat: release v3.5.7 build 69
+
 ##### VOpenKey 3.5.7 (build 69): (15/10/2026)
 - Cập nhật phiên bản.
 

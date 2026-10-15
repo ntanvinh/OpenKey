@@ -161,4 +161,33 @@ static NSRect FrameOfElement(AXUIElementRef element) {
     return NSMakeRect(x, caret.origin.y, 0, caret.size.height);
 }
 
++(NSRect)selectionLineInProcess:(pid_t)pid {
+    AXUIElementRef application = AXUIElementCreateApplication(pid);
+    if (application == NULL)
+        return NSZeroRect;
+    AXUIElementSetMessagingTimeout(application, 0.3);
+    NSRect line = NSZeroRect;
+    CFTypeRef focused = NULL;
+    if (AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute, &focused) == kAXErrorSuccess && focused) {
+        AXUIElementRef element = (AXUIElementRef)focused;
+        AXUIElementSetMessagingTimeout(element, 0.3);
+        CFRange selection = CFRangeMake(0, 0);
+        if (SelectedRange(element, &selection) && selection.length > 0) {
+            NSRect last, first;
+            CFIndex end = selection.location + selection.length;
+            //the last character may be the line break that ends the selection, which has no place of its own
+            BOOL haveLast = BoundsForRange(element, end - 1, 1, &last) || (selection.length > 1 && BoundsForRange(element, end - 2, 1, &last));
+            if (haveLast) {
+                line = last;
+                if (BoundsForRange(element, selection.location, 1, &first) && fabs(NSMidY(first) - NSMidY(last)) < last.size.height * 0.6)
+                    line.origin.x = first.origin.x;
+                line.size.width = 0;
+            }
+        }
+        CFRelease(focused);
+    }
+    CFRelease(application);
+    return line;
+}
+
 @end

@@ -14,6 +14,8 @@
 #import "OpenKeyManager.h"
 #import <objc/runtime.h>
 #import "AIAssistant.h"
+#import "CaseBar.h"
+#import "CaseBarPanel.h"
 #import "AISettings.h"
 #import "ShortcutConflicts.h"
 #import "SnippetPalette.h"
@@ -71,6 +73,7 @@ static int gQuickConverts = 0;
 @end
 
 static int gAIToggles = 0;
+static int gCaseBarToggles = 0;
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { printf("FAIL line %d: %s\n", __LINE__, #cond); failures++; } } while (0)
@@ -362,6 +365,102 @@ static void runAITests() {
     method_setImplementation(toggle, original);
 }
 
+//The list that changes the case of the selection: its shortcut, the keys it takes while it is up, the mouse that puts it away.
+//+[CaseBar toggle] is replaced by a counter for the shortcut; the list itself is shown with a known text, and the paste goes to a
+//stand-in.
+static void runCaseBarTests() {
+    printf("-- case bar\n");
+    Method toggle = class_getClassMethod([CaseBar class], @selector(toggle));
+    IMP original = method_setImplementation(toggle, imp_implementationWithBlock(^{ gCaseBarToggles++; }));
+    vCaseBarHotKey = VOK_CASEBAR_DEFAULT_HOTKEY;             // ⌃⌥C
+    vCaseBarAuto = 1;
+
+    gCaseBarToggles = 0;
+    newWord();
+    bool passed = sendKey(kVK_ANSI_C, kCGEventFlagMaskControl | kCGEventFlagMaskAlternate, 'c');
+    CHECK(!passed);                                           // taken
+    CHECK(gCaseBarToggles == 0);                              // asked for later, not in the callback
+    Spin(0.1);
+    CHECK(gCaseBarToggles == 1);
+    CHECK(utf8(gText).empty());
+
+    //the key of the shortcut is a letter like any other
+    gCaseBarToggles = 0;
+    CHECK(typedText("chaof cacs ") == "chào các ");
+    Spin(0.1);
+    CHECK(gCaseBarToggles == 0);
+
+    //no shortcut / modifiers only
+    vCaseBarHotKey = VOK_SHORTCUT_NONE;
+    passed = sendKey(kVK_ANSI_C, kCGEventFlagMaskControl | kCGEventFlagMaskAlternate, 'c');
+    CHECK(passed);
+    Spin(0.1);
+    CHECK(gCaseBarToggles == 0);
+    vCaseBarHotKey = (int)0xFE000AFEu;                        // ⌥⇧
+    newWord();
+    sendFlags(kVK_Option, kCGEventFlagMaskAlternate);
+    sendFlags(kVK_Shift, kCGEventFlagMaskAlternate | kCGEventFlagMaskShift);
+    sendFlags(kVK_Shift, kCGEventFlagMaskAlternate);
+    sendFlags(kVK_Option, 0);
+    Spin(0.1);
+    CHECK(gCaseBarToggles == 1);
+    vCaseBarHotKey = VOK_CASEBAR_DEFAULT_HOTKEY;
+
+    //conflicts
+    CHECK([VOKShortcutConflict(VOK_CASEBAR_DEFAULT_HOTKEY, VOKShortcutOwnerAI) isEqualToString:@"Đổi chữ hoa/thường"]);
+    CHECK(VOKShortcutConflict(VOK_CASEBAR_DEFAULT_HOTKEY, VOKShortcutOwnerCaseBar) == nil);
+    CHECK([VOKShortcutConflict(VOK_AI_DEFAULT_HOTKEY, VOKShortcutOwnerCaseBar) isEqualToString:@"Mở trợ lý AI"]);
+    method_setImplementation(toggle, original);
+
+    //with the list up, ⌥1 chooses, and the key is not the application's (nor its key up)
+    __block NSString* pasted = nil;
+    [CaseBar setTextInserter:^(NSString* text, NSRunningApplication* app) { pasted = text; }];
+    NSRunningApplication* other = nil;
+    for (NSRunningApplication* app in [NSWorkspace sharedWorkspace].runningApplications)
+        if (app.processIdentifier != getpid() && app.activationPolicy == NSApplicationActivationPolicyRegular) { other = app; break; }
+    newWord();
+    passed = sendKey(kVK_ANSI_1, kCGEventFlagMaskAlternate, '1');
+    CHECK(passed);                                            // no list: ⌥1 is the application's
+    [CaseBar presentText:@"xin chào" application:other explicit:NO anchor:NSMakeRect(100, 100, 0, 18)];
+    [[CaseBar panel] setFrameOrigin:NSMakePoint(-30000, -30000)];
+    CHECK([CaseBar isVisible]);
+    passed = sendKey(kVK_ANSI_1, kCGEventFlagMaskAlternate, '1');
+    CHECK(!passed);
+    CHECK([pasted isEqualToString:@"XIN CHÀO"]);
+    CHECK(![CaseBar isVisible]);
+    CHECK(utf8(gText).size() == 1);                           // only the one typed above: the swallowed ⌥1 typed nothing
+    //typing goes on as before
+    newWord();
+    CHECK(typedText("aas ") == "ấ ");
+
+    //a plain key puts the list away and is the application's; the mouse and the wheel put it away
+    auto showList = ^{
+        [CaseBar presentText:@"xin chào" application:other explicit:NO anchor:NSMakeRect(100, 100, 0, 18)];
+        [[CaseBar panel] setFrameOrigin:NSMakePoint(-30000, -30000)];
+    };
+    showList();
+    newWord();
+    CHECK(typedText("an ") == "an ");
+    CHECK(![CaseBar isVisible]);
+    showList();
+    CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, CGPointMake(10, 10), kCGMouseButtonLeft);
+    OpenKeyCallback(NULL, kCGEventLeftMouseDown, down, NULL);
+    CFRelease(down);
+    CHECK(![CaseBar isVisible]);
+    showList();
+    CGEventRef scroll = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitLine, 1, -3);
+    CGEventRef passedScroll = OpenKeyCallback(NULL, kCGEventScrollWheel, scroll, NULL);
+    CHECK(passedScroll != NULL);                              // the wheel is never taken
+    CFRelease(scroll);
+    CHECK(![CaseBar isVisible]);
+    CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, CGPointMake(10, 10), kCGMouseButtonLeft);
+    CGEventRef passedUp = OpenKeyCallback(NULL, kCGEventLeftMouseUp, up, NULL);
+    CHECK(passedUp != NULL);                                  // nor the mouse button
+    CFRelease(up);
+    [CaseBar hide];
+    [CaseBar setTextInserter:nil];
+}
+
 static void runShortcutTests() {
     printf("-- shortcuts\n");
     vRestoreIfWrongSpelling = 0;
@@ -428,6 +527,8 @@ int main() {
         vRestoreHotKey = VOK_RESTORE_DEFAULT_HOTKEY;
         vAIEnabled = 1;
         vAIHotKey = VOK_AI_DEFAULT_HOTKEY;
+        vCaseBarHotKey = VOK_CASEBAR_DEFAULT_HOTKEY;
+        vCaseBarAuto = 1;
 
         vFixRecommendBrowser = 0;
         runTypingTests("typing");
@@ -436,6 +537,7 @@ int main() {
         vFixRecommendBrowser = 0;
         runShortcutTests();
         runAITests();
+        runCaseBarTests();
 
         printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
     }

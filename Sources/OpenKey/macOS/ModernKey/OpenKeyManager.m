@@ -50,6 +50,8 @@ static CFRunLoopSourceRef runLoopSource;
                  (1 << kCGEventKeyUp) |
                  (1 << kCGEventFlagsChanged) |
                  (1 << kCGEventLeftMouseDown) |
+                 (1 << kCGEventLeftMouseUp) |
+                 (1 << kCGEventScrollWheel) |
                  (1 << kCGEventRightMouseDown) |
                  (1 << kCGEventLeftMouseDragged) |
                  (1 << kCGEventRightMouseDragged));

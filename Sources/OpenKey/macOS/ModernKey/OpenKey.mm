@@ -19,6 +19,7 @@
 #import "AISettings.h"
 #import "SnippetPalette.h"
 #import "SnippetInserter.h"
+#import "CaseBar.h"
 #import "WordRestore.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
@@ -96,6 +97,7 @@ extern "C" {
     NSString* _frontMostApp = @"UnknownApp";
     
     void RequestNewSession();
+    bool OverlayHasKeyboard();
 
     void OpenKeyInit() {
         //load saved data
@@ -137,6 +139,8 @@ extern "C" {
         };
         [SnippetPalette setTypingBoundaryHandler:typingBoundary];
         [AIAssistant setTypingBoundaryHandler:typingBoundary];
+        [CaseBar setTypingBoundaryHandler:typingBoundary];
+        [CaseBar setBlockedCheck:^BOOL{ return OverlayHasKeyboard(); }];
 
         eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
         eventBackSpaceUp = CGEventCreateKeyboardEvent (myEventSource, 51, false);
@@ -598,6 +602,13 @@ extern "C" {
         return [SnippetPalette isVisible] || [AIAssistant isVisible];
     }
 
+    //Opens the list that changes the case of the selection, or closes it when it is open. Not inside the callback.
+    void openCaseBar() {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [CaseBar toggle];
+        });
+    }
+
     //Opens the AI assistant, or closes it when it is open. Not inside the callback: the tap must answer at once.
     void openAIAssistant() {
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -789,6 +800,12 @@ extern "C" {
             return event;
         }
 
+        //the wheel turns: the list that changes the case of the selection would be left behind where the text was
+        if (type == kCGEventScrollWheel) {
+            [CaseBar scrolled];
+            return event;
+        }
+
         //a field is waiting for the user to press a shortcut: the keys are for it, not for the language switch or the typing
         if (vRecordingShortcut) {
             return event;
@@ -833,7 +850,8 @@ extern "C" {
             bool isSnippetKey = vSnippetsEnabled && GET_SWITCH_KEY(vSnippetHotKey) == _keycode;
             bool isRestoreKey = GET_SWITCH_KEY(vRestoreHotKey) == _keycode;
             bool isAIKey = vAIEnabled && GET_SWITCH_KEY(vAIHotKey) == _keycode;
-            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey && !isAIKey) {
+            bool isCaseKey = GET_SWITCH_KEY(vCaseBarHotKey) == _keycode;
+            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey && !isAIKey && !isCaseKey) {
                 _lastFlag = 0;
             } else {
                 if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
@@ -858,6 +876,12 @@ extern "C" {
                     _lastFlag = 0;
                     _hasJustUsedHotKey = true;
                     openAIAssistant();
+                    return NULL;
+                }
+                if (isCaseKey && checkHotKey(vCaseBarHotKey)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openCaseBar();
                     return NULL;
                 }
                 //restore the word being typed; with nothing to restore the key goes to the application (⌥Space is a space that does not break)
@@ -906,6 +930,13 @@ extern "C" {
                     openAIAssistant();
                     return NULL;
                 }
+                //a case list shortcut that is made of modifiers only
+                if (GET_SWITCH_KEY(vCaseBarHotKey) == 0xFE && checkHotKey(vCaseBarHotKey, false)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openCaseBar();
+                    return NULL;
+                }
                 //a restore shortcut that is made of modifiers only
                 if (vLanguage == 1 && GET_SWITCH_KEY(vRestoreHotKey) == 0xFE && checkHotKey(vRestoreHotKey, false) && !OverlayHasKeyboard()) {
                     _proxy = proxy;
@@ -924,6 +955,20 @@ extern "C" {
                 }
                 _lastFlag = 0;
                 _hasJustUsedHotKey = false;
+            }
+        }
+
+        //the list that changes the case of the selected text: it watches the mouse for a selection being made, and takes ⌥1…⌥9
+        //(and ↑ ↓ ↩ Esc when it was opened with the shortcut) while it is up
+        if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown) {
+            [CaseBar mouseDown];
+        } else if (type == kCGEventLeftMouseUp) {
+            [CaseBar mouseUpWithClickCount:CGEventGetIntegerValueField(event, kCGMouseEventClickState) flags:_flag];
+            return event;
+        } else if (type == kCGEventKeyDown) {
+            if ([CaseBar keyDown:(CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) flags:_flag]) {
+                _swallowedKeyCode = (int)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode); //its key up and repeats too
+                return NULL;
             }
         }
 

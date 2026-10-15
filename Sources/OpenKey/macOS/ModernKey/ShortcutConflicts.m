@@ -8,6 +8,7 @@
 #import "AISettings.h"
 #import "SnippetPalette.h"
 #import "WordRestore.h"
+#import "CaseBar.h"
 
 extern int vSwitchKeyStatus;
 extern int convertToolHotKey;
@@ -23,5 +24,7 @@ NSString* VOKShortcutConflict(int data, VOKShortcutOwner owner) {
         return @"Khôi phục từ đang gõ";
     if (owner != VOKShortcutOwnerAI && vAIEnabled && VOKShortcutsEqual(data, vAIHotKey))
         return @"Mở trợ lý AI";
+    if (owner != VOKShortcutOwnerCaseBar && VOKShortcutsEqual(data, vCaseBarHotKey))
+        return @"Đổi chữ hoa/thường";
     return nil;
 }

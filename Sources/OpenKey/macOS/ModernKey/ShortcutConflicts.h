@@ -13,7 +13,8 @@ typedef NS_ENUM(NSInteger, VOKShortcutOwner) {
     VOKShortcutOwnerConvert,    //convert the code table of the clipboard
     VOKShortcutOwnerSnippet,    //open the snippets
     VOKShortcutOwnerRestore,    //give back the keys of the word being typed
-    VOKShortcutOwnerAI          //open the AI assistant
+    VOKShortcutOwnerAI,         //open the AI assistant
+    VOKShortcutOwnerCaseBar     //open the list that changes the case of the selected text
 };
 
 #ifdef __cplusplus

@@ -13,6 +13,7 @@
 #import "AISettings.h"
 #import "AppInfo.h"
 #import "AppPermissions.h"
+#import "CaseBar.h"
 #import "RememberedAppsController.h"
 #import "ShortcutConflicts.h"
 #import "ShortcutRecorder.h"
@@ -163,6 +164,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
     //the AI tab
     ShortcutRecorder* _aiRecorder;
+    ShortcutRecorder* _caseRecorder;
     NSPopUpButton* _aiProvider;
     NSSecureTextField* _aiKey;
     NSTextField* _aiKeyStatus;
@@ -207,7 +209,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         _tabs.tabStyle = NSTabViewControllerTabStyleToolbar;
         [self addPage:@"Bộ gõ" symbol:@"keyboard" sections:@[[self sectionTyping], [self sectionSpelling]]];
         [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionConvertShortcut], [self sectionQuickTyping]]];
-        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion]]];
+        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion], [self sectionCaseBar]]];
         [self addPage:@"Snippet" symbol:@"text.insert" sections:@[[self sectionSnippets]]];
         [self addPage:@"AI" symbol:@"sparkles" sections:@[[self sectionAI], [self sectionAILocal], [self sectionAIConnection]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
@@ -622,6 +624,31 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey AI đã học từ bạn." button:forget]];
     return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows
                            footer:@"Chỉ dùng được với bảng mã Unicode. Tự tắt trong Terminal và khi gõ mật khẩu."];
+}
+
+-(NSView*)sectionCaseBar {
+    SettingsToggle* automatic = [SettingsToggle title:@"Hiện thanh đổi chữ khi chọn văn bản"
+                                               detail:@"Chọn chữ bằng chuột hoặc Shift+mũi tên, thanh hiện ra ngay dưới vùng chọn."
+                                                  key:@"CaseBarAuto" variable:&vCaseBarAuto];
+    automatic.hint = @"Chọn kiểu chữ bằng ⌥1…⌥9 hoặc bấm chuột. Bấm phím khác, bấm chuột hay cuộn là thanh biến mất. Chỉ hoạt động ở ứng dụng cho đọc vùng chọn; không đụng tới clipboard cho tới khi bạn chọn một kiểu.";
+    automatic.onChange = ^(BOOL on) { [CaseBar start]; };
+
+    _caseRecorder = [[ShortcutRecorder alloc] init];
+    _caseRecorder.value = vCaseBarHotKey;
+    _caseRecorder.toolTip = VOKTooltip(@"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.");
+    _caseRecorder.conflict = ^NSString*(int data) {
+        return VOKShortcutConflict(data, VOKShortcutOwnerCaseBar);
+    };
+    _caseRecorder.onChange = ^(int data) {
+        vCaseBarHotKey = data;
+        [[NSUserDefaults standardUserDefaults] setInteger:vCaseBarHotKey forKey:@"CaseBarHotKey"];
+        [appDelegate refreshMenu]; //the shortcut is shown on the menu
+    };
+    return [self sectionWithTitle:@"Đổi chữ hoa/thường" rows:@[
+        [self rowForToggle:automatic],
+        [self rowWithTitle:@"Phím tắt" detail:@"Chọn văn bản rồi bấm để mở thanh, dùng được cả ở ứng dụng không cho đọc vùng chọn." control:_caseRecorder indent:0],
+    ] footer:@"Chữ hoa, chữ thường, Viết Hoa Từng Từ, viết hoa đầu câu, camelCase, snake_case… và bỏ dấu tiếng Việt. "
+             @"Mỗi dòng hiện trước kết quả. Dùng ⌥1…⌥9 hoặc bấm chuột; khi mở bằng phím tắt còn dùng được ↑ ↓ ↩ và Esc."];
 }
 
 #pragma mark - Tab "Snippet"
@@ -1269,6 +1296,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _snippetRecorder.value = vSnippetHotKey;
     _restoreRecorder.value = vRestoreHotKey;
     _aiRecorder.value = vAIHotKey;
+    _caseRecorder.value = vCaseBarHotKey;
     [self reloadAI];
 
     [self showStatus:[AppPermissions accessibilityGranted] in:_accessibilityStatus];

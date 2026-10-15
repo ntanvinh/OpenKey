@@ -42,4 +42,9 @@
 /// The line the bar goes under: where the text of the word starts, and the height and place of the line of the caret.
 +(NSRect)lineForLocation:(CaretLocation*)location typing:(BOOL)typing;
 
+/// Where the selected text of an application is, for a list that goes under it: the line the selection ends on, starting at the
+/// x of the selection when it begins on that same line. Cocoa screen coordinates; NSZeroRect when nothing is selected or the
+/// application does not tell. Like `locateInProcess:` it may take a moment: call it off the main thread.
++(NSRect)selectionLineInProcess:(pid_t)pid;
+
 @end
