@@ -254,6 +254,30 @@ int main() {
     EXPECT("dedicated ", 1, 0, "dedicated ");
     EXPECT("dedicated ", 1, 1, "dedicated ");
 
+    // 13. a click ends a word that is not Vietnamese: nothing is given back (the click has no key to give it back with), and the
+    //     engine must not keep the old word: the next word is converted as usual. It used to be left unconverted ("hoox"), or to
+    //     erase letters of the old word ("nghĩa" -> "ng").
+    const char* notVietnamese[] = { "world", "restore", "hello", "code" };
+    for (int restoreOn = 0; restoreOn <= 1; restoreOn++) {
+        for (int spellingOn = 0; spellingOn <= 1; spellingOn++) {
+            vRestoreIfWrongSpelling = restoreOn;
+            vCheckSpelling = spellingOn;
+            vSetCheckSpelling();
+            for (const char* word : notVietnamese) {
+                newWord();
+                type(word);
+                vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);   // the click
+                CHECK(hook->code == vDoNothing);
+                screen.clear();
+                type("nghixa ");
+                if (utf8(screen) != "nghĩa ") {
+                    printf("FAIL: \"%s\" then a click then \"nghixa \" gave \"%s\" (restore %d, spelling %d)\n", word, utf8(screen).c_str(), restoreOn, spellingOn);
+                    failures++;
+                }
+            }
+        }
+    }
+
     printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
     return failures ? 1 : 0;
 }

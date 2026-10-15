@@ -1410,7 +1410,10 @@ void vKeyHandleEvent(const vKeyEvent& event,
             _hasHandledMacro = true;
         } else if ((vQuickStartConsonant || vQuickEndConsonant) && !tempDisableKey && isMacroBreakCode(data)) {
             checkQuickConsonant();
-        } else if (vRestoreIfWrongSpelling && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
+        } else if (vRestoreIfWrongSpelling && event == vKeyEvent::Keyboard && isWordBreak(event, state, data)) { //restore key if wrong spelling with break-key
+            //Not for the mouse: a click ends the word without any key to give it back with, so the application ignores the answer. Restoring
+            //here would leave the engine holding the old word (and not Vietnamese), and the next word typed would not be converted at
+            //all or would erase letters of the old one.
             //the word is over, so it is judged now even when spell checking is off: restoring does not need it while typing
             if (!tempDisableKey) {
                 checkSpelling(true); //force check spelling
