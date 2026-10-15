@@ -1116,7 +1116,14 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
                 continue;
             isCorect = true;
             checkCorrectVowel(_consonantD, i, k, data);
-            
+
+            //a stroke belongs to the first letter of the word: "d" + vowels + "d" in the middle of a word
+            //("recommended" -> "recommenđe") or "dd" right after a vowel ("added" -> "ađ") is never Vietnamese.
+            //"dd" after a consonant stays: it is how abbreviations such as HĐ, QĐ, NĐ are typed
+            if (isCorect && k >= 0 && (_consonantD[i].size() > 1 || !IS_CONSONANT(CHR(k)))) {
+                isCorect = false;
+            }
+
             //allow d after consonant
             if (!isCorect && _index - 2 >= 0 && CHR(_index-1) == KEY_D && IS_CONSONANT(CHR(_index-2))) {
                 isCorect = true;
@@ -1236,22 +1243,30 @@ void handleQuickTelex(const Uint16& data, const bool& isCaps) {
 }
 
 bool checkRestoreIfWrongSpelling(const int& handleCode) {
+    //something the engine changed: a mark, tone or horn on a vowel, or a stroke ("dedicated" -> "đeicated").
+    //A stroke in a word without any vowel is left alone: it is an abbreviation such as "đc", "đt"
+    bool changed = false, hasStroke = false, hasVowel = false;
     for (ii = 0; ii < _index; ii++) {
-        if (!IS_CONSONANT(CHR(ii)) &&
-            (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
-            
-            hCode = handleCode;
-            hBPC = _index;
-            hNCC = _stateIndex;
-            for (i = 0; i < _stateIndex; i++) {
-                TypingWord[i] = KeyStates[i];
-                hData[_stateIndex - 1 - i] = TypingWord[i];
-            }
-            _index = _stateIndex;
-            return true;
+        if (!IS_CONSONANT(CHR(ii))) {
+            hasVowel = true;
+            if (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)
+                changed = true;
+        } else if (CHR(ii) == KEY_D && (TypingWord[ii] & TONE_MASK)) {
+            hasStroke = true;
         }
     }
-    return false;
+    if (!changed && !(hasStroke && hasVowel))
+        return false;
+
+    hCode = handleCode;
+    hBPC = _index;
+    hNCC = _stateIndex;
+    for (i = 0; i < _stateIndex; i++) {
+        TypingWord[i] = KeyStates[i];
+        hData[_stateIndex - 1 - i] = TypingWord[i];
+    }
+    _index = _stateIndex;
+    return true;
 }
 
 bool vRestoreWord() {

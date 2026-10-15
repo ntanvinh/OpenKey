@@ -227,6 +227,33 @@ int main() {
     type(" ");
     CHECK(utf8(screen) == "restore ");
 
+    // 10. a stroke in the middle of a word is never Vietnamese, so it is not made: with restoring on or off, spell
+    //     checking on or off ("recommended" used to give "recommenđe")
+    const char* english[] = { "recommended ", "added ", "decided ", "provided ", "included ", "avoided ", "ended ",
+                              "embedded ", "hidden ", "middle ", "reddit ", "android ", "divided " };
+    for (const char* word : english) {
+        EXPECT(word, 0, 0, word);
+        EXPECT(word, 1, 0, word);
+        EXPECT(word, 1, 1, word);
+    }
+
+    // 11. the stroke is still made where Vietnamese has it
+    EXPECT("ddi ", 1, 0, "đi ");
+    EXPECT("ddaf ", 1, 0, "đà ");
+    EXPECT("dduwowcj ", 1, 0, "được ");
+    EXPECT("duwowcjd ", 1, 0, "được ");                    // the stroke typed at the end of the syllable
+    EXPECT("ddoong ", 1, 1, "đông ");
+    EXPECT("hdd ", 1, 0, "hđ ");                           // abbreviations: HĐ, QĐ
+    EXPECT("hddqt ", 1, 0, "hđqt ");
+    EXPECT("ddc ", 1, 0, "đc ");                           // a stroke and no vowel: "đc" is not restored
+    EXPECT("ddt ", 1, 1, "đt ");
+    EXPECT("deed ", 1, 0, "đê ");                          // a real Vietnamese word, it cannot be told apart
+
+    // 12. a word that starts with d gets its stroke later ("dedicated" -> "đeicated"): given back when it is over
+    EXPECT("dedicated ", 0, 0, "đeicated ");               // as it always was when restoring is off
+    EXPECT("dedicated ", 1, 0, "dedicated ");
+    EXPECT("dedicated ", 1, 1, "dedicated ");
+
     printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
     return failures ? 1 : 0;
 }
