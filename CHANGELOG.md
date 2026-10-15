@@ -5,7 +5,7 @@
 - feat: release v3.5.7 build 69
 
 ##### VOpenKey 3.5.7 (build 69): (15/10/2026)
-- Cập nhật phiên bản.
+- Cập nhật phiên bản
 
 ##### VOpenKey 3.5.6 (build 68): (15/10/2026)
 - fix(vi telex): correct dd→đ conversion logic
