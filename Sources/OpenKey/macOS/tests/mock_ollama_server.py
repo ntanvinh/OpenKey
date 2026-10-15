@@ -11,7 +11,7 @@ The test changes what the server does through POST /_control (a JSON object merg
 /_state. The tag in a pull request chooses what happens:
     missing:1b -> an error line in the stream, boom:1b -> HTTP 500, slow:1b -> progress for 6 seconds (to cancel),
     garbled:1b -> a line that is not JSON between good lines, cut:1b -> the stream ends without "success", huge:1b -> a line that never ends,
-    full:1b -> "no space left on device" in the stream. Anything else downloads normally and is added to the models.
+    full:1b -> "no space left on device" in the stream, eof:1b -> a broken connection (EOF) with a signed address in the message. Anything else downloads normally and is added to the models.
 """
 import hashlib
 import http.server
@@ -228,6 +228,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.line({"status": "pulling manifest"})
             if tag == "missing:1b":
                 return self.line({"error": "pull model manifest: file does not exist"})
+            if tag == "eof:1b":
+                return self.line({"error": 'max retries exceeded: Get "https://dd20bb891979d25aebc8bec07b2b3bbc.r2.cloudflarestorage.com/ollama/blob/data?'
+                                           'X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=SECRET123": EOF'})
             if tag == "full:1b":
                 self.line({"status": "pulling aaaaaaaaaaaa", "digest": "sha256:aaaaaaaaaaaa", "total": 1000, "completed": 10})
                 return self.line({"error": "write /Users/x/.ollama/models/blobs/sha256-aaa-partial: no space left on device"})

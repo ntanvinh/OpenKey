@@ -264,6 +264,30 @@ static void TestUnknownSize(void) {
     CHECK([AIModelAdvisor assessModel:found hardware:[AIHardware appleSiliconWithMemoryGiB:8 freeDiskGiB:200] runtimeInstalled:YES modelDownloaded:NO].fit == AIModelFitTooBig);
 }
 
+static void TestBusyMac(void) {
+    AIHardware* mac = [AIHardware appleSiliconWithMemoryGiB:32 freeDiskGiB:200];
+    struct { double load; AIMemoryPressure pressure; NSString* word; BOOL busy; } cases[] = {
+        {0.0, AIMemoryPressureNormal, @"đang rảnh", NO}, {0.39, AIMemoryPressureNormal, @"đang rảnh", NO}, {0.4, AIMemoryPressureNormal, @"hơi bận", NO},
+        {0.69, AIMemoryPressureNormal, @"hơi bận", NO}, {0.7, AIMemoryPressureNormal, @"hơi bận", YES}, {0.99, AIMemoryPressureNormal, @"hơi bận", YES},
+        {1.0, AIMemoryPressureNormal, @"đang bận", YES}, {3.0, AIMemoryPressureNormal, @"đang bận", YES},
+        {0.1, AIMemoryPressureWarning, @"hơi bận", YES}, {0.1, AIMemoryPressureCritical, @"đang bận", YES},
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        mac.cpuLoadRatio = cases[i].load;
+        mac.memoryPressure = cases[i].pressure;
+        CHECK([[mac loadDescription] isEqualToString:cases[i].word] && [mac isBusy] == cases[i].busy);
+    }
+    //the advice says so when the processor is busy, and not otherwise
+    mac.memoryPressure = AIMemoryPressureNormal;
+    mac.cpuLoadRatio = 0.69;
+    CHECK(!AnyContains(Assess(@"gemma3:4b", mac).warnings, @"Máy đang bận"));
+    mac.cpuLoadRatio = 0.7;
+    AIModelAssessment* a = Assess(@"gemma3:4b", mac);
+    CHECK(a.canInstall && AnyContains(a.warnings, @"Máy đang bận (mức tải bộ xử lý khoảng 70%)") && AnyContains(a.warnings, @"chỉ hợp khi máy đang rảnh"));
+    mac.cpuLoadRatio = 2.5;
+    CHECK(AnyContains(Assess(@"gemma3:4b", mac).warnings, @"khoảng 250%") && Assess(@"gemma3:4b", mac).canInstall);     //a warning, not a block
+}
+
 static void TestOverview(void) {
     AIHardware* mac = [AIHardware appleSiliconWithMemoryGiB:32 freeDiskGiB:200];
     NSString* text = [AIModelAdvisor overviewForHardware:mac models:gModels];
@@ -286,6 +310,7 @@ static void TestRealMac(void) {
     CHECK(mac.cpuCores >= 1);
     CHECK(mac.freeDiskBytes > 100000000ULL);
     CHECK(mac.thermalState >= 0 && mac.thermalState <= 3);
+    CHECK(mac.cpuLoadRatio >= 0 && mac.cpuLoadRatio < 100);                //the load of the processor of this Mac was read
     CHECK(mac.availableMemoryBytes > 0 && mac.availableMemoryBytes <= mac.memoryBytes);
 #if defined(__arm64__)
     CHECK(mac.isAppleSilicon);                                   //this program is native: the Mac is Apple Silicon
@@ -322,6 +347,7 @@ int main(int argc, char** argv) {
         TestRequirements();
         TestBlockersAndWarnings();
         TestUnknownSize();
+        TestBusyMac();
         TestOverview();
         TestRealMac();
         TestFormat();

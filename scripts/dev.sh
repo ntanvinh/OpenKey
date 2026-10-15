@@ -20,6 +20,21 @@ for arg in "$@"; do
     esac
 done
 
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/vopenkey-dev.XXXXXX")"
+INSTALL=""
+cleanup() {
+    rm -rf "$WORK"
+    if [ -n "$INSTALL" ]; then
+        if [ -d "$INSTALL/previous" ] && [ ! -e "$DEST" ]; then
+            mv "$INSTALL/previous" "$DEST"
+        fi
+        rm -rf "$INSTALL"
+    fi
+}
+trap cleanup EXIT
+clang -fobjc-arc -framework Cocoa -framework CoreGraphics \
+    "$ROOT/scripts/dev-app.m" -o "$WORK/dev-app"
+
 say "Bumping patch version for this dev build"
 "$ROOT/scripts/version.sh" bump patch
 
@@ -29,36 +44,23 @@ BUILT="$(build_app Debug "$DERIVED" OTHER_CODE_SIGN_FLAGS="--timestamp=none")"
 [ -d "$BUILT" ] || die "build did not produce $BUILT"
 
 DEST="$HOME/Applications/$APP_NAME.app"
-APP_PROCESS="$DEST/Contents/MacOS/$APP_NAME"
-is_app_running() {
-    pgrep -f "$APP_PROCESS" >/dev/null 2>&1
-}
+mkdir -p "$HOME/Applications"
+INSTALL="$(mktemp -d "$HOME/Applications/.vopenkey-install.XXXXXX")"
+ditto "$BUILT" "$INSTALL/new"
+codesign --verify --deep --strict "$INSTALL/new" || die "the new app has a bad signature"
 
-wait_for_app_to_exit() {
-    for _ in $(seq 1 20); do
-        is_app_running || return 0
-        sleep 0.25
-    done
-    return 1
-}
-
-say "Closing $APP_NAME if it is running"
-osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
-if ! wait_for_app_to_exit; then
-    say "$APP_NAME is still running; sending TERM"
-    pkill -TERM -f "$APP_PROCESS" || true
-fi
-if ! wait_for_app_to_exit; then
-    say "$APP_NAME is still running; sending KILL"
-    pkill -KILL -f "$APP_PROCESS" || true
-fi
-wait_for_app_to_exit || die "could not stop the running app; refusing to replace it"
+say "Closing all $APP_NAME instances owned by this user"
+"$WORK/dev-app" stop "$BUNDLE_ID" || die "could not stop the running app; refusing to replace it"
 
 say "Installing to $DEST"
-mkdir -p "$HOME/Applications"
-rm -rf "$DEST"
-ditto "$BUILT" "$DEST"
+[ ! -e "$DEST" ] || mv "$DEST" "$INSTALL/previous"
+mv "$INSTALL/new" "$DEST"
 codesign --verify --deep --strict "$DEST" || die "the installed app has a bad signature"
+rm -rf "$INSTALL"
+INSTALL=""
+
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+"$LSREGISTER" -f "$DEST" || die "could not register the new app with macOS"
 
 if [ "$RESET" = 1 ]; then
     say "Forgetting the permissions of $BUNDLE_ID"
@@ -67,7 +69,20 @@ if [ "$RESET" = 1 ]; then
 fi
 
 if [ "$OPEN" = 1 ]; then
+    if [ "$RESET" = 0 ]; then
+        # The first launch after replacing the signed bundle can retain stale input/permission state.
+        # Finish that launch, then start a fresh process, like quitting and reopening the app manually.
+        say "Preparing the new app, then restarting its keyboard hook"
+        open -n "$DEST"
+        "$WORK/dev-app" wait "$BUNDLE_ID" "$DEST" || die "the new app did not finish launching"
+        "$WORK/dev-app" stop "$BUNDLE_ID" || die "could not restart the new app"
+    fi
     say "Opening $DEST"
-    open "$DEST"
+    open -n "$DEST"
+    "$WORK/dev-app" wait "$BUNDLE_ID" "$DEST" || die "the installed app did not finish launching"
+    if [ "$RESET" = 0 ]; then
+        "$WORK/dev-app" ready "$BUNDLE_ID" "$DEST" ||
+            warn "The app is open but its keyboard hook is not ready. Check Accessibility, Input Monitoring and Secure Input; no permissions were reset."
+    fi
 fi
 echo "$DEST"

@@ -6,10 +6,56 @@
 #import "AIOllamaRuntime.h"
 #import "AIOllama.h"
 #import "AIOllamaInstaller.h"
+#import <libproc.h>
 #import <signal.h>
 
 static NSError* RuntimeError(VOKAILocalErrorCode code, NSString* message) {
     return [NSError errorWithDomain:VOKAILocalErrorDomain code:code userInfo:@{NSLocalizedDescriptionKey: message}];
+}
+
+@implementation AIOllamaStatus
+-(uint64_t)loadedBytes {
+    uint64_t total = 0;
+    for (NSDictionary* model in self.loadedModels)
+        total += [model[@"size"] unsignedLongLongValue];
+    return total;
+}
+-(BOOL)canStop {
+    return self.running && (self.origin == AIOllamaOriginManaged || self.origin == AIOllamaOriginLeftover);
+}
+@end
+
+/// The process that listens on a port of this Mac (0 when none, or not found).
+static int ListeningProcess(NSNumber* port) {
+    NSTask* task = [[NSTask alloc] init];
+    task.executableURL = [NSURL fileURLWithPath:@"/usr/sbin/lsof"];
+    task.arguments = @[@"-nP", [NSString stringWithFormat:@"-iTCP:%@", port], @"-sTCP:LISTEN", @"-Fp"];
+    NSPipe* pipe = [NSPipe pipe];
+    task.standardOutput = pipe;
+    task.standardError = [NSFileHandle fileHandleWithNullDevice];
+    task.standardInput = [NSFileHandle fileHandleWithNullDevice];
+    if (![task launchAndReturnError:nil])
+        return 0;
+    NSData* data = [pipe.fileHandleForReading readDataToEndOfFile];
+    [task waitUntilExit];
+    for (NSString* line in [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] componentsSeparatedByString:@"\n"])
+        if ([line hasPrefix:@"p"] && line.length > 1)
+            return (int)[[line substringFromIndex:1] intValue];
+    return 0;
+}
+
+static NSString* PathOfProcess(int pid) {
+    char buffer[PROC_PIDPATHINFO_MAXSIZE];
+    if (pid <= 0 || proc_pidpath(pid, buffer, sizeof(buffer)) <= 0)
+        return nil;
+    return @(buffer);
+}
+
+static int ParentOfProcess(int pid) {
+    struct proc_bsdinfo info;
+    if (pid <= 0 || proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, PROC_PIDTBSDINFO_SIZE) != PROC_PIDTBSDINFO_SIZE)
+        return -1;
+    return (int)info.pbi_ppid;
 }
 
 @implementation AIOllamaRuntime {
@@ -58,6 +104,8 @@ static AIOllamaRuntime* sReplacement;
         _waiting = [NSMutableArray array];
         _output = [NSMutableData data];
         _startTimeout = 90;
+        _ownPrograms = @[[[NSHomeDirectory() stringByAppendingPathComponent:@"Applications"] stringByAppendingPathComponent:
+                          [[AIOllamaInstaller applicationName] stringByAppendingString:@"/Contents/Resources/ollama"]]];
     }
     return self;
 }
@@ -189,6 +237,105 @@ static AIOllamaRuntime* sReplacement;
             }
         }];
     });
+}
+
+#pragma mark Looking and stopping
+
+-(void)statusWithCompletion:(void (^)(AIOllamaStatus*))completion {
+    AIOllamaStatus* status = [[AIOllamaStatus alloc] init];
+    status.installed = self.isInstalled;
+    status.loadedModels = @[];
+    [_api versionWithTimeout:2 completion:^(NSString* version, NSError* error) {
+        if (version == nil) {
+            status.origin = AIOllamaOriginNone;
+            completion(status);
+            return;
+        }
+        status.running = YES;
+        status.version = version;
+        [self->_api loadedModelsWithCompletion:^(NSArray<NSDictionary*>* models, NSError* psError) {
+            status.loadedModels = models ?: @[];
+            //who started it: found out away from the main thread (lsof takes a moment)
+            NSNumber* port = self->_baseURL.port ?: @11434;
+            NSTask* mine;
+            @synchronized (self) { mine = self->_task; }
+            int managedPid = mine.isRunning ? mine.processIdentifier : 0;
+            NSArray<NSString*>* own = self->_ownPrograms;
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                int pid = ListeningProcess(port);
+                AIOllamaOrigin origin = AIOllamaOriginOther;
+                if (managedPid != 0 && (pid == managedPid || pid == 0)) {
+                    origin = AIOllamaOriginManaged;
+                    pid = managedPid;
+                } else if (pid > 0 && ParentOfProcess(pid) == 1) {
+                    //nobody owns it: it is VOpenKey's own if it is the program VOpenKey installs
+                    NSString* path = [PathOfProcess(pid) stringByResolvingSymlinksInPath];
+                    for (NSString* program in own)
+                        if (path != nil && [[program stringByResolvingSymlinksInPath] isEqualToString:path])
+                            origin = AIOllamaOriginLeftover;
+                }
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    status.processIdentifier = pid;
+                    status.origin = origin;
+                    completion(status);
+                });
+            });
+        }];
+    }];
+}
+
+-(void)stopWithCompletion:(void (^)(NSError*))completion {
+    [self statusWithCompletion:^(AIOllamaStatus* status) {
+        if (!status.running) {
+            completion(nil);
+            return;
+        }
+        if (!status.canStop) {
+            completion(RuntimeError(VOKAILocalErrorFailed, @"Ollama đang chạy do một ứng dụng khác mở (ví dụ ứng dụng Ollama hoặc cửa sổ Terminal), nên VOpenKey không tắt giúp. Hãy thoát ứng dụng đó, hoặc dùng “Giải phóng RAM” để model rời khỏi bộ nhớ."));
+            return;
+        }
+        int pid = status.processIdentifier;
+        AIOllamaOrigin origin = status.origin;
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            if (origin == AIOllamaOriginManaged) {
+                [self stopWaiting:5];
+            } else if (pid > 1) {                                                   //a leftover of VOpenKey: asked to stop, forced if it does not
+                kill(pid, SIGTERM);
+                NSDate* end = [NSDate dateWithTimeIntervalSinceNow:5];
+                while (kill(pid, 0) == 0 && [end timeIntervalSinceNow] > 0)
+                    [NSThread sleepForTimeInterval:0.1];
+                if (kill(pid, 0) == 0)
+                    kill(pid, SIGKILL);
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(nil); });
+        });
+    }];
+}
+
+-(void)unloadModelsWithCompletion:(void (^)(NSError*))completion {
+    [_api loadedModelsWithCompletion:^(NSArray<NSDictionary*>* models, NSError* error) {
+        if (error != nil) {
+            completion(error.code == VOKAILocalErrorNotRunning ? nil : error);       //nothing runs: nothing is in memory
+            return;
+        }
+        [self unloadModels:[models mutableCopy] completion:completion];
+    }];
+}
+
+-(void)unloadModels:(NSMutableArray<NSDictionary*>*)models completion:(void (^)(NSError*))completion {
+    if (models.count == 0) {
+        completion(nil);
+        return;
+    }
+    NSString* name = models.firstObject[@"name"];
+    [models removeObjectAtIndex:0];
+    [_api unloadModel:name completion:^(NSError* error) {
+        if (error != nil && error.code != VOKAILocalErrorNotFound) {
+            completion(error);
+            return;
+        }
+        [self unloadModels:models completion:completion];
+    }];
 }
 
 #pragma mark Stopping

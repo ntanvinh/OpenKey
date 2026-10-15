@@ -21,10 +21,10 @@ clang++ -std=c++17 -fobjc-arc -g -DCGEventTapPostEvent=Posted -I"$MAC" -I"$ENGIN
 for f in SuggestionController SnippetStore SnippetInserter; do
     clang++ -std=c++17 -fobjc-arc -g -I"$MAC" -I"$ENGINE" -c "$MAC/$f.mm" -o $f.o
 done
-for f in CaretLocator SuggestionPanel SecureInputMonitor ShortcutRecorder VOKUI SnippetPalette SnippetEditorController WordRestore ShortcutConflicts AIProvider AIKeychain AISettings AIClient AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant; do
+for f in CaretLocator SuggestionPanel SecureInputMonitor ShortcutRecorder VOKUI SnippetPalette SnippetEditorController WordRestore ShortcutConflicts AIProvider AIKeychain AISettings AIClient AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant; do
     clang -fobjc-arc -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang++ -std=c++17 -fobjc-arc -g -Wno-incomplete-implementation -I"$MAC" -I"$ENGINE" -c "$HERE/tap_test.mm" -o tap_test.o
-clang++ -framework Cocoa -framework Carbon -framework ApplicationServices -framework Security *.o -o tap_test
+clang++ -framework Cocoa -framework Carbon -framework ApplicationServices -framework Security -framework IOKit *.o -o tap_test
 
 perl -e 'alarm 120; exec @ARGV' ./tap_test

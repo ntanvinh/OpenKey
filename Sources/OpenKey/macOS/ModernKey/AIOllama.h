@@ -23,7 +23,8 @@ typedef NS_ENUM(NSInteger, VOKAILocalErrorCode) {
     VOKAILocalErrorUnsafeDownload,      //what was downloaded did not pass the checks (size, hash, signature)
     VOKAILocalErrorInstall,             //it could not be put in place
     VOKAILocalErrorUnsupported,         //this Mac cannot run it (macOS too old, no room)
-    VOKAILocalErrorNotInstalled         //Ollama is not on this Mac
+    VOKAILocalErrorNotInstalled,        //Ollama is not on this Mac
+    VOKAILocalErrorNetwork              //the connection to the library broke during a download (it can be tried again)
 };
 
 /// Where a download is. One per line of progress that Ollama sends.
@@ -50,6 +51,8 @@ typedef NS_ENUM(NSInteger, VOKAILocalErrorCode) {
 @property (nonatomic, readonly) BOOL succeeded;
 /// Set when Ollama sent an error, or the lines are not what it sends. Nothing more is read after.
 @property (nonatomic, readonly, copy) NSString* errorMessage;
+/// The error is a broken connection (EOF, reset, time out, no host...): trying again is reasonable.
+@property (nonatomic, readonly) BOOL errorIsNetwork;
 @end
 
 @interface AIOllamaTask : NSObject
@@ -71,6 +74,15 @@ typedef NS_ENUM(NSInteger, VOKAILocalErrorCode) {
 
 /// The models Ollama has: dictionaries with "name" and "size".
 -(void)installedModelsWithCompletion:(void (^)(NSArray<NSDictionary*>* models, NSError* error))completion;
+/// Whether a failed download is worth starting again at once: the connection broke (VOKAILocalErrorNetwork, VOKAILocalErrorInterrupted).
+/// What was downloaded is kept by Ollama and the next try continues from it.
++(BOOL)errorIsRetryable:(NSError*)error;
+/// The models that are loaded in memory now (they leave it on their own a while after the last use): dictionaries with "name" and "size"
+/// (bytes of memory taken).
+-(void)loadedModelsWithCompletion:(void (^)(NSArray<NSDictionary*>* models, NSError* error))completion;
+/// Takes a model out of memory at once. The server keeps running; the files of the model stay on the disk.
+-(void)unloadModel:(NSString*)tag completion:(void (^)(NSError* error))completion;
+
 /// "gemma3" is "gemma3:latest".
 +(BOOL)tag:(NSString*)tag isAmongInstalled:(NSArray<NSDictionary*>*)models;
 

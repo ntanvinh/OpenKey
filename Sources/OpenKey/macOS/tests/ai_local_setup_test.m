@@ -128,6 +128,17 @@ static NSArray<NSString*>* ServerModels(void) {
     return names ?: @[];
 }
 
+static NSInteger PullCount(NSString* tag) {
+    __block NSInteger count = 0; __block BOOL done = NO;
+    [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:[gBase stringByAppendingString:@"/_pulls"]] completionHandler:^(NSData* data, NSURLResponse* r, NSError* e) {
+        id object = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        count = [[object objectForKey:tag] integerValue];
+        done = YES;
+    }] resume];
+    SpinUntil(^BOOL { return done; }, 5);
+    return count;
+}
+
 static void ResetSettings(void) {
     [AISettings resetToDefaults];
 }
@@ -268,6 +279,67 @@ static void TestFailures(void) {
     StopServer(rig.runtime);
 }
 
+//a connection that breaks while the model downloads: the download is started again by itself
+static void TestRetry(void) {
+    ResetSettings();
+    setenv("FAKE_OLLAMA_MODE", "normal", 1);
+    setenv("FAKE_OLLAMA_DELAY", "0", 1);
+    MockControl(@{@"zip_path": [gFixtures stringByAppendingPathComponent:@"fakeollama.zip"], @"zip_mode": @"good"});
+    AILocalModel* (^Big)(NSString*) = ^AILocalModel*(NSString* tag) { return [AILocalModel customModelWithTag:tag bytes:500000000]; };
+
+    //two failures, then it works: nothing for the user to do
+    Rig* rig = NewRig(nil);
+    rig.setup.retryDelays = @[@0.1, @0.1, @0.1];
+    CHECK(!rig.setup.holdsPowerAssertion);
+    [rig.setup installModel:Big(@"flaky:1b")];
+    CHECK(rig.setup.holdsPowerAssertion);                                      //the Mac stays awake while it installs
+    SpinUntil(^BOOL { return !rig.setup.running; }, 60);
+    CHECK(rig.setup.succeeded && rig.setup.error == nil && !rig.setup.holdsPowerAssertion);
+    CHECK(PullCount(@"flaky:1b") == 3);
+    CHECK(DetailContains(rig, @"Tự thử lại sau") && DetailContains(rig, @"lần 1/3") && DetailContains(rig, @"lần 2/3"));
+    CHECK(DetailContains(rig, @"Chi tiết: max retries exceeded") && DetailContains(rig, @"EOF"));          //the real reason is shown
+    CHECK(!DetailContains(rig, @"SECRET123") && !DetailContains(rig, @"X-Amz"));
+    CHECK([[AISettings modelForProvider:[AIProvider providerWithIdentifier:@"ollama"]] isEqualToString:@"flaky:1b"]);
+
+    //it never works: after the last try the step fails, saying what was tried and what to do
+    ResetSettings();
+    [rig.log removeAllObjects];
+    [rig.details removeAllObjects];
+    RunToEnd(rig, Big(@"offline:1b"), 60);
+    CHECK(!rig.setup.succeeded && rig.setup.failedStep == AILocalStepModel && !rig.setup.wasCancelled && !rig.setup.holdsPowerAssertion);
+    CHECK(rig.setup.error.code == VOKAILocalErrorNetwork && PullCount(@"offline:1b") == 4);                  //the first try and the three more
+    NSString* message = rig.setup.error.localizedDescription;
+    CHECK([message containsString:@"Đã thử lại 3 lần"] && [message containsString:@"EOF"] && [message containsString:@"Cài đặt"] && ![message containsString:@"SECRET123"]);
+    CHECK([[rig.setup detailOfStep:AILocalStepModel] isEqualToString:message] && [rig.setup stateOfStep:AILocalStepTest] == AILocalStepPending);
+    CHECK([AISettings.providerIdentifier isEqualToString:AIProvider.defaultProvider.identifier]);
+
+    //a try that went further than the one before starts the count again: a poor line can still finish a big download
+    rig.setup.retryDelays = @[@0.05, @0.05];
+    RunToEnd(rig, Big(@"halfway:1b"), 60);
+    CHECK(rig.setup.succeeded && PullCount(@"halfway:1b") == 2);
+    ResetSettings();
+    RunToEnd(rig, Big(@"progressing:1b"), 90);                                  //it breaks 12 times, each time a bit further, with only 2 waits
+    CHECK(rig.setup.succeeded && PullCount(@"progressing:1b") == 13);
+
+    //what retrying cannot cure is not retried
+    ResetSettings();
+    [rig.details removeAllObjects];
+    RunToEnd(rig, Big(@"missing:1b"), 60);
+    CHECK(rig.setup.failedStep == AILocalStepModel && rig.setup.error.code == VOKAILocalErrorNotFound && PullCount(@"missing:1b") == 1 && !DetailContains(rig, @"Tự thử lại"));
+
+    //cancelled while waiting for the next try: it ends at once and the try does not happen
+    rig.setup.retryDelays = @[@30];
+    [rig.setup installModel:Big(@"offline:2b")];
+    SpinUntil(^BOOL { return DetailContains(rig, @"Tự thử lại sau 30 giây"); }, 30);
+    CHECK(rig.setup.running && PullCount(@"offline:2b") == 1);
+    [rig.setup cancel];
+    CHECK(!rig.setup.running && rig.setup.wasCancelled && !rig.setup.holdsPowerAssertion && [rig.setup.error.localizedDescription containsString:@"Đã dừng"]);
+    NSUInteger changes = rig.changes;
+    SpinUntil(^BOOL { return NO; }, 1.0);
+    CHECK(rig.changes == changes && PullCount(@"offline:2b") == 1);
+    StopServer(rig.runtime);
+}
+
 static void TestCancel(void) {
     ResetSettings();
     setenv("FAKE_OLLAMA_MODE", "normal", 1);
@@ -371,6 +443,7 @@ int main(int argc, char** argv) {
         TestDisk();
         TestFullInstallation();
         TestFailures();
+        TestRetry();
         TestCancel();
         for (AIOllamaRuntime* runtime in gRuntimes)
             [runtime stopWaiting:5];

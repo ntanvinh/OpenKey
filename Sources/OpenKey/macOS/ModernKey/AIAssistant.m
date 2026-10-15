@@ -570,7 +570,11 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_result setString:@""];
     _output.string = @"";
     _state = AIAssistantStateGenerating;
-    [self showMessage:@"Đang tạo…" error:NO];
+    //a model that runs on this Mac is heavy: when the Mac is already busy it will be slow, and that is said at once
+    NSString* working = @"Đang tạo…";
+    if (provider.isLocal && [(self.hardwareProvider ? self.hardwareProvider() : [AIHardware current]) isBusy])
+        working = @"Đang tạo… Máy đang bận nên AI chạy trên máy sẽ chậm. Nếu cần nhanh, chọn dịch vụ trực tuyến trong Cài đặt > AI.";
+    [self showMessage:working error:NO];
     [self updateInterface];
 
     if ([self needsLocalServerFor:configuration]) {

@@ -62,6 +62,14 @@ extern NSString* const VOKAILocalSetupDidFinishNotification;
 /// What the step is doing now or did: "Đã tải 1,2 GB / 4,7 GB · 11 MB/giây · còn khoảng 5 phút".
 -(NSString*)detailOfStep:(AILocalStep)step;
 
+/// How long to wait before each new try when the connection breaks during the download of the model: the n-th wait follows the n-th
+/// failure in a row without progress (a try that downloaded something starts the count again). Once they are all used the step fails.
+/// The default is 3, 6, 10, 15, 20, 30, 30 and 30 seconds. Ollama keeps what was downloaded, so each try continues where the last stopped.
+@property (nonatomic, copy) NSArray<NSNumber*>* retryDelays;
+/// The Mac is kept from sleeping while it installs (a model is several GB: an hour on a slow line), and the application from being
+/// slowed down as a background application. True between the start and the end of an installation.
+@property (nonatomic, readonly) BOOL holdsPowerAssertion;
+
 /// Runs all the steps for a model. Does nothing while it already runs.
 -(void)installModel:(AILocalModel*)model;
 /// Stops. What was downloaded of a model is kept, and continues next time.

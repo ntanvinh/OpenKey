@@ -27,10 +27,10 @@ cd "$WORK"
 
 python3 -I "$ENGINE/tests/validate_local_models.py" "$ENGINE/ai/local-models.json"
 
-for f in AIHardware AILocalModels AIModelAdvisor AIOllama AIOllamaInstaller AIOllamaRuntime AILocalSetup AIClient AIProvider AISettings AIKeychain VOKUI AILocalSetupController; do
+for f in AIHardware AILocalModels AIModelAdvisor AIOllama AIOllamaInstaller AIOllamaRuntime AILocalSetup AIClient AIProvider AISettings AIKeychain VOKUI AILocalSetupController AILocalControl; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
-for t in ai_local_advisor_test ai_ollama_test ai_local_install_test ai_local_runtime_test ai_local_setup_test ai_local_ui_test; do
+for t in ai_local_advisor_test ai_ollama_test ai_local_install_test ai_local_runtime_test ai_local_setup_test ai_local_ui_test ai_local_control_test; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/$t.m" -o $t.o
 done
 clang -framework Cocoa -framework IOKit AIHardware.o AILocalModels.o AIModelAdvisor.o ai_local_advisor_test.o -o ai_local_advisor_test
@@ -39,6 +39,7 @@ clang -framework Cocoa -framework Security AIOllama.o AIOllamaInstaller.o ai_loc
 clang -framework Cocoa -framework Security AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o ai_local_runtime_test.o -o ai_local_runtime_test
 clang -framework Cocoa -framework Security -framework IOKit AIHardware.o AILocalModels.o AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o AILocalSetup.o \
     AIClient.o AIProvider.o AISettings.o AIKeychain.o ai_local_setup_test.o -o ai_local_setup_test
+clang -framework Cocoa -framework Security -framework IOKit AIHardware.o AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o AILocalControl.o ai_local_control_test.o -o ai_local_control_test
 clang -framework Cocoa -framework Security -framework IOKit AIHardware.o AILocalModels.o AIModelAdvisor.o AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o AILocalSetup.o \
     AILocalSetupController.o VOKUI.o AIClient.o AIProvider.o AISettings.o AIKeychain.o ai_local_ui_test.o -o ai_local_ui_test
 cp "$ENGINE/ai/local-models.json" fixtures/local-models.json 2>/dev/null || { mkdir -p fixtures && cp "$ENGINE/ai/local-models.json" fixtures/local-models.json; }
@@ -101,6 +102,8 @@ FREE=$(python3 -I -c "import socket; s = socket.socket(); s.bind(('127.0.0.1', 0
 mkdir -p run-folder
 export FAKE_OLLAMA_LOG="$WORK/run-folder/starts.log"
 perl -e 'alarm 300; exec @ARGV' ./ai_local_runtime_test "$HERE/fake_ollama.py" "$FREE" "$PORT" "$WORK/run-folder"
+mkdir -p control-folder
+perl -e 'alarm 300; exec @ARGV' ./ai_local_control_test "$HERE/fake_ollama.py" "$FREE" "$WORK/control-folder"
 mkdir -p setup-folder
 perl -e 'alarm 600; exec @ARGV' ./ai_local_setup_test "$WORK/fixtures" "$PORT" "$FREE" "$HERE/fake_ollama.py" "$WORK/setup-folder"
 mkdir -p ui-folder

@@ -25,6 +25,9 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
     NSError* _error;
     AILocalStep _failedStep;
     NSMutableArray<NSArray<NSNumber*>*>* _samples;      //(time, bytes) of the download of the model, to tell its speed
+    id _activity;                                       //keeps the Mac awake while installing
+    uint64_t _bestBytes, _bytesAtLastFailure;           //the most of the model that was downloaded, and how much there was at the last failure
+    NSUInteger _failuresInARow;
     NSUInteger _generation;                             //a run that was cancelled must not touch the next one
 }
 
@@ -39,6 +42,7 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
         _runtime = runtime;
         _api = [[AIOllama alloc] initWithBaseURL:runtime.baseURL];
         [self resetStates];
+        _retryDelays = @[@3, @6, @10, @15, @20, @30, @30, @30];
         __weak AILocalSetup* weakSelf = self;
         _applyHandler = ^(AILocalModel* model, NSURL* baseURL) { [weakSelf applySettingsForModel:model baseURL:baseURL]; };
         _testHandler = ^(AILocalModel* model, NSURL* baseURL, void (^done)(NSError*, NSString*)) { [weakSelf askModel:model baseURL:baseURL done:done]; };
@@ -52,6 +56,19 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
 -(BOOL)succeeded { return _succeeded; }
 -(NSError*)error { return _error; }
 -(BOOL)wasCancelled { return _error.code == VOKAILocalErrorCancelled; }
+-(BOOL)holdsPowerAssertion { return _activity != nil; }
+
+-(void)beginActivity {
+    if (_activity == nil)
+        _activity = [[NSProcessInfo processInfo] beginActivityWithOptions:NSActivityUserInitiated | NSActivityIdleSystemSleepDisabled
+                                                                    reason:@"Cài AI chạy trên máy"];
+}
+
+-(void)endActivity {
+    if (_activity != nil)
+        [[NSProcessInfo processInfo] endActivity:_activity];
+    _activity = nil;
+}
 -(AILocalStep)failedStep { return _failedStep; }
 
 +(NSString*)titleOfStep:(AILocalStep)step {
@@ -103,6 +120,7 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
     _error = nil;
     _samples = [NSMutableArray array];
     [self resetStates];
+    [self beginActivity];
     [self changed];
     [self stepRuntime:_generation];
 }
@@ -130,6 +148,7 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
         return;
     BOOL cancelled = error.code == VOKAILocalErrorCancelled || _cancelRequested;
     _running = NO;
+    [self endActivity];
     _failedStep = step;
     _error = cancelled ? [NSError errorWithDomain:VOKAILocalErrorDomain code:VOKAILocalErrorCancelled
                                          userInfo:@{NSLocalizedDescriptionKey: @"Đã dừng. Phần đã tải được giữ lại: bấm Cài đặt để tiếp tục."}] : error;
@@ -212,21 +231,51 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
 }
 
 -(void)pull:(NSUInteger)generation {
+    _bestBytes = 0;
+    _bytesAtLastFailure = 0;
+    _failuresInARow = 0;
+    [self pullAttempt:generation];
+}
+
+/// One try at the download. When the connection breaks it is started again after a wait, as many times as `retryDelays` allows
+/// without any progress: Ollama keeps what was downloaded and continues from it.
+-(void)pullAttempt:(NSUInteger)generation {
     NSString* tag = _model.tag;
     _pullTask = [_api pullModel:tag expectedBytes:_model.bytes progress:^(AIPullProgress* progress) {
         if (![self isCurrent:generation])
             return;
+        self->_bestBytes = MAX(self->_bestBytes, progress.completedBytes);
         [self step:AILocalStepModel state:AILocalStepRunning fraction:progress.fraction detail:[self detailForPull:progress]];
     } completion:^(NSError* error) {
         self->_pullTask = nil;
         if (![self isCurrent:generation])
             return;
-        if (error != nil) {
-            [self failStep:AILocalStepModel error:error generation:generation];
+        if (error == nil) {
+            [self step:AILocalStepModel state:AILocalStepDone fraction:1 detail:[NSString stringWithFormat:@"Đã tải xong %@ (%@)", self->_model.name, VOKAIFormatBytes(self->_model.bytes)]];
+            [self stepTest:generation];
             return;
         }
-        [self step:AILocalStepModel state:AILocalStepDone fraction:1 detail:[NSString stringWithFormat:@"Đã tải xong %@ (%@)", self->_model.name, VOKAIFormatBytes(self->_model.bytes)]];
-        [self stepTest:generation];
+        if ([AIOllama errorIsRetryable:error] && !self->_cancelRequested) {
+            if (self->_bestBytes > self->_bytesAtLastFailure + 5000000)
+                self->_failuresInARow = 0;                                  //it moved forward since the last failure: the count starts again
+            self->_bytesAtLastFailure = self->_bestBytes;
+            if (self->_failuresInARow < self->_retryDelays.count) {
+                NSTimeInterval wait = [self->_retryDelays[self->_failuresInARow] doubleValue];
+                NSUInteger attempt = ++self->_failuresInARow;
+                [self step:AILocalStepModel state:AILocalStepRunning fraction:[self fractionOfStep:AILocalStepModel]
+                    detail:[NSString stringWithFormat:@"Mất kết nối khi tải model. Tự thử lại sau %.0f giây (lần %lu/%lu); phần đã tải được giữ nguyên.\n%@",
+                            wait, (unsigned long)attempt, (unsigned long)self->_retryDelays.count, error.localizedDescription]];
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(wait * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    if ([self isCurrent:generation])
+                        [self pullAttempt:generation];
+                });
+                return;
+            }
+            NSString* advice = [NSString stringWithFormat:@"%@\nĐã thử lại %lu lần mà không tải thêm được. Hãy kiểm tra mạng (Wi-Fi, VPN, tường lửa), rồi bấm Cài đặt để tải tiếp: phần đã tải được giữ nguyên.",
+                                error.localizedDescription, (unsigned long)self->_retryDelays.count];
+            error = [NSError errorWithDomain:error.domain code:error.code userInfo:@{NSLocalizedDescriptionKey: advice}];
+        }
+        [self failStep:AILocalStepModel error:error generation:generation];
     }];
 }
 
@@ -278,6 +327,7 @@ NSString* const VOKAILocalSetupDidFinishNotification = @"VOKAILocalSetupDidFinis
     [self step:AILocalStepApply state:AILocalStepRunning fraction:-1 detail:@""];
     self.applyHandler(_model, _runtime.baseURL);
     _running = NO;
+    [self endActivity];
     _succeeded = YES;
     [self step:AILocalStepApply state:AILocalStepDone fraction:1 detail:@"Trợ lý AI (⌃⌥A) sẽ dùng model này"];
     [[NSNotificationCenter defaultCenter] postNotificationName:VOKAILocalSetupDidFinishNotification object:self];

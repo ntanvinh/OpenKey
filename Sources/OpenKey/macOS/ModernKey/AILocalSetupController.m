@@ -214,7 +214,7 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
 
     NSTextField* title = VOKLabel(@"Cài AI chạy trên máy này", 20, NSFontWeightBold, nil);
     NSTextField* intro = Wrapped(@"AI chạy ngay trên Mac của bạn: không cần API key, không tính tiền theo lượt dùng, và chữ bạn viết không rời khỏi máy. "
-                                 @"Đổi lại, máy phải đủ mạnh. VOpenKey kiểm tra máy rồi mới khuyên bạn chọn model nào.", 12, NSFontWeightRegular,
+                                 @"Đổi lại, máy phải đủ mạnh và đang ít việc: chạy model dùng hết sức bộ xử lý và chiếm nhiều RAM. VOpenKey kiểm tra máy rồi mới khuyên bạn chọn model nào.", 12, NSFontWeightRegular,
                                  [NSColor secondaryLabelColor], kInner + 32);
     NSStackView* content = Stack(@[title, intro, machine, choose, notes, progress, buttons], YES, 16);
     content.edgeInsets = NSEdgeInsetsMake(24, 24, 24, 24);
@@ -414,10 +414,10 @@ static NSString* Stars(NSInteger value) {
         [lines addObject:[NSString stringWithFormat:@"• Ollama, chương trình mã nguồn mở chạy model: tải bản chính thức từ GitHub (khoảng 207 MB, chiếm %@ sau khi cài), kiểm tra mã SHA-256, chữ ký và công chứng của Apple rồi cài vào thư mục ~/Applications của bạn. Không cần quyền quản trị. Cần macOS %ld trở lên.",
                           VOKAIFormatBytes([AIModelAdvisor runtimeDiskBytes] * 64 / 100), (long)[AIModelAdvisor runtimeMinimumMajorOS]]];
     if (model != nil && model.bytes > 0)
-        [lines addObject:[NSString stringWithFormat:@"• Model %@: tải từ thư viện của Ollama về ~/.ollama/models (%@). Mất bao lâu tùy đường mạng của bạn; nếu bị ngắt, bấm Cài đặt lần nữa để tải tiếp, không phải tải lại từ đầu.", model.name, VOKAIFormatBytes(model.bytes)]];
+        [lines addObject:[NSString stringWithFormat:@"• Model %@: tải từ thư viện của Ollama về ~/.ollama/models (%@). Mất bao lâu tùy đường mạng của bạn; mạng chập chờn thì VOpenKey tự thử lại vài lần, hết lượt mà vẫn lỗi thì bấm Cài đặt lần nữa để tải tiếp, không phải tải lại từ đầu. Máy được giữ không ngủ trong lúc cài.", model.name, VOKAIFormatBytes(model.bytes)]];
     else
         [lines addObject:@"• Model: tải từ thư viện của Ollama về ~/.ollama/models."];
-    [lines addObject:@"• VOpenKey chỉ mở máy chủ Ollama khi bạn dùng trợ lý AI và tắt nó khi thoát VOpenKey. Máy chủ chỉ nhận kết nối từ chính máy này (127.0.0.1), không có biểu tượng thừa trên thanh menu, không tự cập nhật. Khi không dùng một lúc (10 phút), model được giải phóng khỏi RAM."];
+    [lines addObject:@"• VOpenKey chỉ mở máy chủ Ollama khi bạn dùng trợ lý AI và tắt nó khi thoát VOpenKey. Máy chủ chỉ nhận kết nối từ chính máy này (127.0.0.1), không có biểu tượng thừa trên thanh menu, không tự cập nhật. Khi không dùng một lúc (10 phút), model được giải phóng khỏi RAM. Trong Cài đặt > AI có nút Khởi động, Dừng và Giải phóng RAM để bạn tự điều khiển khi thấy máy ì."];
     [lines addObject:@"• Lần đầu dùng, Ollama mất khoảng 20 đến 40 giây để khởi động và model cần nạp vào RAM nên câu trả lời đầu chậm hơn các câu sau."];
     [lines addObject:@"• Muốn gỡ: bấm \"Xóa model này khỏi máy\" để lấy lại chỗ, và kéo ~/Applications/Ollama.app vào thùng rác nếu không cần Ollama nữa."];
     return [lines componentsJoinedByString:@"\n"];

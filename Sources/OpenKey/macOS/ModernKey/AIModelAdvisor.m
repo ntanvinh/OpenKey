@@ -113,6 +113,10 @@ static NSInteger RoundUpToSoldRAM(double gib) {
          ? @"Bộ nhớ của máy đang quá tải. Hãy đóng bớt ứng dụng trước khi dùng AI, nếu không model sẽ rất chậm."
          : @"Bộ nhớ của máy đang khá đầy. Nên đóng bớt ứng dụng nặng trước khi dùng AI."];
     }
+    if (hardware.cpuLoadRatio >= 0.7) {
+        [warnings addObject:[NSString stringWithFormat:@"Máy đang bận (mức tải bộ xử lý khoảng %.0f%%). Chạy model rất nặng: nó chiếm hết sức của máy, câu trả lời sẽ chậm và các ứng dụng khác bị ì. AI chạy trên máy chỉ hợp khi máy đang rảnh; lúc bận nên dùng dịch vụ trực tuyến.",
+                             hardware.cpuLoadRatio * 100]];
+    }
     if (hardware.onBattery) {
         [warnings addObject:@"Máy đang dùng pin. Chạy model rất tốn điện: pin sẽ tụt nhanh và máy có thể chạy chậm hơn. Nên cắm sạc khi dùng."];
     }

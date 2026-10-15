@@ -65,6 +65,12 @@ static uint64_t SysctlNumber(const char* name) {
     uint64_t level = SysctlNumber("kern.memorystatus_vm_pressure_level");
     hardware.memoryPressure = level >= 4 ? AIMemoryPressureCritical : (level == 2 ? AIMemoryPressureWarning : AIMemoryPressureNormal);
 
+    double load[1] = {0};
+    if (getloadavg(load, 1) == 1 && hardware.cpuCores > 0) {
+        NSInteger logical = (NSInteger)SysctlNumber("hw.logicalcpu");
+        hardware.cpuLoadRatio = load[0] / (double)(logical > 0 ? logical : hardware.cpuCores);
+    }
+
     vm_statistics64_data_t vm;
     mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
     vm_size_t page = 0;
@@ -86,6 +92,18 @@ static uint64_t SysctlNumber(const char* name) {
     hardware.osMinor = 0;
     hardware.cpuCores = 8;
     return hardware;
+}
+
+-(BOOL)isBusy {
+    return self.cpuLoadRatio >= 0.7 || self.memoryPressure != AIMemoryPressureNormal;
+}
+
+-(NSString*)loadDescription {
+    if (self.cpuLoadRatio >= 1.0 || self.memoryPressure == AIMemoryPressureCritical)
+        return @"đang bận";
+    if ([self isBusy] || self.cpuLoadRatio >= 0.4)
+        return @"hơi bận";
+    return @"đang rảnh";
 }
 
 -(NSString*)summary {

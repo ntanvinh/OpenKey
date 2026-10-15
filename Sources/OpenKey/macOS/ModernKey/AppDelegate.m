@@ -205,7 +205,7 @@ extern bool convertToolDontAlertWhenCompleted;
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {
     // give the keyboard back if macOS' input source was standing in for OpenKey
-    [SecureInputMonitor stop];
+    [OpenKeyManager stopEventTap];
     [SuggestionController stop];
     [SnippetStore flushShared];
     [[AIOllamaRuntime shared] stopWaiting:3]; //the server of the AI on this Mac, if VOpenKey started it, quits with VOpenKey

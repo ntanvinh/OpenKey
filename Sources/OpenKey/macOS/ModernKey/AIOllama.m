@@ -49,15 +49,40 @@ static NSString* ServerMessage(NSData* data) {
     return nil;
 }
 
+/// What the message of Ollama says about the connection, whatever the wording of the library of Go: "EOF", "connection reset by
+/// peer", "i/o timeout", "TLS handshake timeout", "no such host", "dial tcp"...
+static BOOL MessageIsNetwork(NSString* message) {
+    if ([message containsString:@"EOF"])                    //how Go writes it; in lower case it could be the end of another word
+        return YES;
+    NSString* lower = message.lowercaseString;
+    for (NSString* sign in @[@"connection reset", @"connection refused", @"timeout", @"timed out", @"deadline exceeded", @"no such host", @"dial tcp",
+                             @"broken pipe", @"tls", @"network is unreachable", @"no route to host", @"stalled", @"max retries exceeded", @"unexpected"])
+        if ([lower containsString:sign])
+            return YES;
+    return NO;
+}
+
+/// The message as sent by Ollama, to show as the detail of an error: the signed addresses it often contains lose their parameters
+/// (those are credentials of the library, and make a line of several hundred characters), and it is cut at a reasonable length.
+static NSString* Detail(NSString* message) {
+    static NSRegularExpression* signedAddress;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        signedAddress = [NSRegularExpression regularExpressionWithPattern:@"(https?://[^\\s\"?]+)\\?[^\\s\"]*" options:0 error:nil];
+    });
+    NSString* clean = [signedAddress stringByReplacingMatchesInString:message options:0 range:NSMakeRange(0, message.length) withTemplate:@"$1"];
+    clean = [clean stringByReplacingOccurrencesOfString:@"\\\"" withString:@"\""];
+    return clean.length <= 260 ? clean : [[clean substringToIndex:260] stringByAppendingString:@"…"];
+}
+
 static NSString* FromOllama(NSString* message) {
     if ([message containsString:@"file does not exist"] || [message containsString:@"not found"])
         return @"Không tìm thấy model này trong thư viện Ollama. Kiểm tra lại tên.";
     if ([message containsString:@"no space left"])
         return @"Ổ đĩa đã hết chỗ trống. Hãy dọn ổ đĩa rồi thử lại.";
-    if ([message containsString:@"EOF"] || [message containsString:@"connection reset"] || [message containsString:@"timeout"] ||
-        [message containsString:@"no such host"] || [message containsString:@"dial tcp"])
-        return @"Mất kết nối mạng khi tải model. Hãy kiểm tra mạng rồi bấm cài lại: phần đã tải được giữ nguyên, sẽ tải tiếp.";
-    return [@"Ollama báo lỗi: " stringByAppendingString:message];
+    if (MessageIsNetwork(message))
+        return [NSString stringWithFormat:@"Mất kết nối mạng khi tải model. Phần đã tải được giữ nguyên, tải lại sẽ tiếp tục. Chi tiết: %@", Detail(message)];
+    return [@"Ollama báo lỗi: " stringByAppendingString:Detail(message)];
 }
 
 #pragma mark - Progress
@@ -122,6 +147,7 @@ static const NSUInteger kMaxLine = 1 << 20;
     NSString* error = [object[@"error"] isKindOfClass:[NSString class]] ? object[@"error"] : nil;
     if (error != nil) {
         _errorMessage = FromOllama(error);
+        _errorIsNetwork = MessageIsNetwork(error) && ![error containsString:@"file does not exist"] && ![error containsString:@"no space left"];
         _stopped = YES;
         return nil;
     }
@@ -375,6 +401,10 @@ static void OnMain(void (^block)(void)) {
     }];
 }
 
++(BOOL)errorIsRetryable:(NSError*)error {
+    return [error.domain isEqualToString:VOKAILocalErrorDomain] && (error.code == VOKAILocalErrorNetwork || error.code == VOKAILocalErrorInterrupted);
+}
+
 +(BOOL)tag:(NSString*)tag isAmongInstalled:(NSArray<NSDictionary*>*)models {
     NSString* wanted = [tag containsString:@":"] ? tag : [tag stringByAppendingString:@":latest"];
     for (NSDictionary* model in models) {
@@ -384,6 +414,47 @@ static void OnMain(void (^block)(void)) {
             return YES;
     }
     return NO;
+}
+
+-(void)loadedModelsWithCompletion:(void (^)(NSArray<NSDictionary*>*, NSError*))completion {
+    [self run:[self requestWithPath:@"/api/ps" method:@"GET" body:nil] idleTimeout:10 onData:nil
+       onDone:^(NSData* body, NSInteger status, NSError* error) {
+        NSMutableArray* models = nil;
+        NSError* failure = nil;
+        if (error != nil) {
+            failure = NetworkError(error);
+        } else {
+            id object = body.length > 0 ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+            id list = status == 200 && [object isKindOfClass:[NSDictionary class]] ? object[@"models"] : nil;
+            if (status != 200 || ![object isKindOfClass:[NSDictionary class]] || (list != nil && list != [NSNull null] && ![list isKindOfClass:[NSArray class]])) {
+                failure = LocalError(VOKAILocalErrorBadResponse, @"Ollama trả lời không đúng định dạng.");
+            } else {
+                models = [NSMutableArray array];
+                for (id item in [list isKindOfClass:[NSArray class]] ? list : @[]) {
+                    if (![item isKindOfClass:[NSDictionary class]] || ![item[@"name"] isKindOfClass:[NSString class]])
+                        continue;
+                    //"size" is what the model takes in all, "size_vram" the part of it in the memory of the GPU (the same memory on a Mac)
+                    NSNumber* size = [item[@"size"] isKindOfClass:[NSNumber class]] ? item[@"size"] : @0;
+                    [models addObject:@{@"name": item[@"name"], @"size": size}];
+                }
+            }
+        }
+        OnMain(^{ completion(models, failure); });
+    }];
+}
+
+-(void)unloadModel:(NSString*)tag completion:(void (^)(NSError*))completion {
+    [self run:[self requestWithPath:@"/api/generate" method:@"POST" body:@{@"model": tag, @"keep_alive": @0, @"stream": @NO}] idleTimeout:30 onData:nil
+       onDone:^(NSData* body, NSInteger status, NSError* error) {
+        NSError* failure = nil;
+        if (error != nil)
+            failure = NetworkError(error);
+        else if (status == 404)
+            failure = LocalError(VOKAILocalErrorNotFound, @"Model này không còn trong máy.");
+        else if (status != 200)
+            failure = LocalError(VOKAILocalErrorFailed, ServerMessage(body) ? FromOllama(ServerMessage(body)) : @"Ollama không giải phóng được model.");
+        OnMain(^{ completion(failure); });
+    }];
 }
 
 -(AIOllamaTask*)pullModel:(NSString*)tag expectedBytes:(uint64_t)expectedBytes
@@ -416,7 +487,8 @@ static void OnMain(void (^block)(void)) {
             if ([handle cancelled]) {
                 failure = LocalError(VOKAILocalErrorCancelled, @"Đã hủy.");
             } else if (parser.errorMessage != nil) {             //what Ollama said, or what could not be understood
-                failure = LocalError([parser.errorMessage hasPrefix:@"Không tìm thấy"] ? VOKAILocalErrorNotFound : VOKAILocalErrorFailed, parser.errorMessage);
+                failure = LocalError([parser.errorMessage hasPrefix:@"Không tìm thấy"] ? VOKAILocalErrorNotFound
+                                     : (parser.errorIsNetwork ? VOKAILocalErrorNetwork : VOKAILocalErrorFailed), parser.errorMessage);
             } else if (error != nil) {
                 failure = error.code == NSURLErrorTimedOut || error.code == NSURLErrorNetworkConnectionLost
                     ? LocalError(VOKAILocalErrorInterrupted, @"Quá trình tải bị ngắt. Hãy bấm cài lại: phần đã tải được giữ nguyên, sẽ tải tiếp.")
@@ -424,7 +496,8 @@ static void OnMain(void (^block)(void)) {
             } else if (status >= 400) {
                 NSString* message = ServerMessage(body);
                 failure = message != nil
-                    ? LocalError([message containsString:@"file does not exist"] ? VOKAILocalErrorNotFound : VOKAILocalErrorFailed, FromOllama(message))
+                    ? LocalError([message containsString:@"file does not exist"] ? VOKAILocalErrorNotFound
+                                 : (MessageIsNetwork(message) && ![message containsString:@"no space left"] ? VOKAILocalErrorNetwork : VOKAILocalErrorFailed), FromOllama(message))
                     : LocalError(VOKAILocalErrorFailed, [NSString stringWithFormat:@"Ollama trả về lỗi %ld khi tải model.", (long)status]);
             } else if (!parser.succeeded) {
                 failure = LocalError(VOKAILocalErrorInterrupted, @"Quá trình tải bị ngắt giữa chừng. Hãy bấm cài lại: phần đã tải được giữ nguyên, sẽ tải tiếp.");
@@ -432,8 +505,8 @@ static void OnMain(void (^block)(void)) {
             AIPullProgress* last;
             @synchronized (lock) { last = pending; pending = nil; }
             OnMain(^{
-                if (last != nil && failure == nil && progress != nil)
-                    progress(last);
+                if (last != nil && failure.code != VOKAILocalErrorCancelled && progress != nil)
+                    progress(last);                      //the last report was held back by the throttle: it says how far the failed try got
                 completion(failure);
             });
         }];

@@ -36,6 +36,15 @@ typedef NS_ENUM(NSInteger, AIMemoryPressure) {
 /// 0 nominal, 1 fair, 2 serious, 3 critical (NSProcessInfoThermalState).
 @property (nonatomic) NSInteger thermalState;
 @property (nonatomic) AIMemoryPressure memoryPressure;
+/// How busy the processor is: the load average of the last minute divided by the number of cores. 0.2 is a Mac that has little to
+/// do, 1 is a Mac whose cores all have work. Running a model takes all the cores it can get, so it is only comfortable on a Mac
+/// that is not busy. 0 when unknown.
+@property (nonatomic) double cpuLoadRatio;
+
+/// "đang rảnh", "hơi bận" or "đang bận", from the load of the processor and the memory in use, for a line of the settings.
+-(NSString*)loadDescription;
+/// Whether it is a bad moment for a model to run: the processor or the memory is already busy.
+-(BOOL)isBusy;
 
 /// This Mac, now. `directory` is on the volume that will hold the models (nil: the home folder).
 +(AIHardware*)currentForDirectory:(NSURL*)directory;

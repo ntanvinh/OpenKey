@@ -15,6 +15,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import "AIClient.h"
+#import "AIHardware.h"
 #import "SnippetInserter.h"
 
 typedef NS_ENUM(NSInteger, AIAssistantState) {
@@ -46,6 +47,9 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 #pragma mark For tests
 
 -(instancetype)initWithInserter:(SnippetInserter*)inserter;
+
+/// How the Mac is described when a request goes to an AI that runs on it (to say that the Mac is busy). A test gives its own.
+@property (nonatomic, copy) AIHardware* (^hardwareProvider)(void);
 
 @property (nonatomic, readonly) NSPanel* panel;
 @property (nonatomic, readonly) NSTextView* inputView;

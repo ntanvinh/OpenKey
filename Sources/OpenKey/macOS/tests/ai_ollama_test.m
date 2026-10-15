@@ -44,6 +44,13 @@ static void Control(NSDictionary* values) {
 
 static NSData* Bytes(NSString* text) { return [text dataUsingEncoding:NSUTF8StringEncoding]; }
 
+//a line of the stream that says an error, with the message properly escaped
+static NSData* ErrorLine(NSString* message) {
+    NSMutableData* data = [[NSJSONSerialization dataWithJSONObject:@{@"error": message} options:0 error:nil] mutableCopy];
+    [data appendData:Bytes(@"\n")];
+    return data;
+}
+
 //the lines of a real download of a small model (shortened), as Ollama 0.x sent them
 static NSString* RealSample(void) {
     return @"{\"status\":\"pulling manifest\"}\n"
@@ -121,6 +128,29 @@ static void TestParser(void) {
     parser = [[AIPullParser alloc] initWithExpectedBytes:0];
     [parser feed:Bytes(@"{\"error\":\"something unforeseen\"}\n")];
     CHECK([parser.errorMessage isEqualToString:@"Ollama báo lỗi: something unforeseen"]);
+
+    //a broken connection is told apart from the other errors, and the detail keeps the words of Ollama without its credentials
+    parser = [[AIPullParser alloc] initWithExpectedBytes:0];
+    [parser feed:Bytes(@"{\"error\":\"max retries exceeded: Get \\\"https://x.r2.cloudflarestorage.com/blob/data?X-Amz-Signature=SECRET123&X-Amz-Date=1\\\": EOF\"}\n")];
+    CHECK(parser.errorIsNetwork && [parser.errorMessage hasPrefix:@"Mất kết nối mạng khi tải model"] && [parser.errorMessage containsString:@"Chi tiết: "]);
+    CHECK([parser.errorMessage containsString:@"https://x.r2.cloudflarestorage.com/blob/data"] && [parser.errorMessage containsString:@"EOF"]);
+    CHECK(![parser.errorMessage containsString:@"SECRET123"] && ![parser.errorMessage containsString:@"X-Amz"] && ![parser.errorMessage containsString:@"\\\""]);
+    for (NSString* network in @[@"read tcp 192.168.1.2:5000->104.18.1.1:443: read: connection reset by peer", @"net/http: TLS handshake timeout", @"dial tcp: lookup registry.ollama.ai: no such host",
+                                @"Get \"https://x\": context deadline exceeded", @"write: broken pipe", @"unexpected EOF", @"i/o timeout"]) {
+        parser = [[AIPullParser alloc] initWithExpectedBytes:0];
+        [parser feed:ErrorLine(network)];
+        CHECK(parser.errorIsNetwork);
+    }
+    for (NSString* other in @[@"pull model manifest: file does not exist", @"write /x/blob-partial: no space left on device", @"something unforeseen", @"the model was whereof composed",
+                              @"unauthorized: access denied"]) {
+        parser = [[AIPullParser alloc] initWithExpectedBytes:0];
+        [parser feed:ErrorLine(other)];
+        CHECK(!parser.errorIsNetwork && parser.errorMessage != nil);
+    }
+    //a long message is cut
+    parser = [[AIPullParser alloc] initWithExpectedBytes:0];
+    [parser feed:ErrorLine([@"" stringByPaddingToLength:900 withString:@"x" startingAtIndex:0])];
+    CHECK(parser.errorMessage.length < 330 && [parser.errorMessage hasSuffix:@"…"]);
 
     //what Ollama does not send
     for (NSString* bad in @[@"this is not json\n", @"[1,2,3]\n", @"\"text\"\n", @"123\n", @"{\"status\":\n"]) {
@@ -252,6 +282,16 @@ static void TestPull(void) {
     CHECK(r.done && r.error.code == VOKAILocalErrorFailed && [r.error.localizedDescription isEqualToString:@"Ollama báo lỗi: the server exploded"]);
     r = Pull(@"cut:1b", 0, [NSMutableArray array], NULL, 0);
     CHECK(r.done && r.error.code == VOKAILocalErrorInterrupted && [r.error.localizedDescription containsString:@"tải tiếp"]);
+    r = Pull(@"eof:1b", 0, [NSMutableArray array], NULL, 0);
+    CHECK(r.done && r.error.code == VOKAILocalErrorNetwork && [r.error.localizedDescription containsString:@"Chi tiết: max retries exceeded"]);
+    CHECK([r.error.localizedDescription containsString:@"EOF"] && ![r.error.localizedDescription containsString:@"SECRET123"]);
+    //which failures are worth trying again
+    CHECK([AIOllama errorIsRetryable:r.error]);
+    CHECK([AIOllama errorIsRetryable:[NSError errorWithDomain:VOKAILocalErrorDomain code:VOKAILocalErrorInterrupted userInfo:nil]]);
+    for (NSNumber* code in @[@(VOKAILocalErrorNotRunning), @(VOKAILocalErrorNotFound), @(VOKAILocalErrorFailed), @(VOKAILocalErrorCancelled), @(VOKAILocalErrorUnsafeDownload),
+                             @(VOKAILocalErrorBadResponse), @(VOKAILocalErrorNotInstalled)])
+        CHECK(![AIOllama errorIsRetryable:[NSError errorWithDomain:VOKAILocalErrorDomain code:code.integerValue userInfo:nil]]);
+    CHECK(![AIOllama errorIsRetryable:[NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorTimedOut userInfo:nil]] && ![AIOllama errorIsRetryable:nil]);
     r = Pull(@"garbled:1b", 0, [NSMutableArray array], NULL, 0);
     CHECK(r.done && r.error.code == VOKAILocalErrorFailed && [r.error.localizedDescription containsString:@"không hợp lệ"]);
     CHECK(![[ServerState()[@"models"] description] containsString:@"garbled"]);

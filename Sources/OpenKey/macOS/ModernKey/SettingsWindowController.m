@@ -7,6 +7,7 @@
 #import "AppDelegate.h"
 #import "AIClient.h"
 #import "AIKeychain.h"
+#import "AILocalControl.h"
 #import "AILocalSetupController.h"
 #import "AIOllamaRuntime.h"
 #import "AISettings.h"
@@ -176,6 +177,14 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSTextField* _aiTestStatus;
     NSTextField* _aiPrompt;
     NSTextField* _aiLocalStatus;
+    NSTextField* _aiLocalLoad;
+    NSTextField* _aiLocalProblem;
+    NSButton* _aiLocalStart;
+    NSButton* _aiLocalStop;
+    NSButton* _aiLocalUnload;
+    NSStackView* _aiLocalButtons;
+    NSTimer* _aiLocalTimer;
+    NSLayoutConstraint* _aiLocalStatusHeight, *_aiLocalLoadHeight, *_aiLocalProblemHeight;     //the texts change: their height follows them
     AIClient* _aiTestClient;
     NSTextField* _accessibilityStatus;
     NSTextField* _inputMonitoringStatus;
@@ -232,6 +241,15 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 -(void)windowDidBecomeKey:(NSNotification*)notification {
     [self reload]; //permissions may have been granted while the window was in the background
+    [self startAILocalTimer];
+}
+
+-(void)windowDidResignKey:(NSNotification*)notification {
+    [self stopAILocalTimer];
+}
+
+-(void)windowWillClose:(NSNotification*)notification {
+    [self stopAILocalTimer];
 }
 
 #pragma mark - Pages
@@ -667,21 +685,43 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     ]];
 }
 
-//an AI that runs on this Mac: installed from a window of its own, that checks the Mac first
+//an AI that runs on this Mac: installed from a window of its own, that checks the Mac first; once there is one it can be started
+//and stopped from here, because a model that runs is heavy and only suits a Mac that has little else to do
 -(NSView*)sectionAILocal {
     const CGFloat width = 300;
     NSButton* install = [NSButton buttonWithTitle:@"Cài AI chạy trên máy…" target:self action:@selector(aiOpenLocalSetup:)];
     install.bezelStyle = NSBezelStyleRounded;
     VOKSetButtonSymbol(install, @"arrow.down.circle", 13);
+
+    _aiLocalStart = [NSButton buttonWithTitle:@"Khởi động" target:self action:@selector(aiLocalStart:)];
+    _aiLocalStop = [NSButton buttonWithTitle:@"Dừng" target:self action:@selector(aiLocalStop:)];
+    _aiLocalUnload = [NSButton buttonWithTitle:@"Giải phóng RAM" target:self action:@selector(aiLocalUnload:)];
+    VOKSetButtonSymbol(_aiLocalStart, @"play.fill", 11);
+    VOKSetButtonSymbol(_aiLocalStop, @"stop.fill", 11);
+    VOKSetButtonSymbol(_aiLocalUnload, @"memorychip", 11);
+    _aiLocalStop.toolTip = @"Tắt hẳn Ollama do VOpenKey mở. Ollama do ứng dụng khác mở thì phải tắt ở ứng dụng đó.";
+    _aiLocalStart.toolTip = @"Mở Ollama ngay, để lần hỏi đầu tiên không phải chờ khởi động.";
+    _aiLocalUnload.toolTip = @"Đưa model ra khỏi RAM ngay mà không tắt Ollama. Lần hỏi sau model sẽ nạp lại nên câu trả lời đầu chậm hơn.";
+    for (NSButton* button in @[_aiLocalStart, _aiLocalStop, _aiLocalUnload])
+        button.bezelStyle = NSBezelStyleRounded;
+    _aiLocalButtons = [self aiStack:@[_aiLocalStart, _aiLocalStop, _aiLocalUnload] vertical:NO spacing:6];
     _aiLocalStatus = [self aiStatusLabelWithWidth:width];
-    NSStackView* control = [self aiStack:@[install, _aiLocalStatus] vertical:YES spacing:4];
+    _aiLocalLoad = [self aiStatusLabelWithWidth:width];
+    _aiLocalProblem = [self aiStatusLabelWithWidth:width];
+    _aiLocalProblem.textColor = [NSColor systemRedColor];
+    NSStackView* control = [self aiStack:@[install, _aiLocalStatus, _aiLocalButtons, _aiLocalLoad, _aiLocalProblem] vertical:YES spacing:6];
     NSView* section = [self sectionWithTitle:@"AI chạy trên máy" rows:@[
         [self rowWithTitle:@"Dùng AI không cần internet"
                     detail:@"Không cần API key, không tính tiền theo lượt dùng, chữ của bạn không rời khỏi máy. VOpenKey kiểm tra cấu hình máy, khuyên model phù hợp rồi tự cài."
                    control:control indent:0],
-    ] footer:@"Cần macOS 14 trở lên, chip Apple Silicon (M1 trở lên) và RAM từ 8 GB. Mac chip Intel chạy được nhưng chậm. "
-             @"Model nhỏ cần vài GB ổ đĩa, model lớn tới hàng chục GB; cửa sổ cài đặt nói rõ trước khi tải."];
+    ] footer:@"Chạy model là việc rất nặng: nó dùng hết sức của bộ xử lý và chiếm nhiều RAM, nên chỉ hợp khi máy đang ít việc. "
+             @"Cần macOS 14 trở lên, chip Apple Silicon (M1 trở lên) và RAM từ 8 GB; Mac chip Intel chạy được nhưng chậm. "
+             @"Ollama do VOpenKey mở chỉ chạy khi cần và tắt khi thoát VOpenKey; bấm Dừng để tắt ngay."];
+    AILocalControl* local = [AILocalControl shared];
+    __weak SettingsWindowController* weakSelf = self;
+    local.onChange = ^{ [weakSelf reloadAILocalStatus]; };
     [self reloadAILocalStatus];
+    [local refresh];
     return section;
 }
 
@@ -691,20 +731,79 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 -(void)aiLocalSetupFinished:(NSNotification*)notification {
     [self reloadAI];                    //the assistant now uses the model that was installed
+    [[AILocalControl shared] refresh];
 }
 
-//what is on this Mac, read without starting anything
+-(void)aiLocalStart:(id)sender { [[AILocalControl shared] start]; }
+-(void)aiLocalStop:(id)sender { [[AILocalControl shared] stop]; }
+-(void)aiLocalUnload:(id)sender { [[AILocalControl shared] unload]; }
+
+//what is on this Mac: shown from what AILocalControl last read; it reads again while this window is in front
 -(void)reloadAILocalStatus {
     if (_aiLocalStatus == nil)
         return;
-    BOOL installed = [AIOllamaRuntime shared].isInstalled;
+    AILocalControl* local = [AILocalControl shared];
     AIProvider* provider = AISettings.provider;
-    NSString* text;
+    NSMutableArray<NSString*>* lines = [NSMutableArray array];
     if ([provider.identifier isEqualToString:@"ollama"])
-        text = [NSString stringWithFormat:@"Trợ lý AI đang dùng model %@ chạy trên máy.", [AISettings modelForProvider:provider]];
-    else
-        text = installed ? @"Đã có Ollama trên máy. Chọn dịch vụ “Ollama” bên dưới để dùng." : @"Chưa cài. Bấm nút để kiểm tra máy và cài.";
-    _aiLocalStatus.stringValue = text;
+        [lines addObject:[NSString stringWithFormat:@"Trợ lý AI đang dùng model %@ chạy trên máy.", [AISettings modelForProvider:provider]]];
+    [lines addObject:local.statusText];
+    [self aiSetText:[lines componentsJoinedByString:@"\n"] label:_aiLocalStatus height:&_aiLocalStatusHeight];
+    _aiLocalButtons.hidden = !local.detected;                       //nothing to start or stop until there is an Ollama
+    _aiLocalStart.enabled = local.canStart;
+    _aiLocalStop.enabled = local.canStop;
+    _aiLocalUnload.enabled = local.canUnload;
+    [self aiSetText:local.detected ? local.loadText : @"" label:_aiLocalLoad height:&_aiLocalLoadHeight];
+    _aiLocalLoad.hidden = !local.detected;
+    _aiLocalLoad.textColor = local.macIsBusy ? [NSColor systemOrangeColor] : [NSColor secondaryLabelColor];
+    [self aiSetText:local.problemText ?: @"" label:_aiLocalProblem height:&_aiLocalProblemHeight];
+    _aiLocalProblem.hidden = local.problemText.length == 0;
+    [self refitPageOf:_aiLocalStatus];
+}
+
+//A page is measured once, when it is built, and its frame is fixed to that size. A text that changes (a status of two lines instead
+//of one) or a control that appears or hides makes the content taller or shorter than the frame, and the rows are then squeezed over
+//each other. After such a change the page is measured again.
+-(void)refitPageOf:(NSView*)view {
+    NSView* content = view;
+    while (content != nil && ![content isKindOfClass:[SettingsPageView class]])
+        content = content.superview;
+    NSStackView* stack = content.subviews.firstObject;
+    if (![stack isKindOfClass:[NSStackView class]])
+        return;                                                                     //not in a page yet: it is measured when the page is built
+    [stack layoutSubtreeIfNeeded];
+    NSSize size = stack.fittingSize;
+    if (fabs(size.height - content.frame.size.height) < 0.5 && fabs(size.width - content.frame.size.width) < 0.5)
+        return;
+    content.frame = NSMakeRect(0, 0, size.width, size.height);
+    [content layoutSubtreeIfNeeded];
+}
+
+//a text of several lines in a column of fixed width, whose height has to follow the text when it changes
+-(void)aiSetText:(NSString*)text label:(NSTextField*)label height:(NSLayoutConstraint* __strong *)height {
+    label.stringValue = text;
+    NSSize size = [label.cell cellSizeForBounds:NSMakeRect(0, 0, label.preferredMaxLayoutWidth, CGFLOAT_MAX)];
+    if (*height == nil) {
+        *height = [label.heightAnchor constraintEqualToConstant:ceil(size.height)];
+        (*height).active = YES;
+    } else {
+        (*height).constant = ceil(size.height);
+    }
+}
+
+-(void)startAILocalTimer {
+    [self stopAILocalTimer];
+    [[AILocalControl shared] refresh];
+    __weak SettingsWindowController* weakSelf = self;
+    _aiLocalTimer = [NSTimer scheduledTimerWithTimeInterval:5 repeats:YES block:^(NSTimer* timer) {
+        if (weakSelf == nil) { [timer invalidate]; return; }
+        [[AILocalControl shared] refresh];
+    }];
+}
+
+-(void)stopAILocalTimer {
+    [_aiLocalTimer invalidate];
+    _aiLocalTimer = nil;
 }
 
 //which AI, with what key
@@ -811,6 +910,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [self aiShow:@"" in:_aiTestStatus error:NO];
     _aiPrompt.stringValue = AISettings.systemPrompt;
     [self reloadAILocalStatus];
+    [self refitPageOf:_aiProvider];                         //the note and the link to the keys appear and hide with the service
 }
 
 -(void)aiShow:(NSString*)message in:(NSTextField*)label error:(BOOL)error {

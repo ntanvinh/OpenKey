@@ -324,6 +324,50 @@ static void TestProviders(AIAssistant* assistant) {
     AIKeychain.service = original;
 }
 
+//a model that runs on this Mac is heavy: when the Mac is busy the window says it will be slow, and only then, and only for such a model
+static void TestBusyMac(AIAssistant* assistant) {
+    printf("-- a busy Mac\n");
+    AIHardware* (^mac)(double) = ^AIHardware*(double load) {
+        AIHardware* hardware = [AIHardware appleSiliconWithMemoryGiB:16 freeDiskGiB:100];
+        hardware.cpuLoadRatio = load;
+        return hardware;
+    };
+    UseServer(@"normal");
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"Chào";
+    assistant.hardwareProvider = ^AIHardware*{ return mac(1.5); };
+    [assistant ask];
+    CHECK([assistant.statusLabel.stringValue containsString:@"Máy đang bận nên AI chạy trên máy sẽ chậm"]);
+    WaitForState(assistant, AIAssistantStateDone);
+    assistant.hardwareProvider = ^AIHardware*{ return mac(0.1); };
+    [assistant ask];
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đang tạo"] && ![assistant.statusLabel.stringValue containsString:@"bận"]);
+    WaitForState(assistant, AIAssistantStateDone);
+    //a service on the internet does not care how busy this Mac is (the key is in a keychain of the test, deleted after)
+    NSString* originalService = AIKeychain.service;
+    AIKeychain.service = [NSString stringWithFormat:@"vn.io.lssoft.vopenkey.test-%@.ai", [NSUUID UUID].UUIDString];
+    [AIKeychain setKey:@"test-key-123" forProvider:@"openai" error:nil];
+    AIProvider* openai = [AIProvider providerWithIdentifier:@"openai"];
+    [AISettings setBaseURL:[gBase stringByAppendingString:@"/v1"] forProvider:openai];
+    [AISettings setModel:@"normal" forProvider:openai];
+    AISettings.providerIdentifier = @"openai";
+    [assistant hideAssistant];
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"Chào";
+    assistant.hardwareProvider = ^AIHardware*{ return mac(1.5); };
+    [assistant ask];
+    CHECK([assistant.providerPopUp.titleOfSelectedItem containsString:@"OpenAI"]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đang tạo"] && ![assistant.statusLabel.stringValue containsString:@"bận"]);
+    [assistant stop];
+    [AIKeychain removeKeyForProvider:@"openai"];
+    AIKeychain.service = originalService;
+    [AISettings setBaseURL:@"" forProvider:openai];
+    [AISettings setModel:@"" forProvider:openai];
+    AISettings.providerIdentifier = @"ollama";
+    assistant.hardwareProvider = nil;
+    [assistant hideAssistant];
+}
+
 //the AI on this Mac that is not running when the window asks: its server is started first (a stand-in, fake_ollama.py)
 static void TestLocalServer(AIAssistant* assistant) {
     if (gFakeOllama == nil)
@@ -444,6 +488,7 @@ int main(int argc, char** argv) {
         TestStopping(assistant);
         TestFailures(assistant);
         TestProviders(assistant);
+        TestBusyMac(assistant);
         TestLocalServer(assistant);
         TestEscape(assistant);
 

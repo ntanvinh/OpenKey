@@ -14,6 +14,28 @@
 
 #import <Foundation/Foundation.h>
 
+/// Who started the Ollama server that answers.
+typedef NS_ENUM(NSInteger, AIOllamaOrigin) {
+    AIOllamaOriginNone,         //nothing answers
+    AIOllamaOriginManaged,      //VOpenKey started it, in this run
+    AIOllamaOriginLeftover,     //VOpenKey started it in an earlier run that ended without stopping it: nobody owns it any more
+    AIOllamaOriginOther         //someone else's: the Ollama application, a terminal, another program. VOpenKey does not stop it
+};
+
+/// What is on this Mac as far as the AI that runs on it is concerned, at this moment.
+@interface AIOllamaStatus : NSObject
+@property (nonatomic) BOOL installed;
+@property (nonatomic) BOOL running;
+@property (nonatomic) AIOllamaOrigin origin;
+@property (nonatomic) int processIdentifier;                            //of the server, 0 when not known
+@property (nonatomic, copy) NSString* version;
+/// The models in memory now: dictionaries with "name" and "size".
+@property (nonatomic, copy) NSArray<NSDictionary*>* loadedModels;
+@property (nonatomic, readonly) uint64_t loadedBytes;
+/// VOpenKey can stop it: it started it, or it is a leftover of an earlier run.
+@property (nonatomic, readonly) BOOL canStop;
+@end
+
 @interface AIOllamaRuntime : NSObject
 
 /// The one the application uses: the standard address and the usual places.
@@ -40,6 +62,21 @@
 /// thread, once, with nil or the reason (Ollama is not installed, the address is taken by something else, the server stopped or
 /// did not answer). Calls made while the server is starting wait for the same start.
 -(void)ensureRunning:(void (^)(NSError* error))completion;
+
+/// Looks at what is there now: whether Ollama is installed, whether a server answers, who started it, which models it holds in
+/// memory. `completion` is called on the main thread.
+-(void)statusWithCompletion:(void (^)(AIOllamaStatus* status))completion;
+
+/// Stops the server when VOpenKey owns it (it started it, or it is a leftover of an earlier run of VOpenKey). The server of someone
+/// else is not touched: the error says so. Nothing to do (and no error) when no server runs. `completion` is called on the main thread.
+-(void)stopWithCompletion:(void (^)(NSError* error))completion;
+
+/// Takes every model out of memory, on whichever server runs, and leaves the server running. Frees the RAM without stopping anything.
+-(void)unloadModelsWithCompletion:(void (^)(NSError* error))completion;
+
+/// The programs that VOpenKey recognises as its own when it finds them running without an owner (a leftover). Only
+/// ~/Applications/Ollama.app, the one VOpenKey installs, unless a test says otherwise.
+@property (nonatomic, copy) NSArray<NSString*>* ownPrograms;
 
 /// Stops the server if VOpenKey started it. Waits up to `seconds` for it to end, then forces it. Does nothing to an Ollama that
 /// VOpenKey did not start.

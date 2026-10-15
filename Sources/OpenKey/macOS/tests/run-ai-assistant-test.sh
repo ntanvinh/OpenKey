@@ -22,11 +22,11 @@ clang++ -std=c++17 -fobjc-arc -Wall -g -I"$MAC" -I"$ENGINE" -c "$MAC/SnippetInse
 for f in SnippetSearch Suggest; do
     clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
 done
-for f in AIProvider AIKeychain AISettings AIClient AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant VOKUI; do
+for f in AIProvider AIKeychain AISettings AIClient AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant VOKUI; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/ai_assistant_test.m" -o ai_assistant_test.o
-clang++ -framework Cocoa -framework Carbon -framework Security -framework ApplicationServices *.o -o ai_assistant_test
+clang++ -framework Cocoa -framework Carbon -framework Security -framework IOKit -framework ApplicationServices *.o -o ai_assistant_test
 
 python3 -I "$HERE/mock_ai_server.py" > port.txt &
 SERVER=$!
