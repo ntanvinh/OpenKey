@@ -54,7 +54,7 @@ NSString* const VOKAIErrorDomain = @"vn.io.lssoft.vopenkey.ai";
                                               note:@"Một key dùng được nhiều AI. Tên model có dạng nhà-cung-cấp/tên-model."],
             [[AIProvider alloc] initWithIdentifier:@"ollama" name:@"Ollama (chạy trên máy)" protocol:AIProtocolOpenAI
                                            baseURL:@"http://localhost:11434/v1" model:@"llama3.2" local:YES needsKey:NO
-                                           keyPage:nil note:@"Không cần key. Bấm “Cài AI chạy trên máy…” ở phần trên để VOpenKey cài giúp, hoặc tự chạy `ollama serve` rồi tải model bằng `ollama pull`."],
+                                           keyPage:nil note:@"Không cần key. Bấm “Cài AI chạy trên máy…” ở phần trên để VOpenKey AI cài giúp, hoặc tự chạy `ollama serve` rồi tải model bằng `ollama pull`."],
             [[AIProvider alloc] initWithIdentifier:@"lmstudio" name:@"LM Studio (chạy trên máy)" protocol:AIProtocolOpenAI
                                            baseURL:@"http://localhost:1234/v1" model:@"local-model" local:YES needsKey:NO
                                            keyPage:nil note:@"Không cần key. Bật Local Server trong LM Studio."],

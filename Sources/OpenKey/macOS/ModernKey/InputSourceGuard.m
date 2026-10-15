@@ -121,7 +121,7 @@ static TISInputSourceRef CopyABCSource(void) {
 
     TISInputSourceRef abc = CopyABCSource();
     if (abc == NULL) {
-        NSLog(@"macOS types Vietnamese (%@) as well as VOpenKey, but no ABC or US layout is enabled to switch to", was);
+        NSLog(@"macOS types Vietnamese (%@) as well as VOpenKey AI, but no ABC or US layout is enabled to switch to", was);
         return NO;
     }
     OSStatus status = TISSelectInputSource(abc);

@@ -5,17 +5,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>VOpenKey</string>
+	<string>VOpenKey AI</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIconFile</key>
-	<string>Icon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>VOpenKey AI</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -40,7 +40,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 LSSoft. Fork của OpenKey © 2019 Mai Vũ Tuyên. Phát hành theo giấy phép GPL-3.0.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>VOpenKey kết nối tới máy chủ AI chạy trong mạng nội bộ của bạn (Ollama, LM Studio…) khi bạn chọn dùng nó.</string>
+	<string>VOpenKey AI kết nối tới máy chủ AI chạy trong mạng nội bộ của bạn (Ollama, LM Studio…) khi bạn chọn dùng nó.</string>
 	<key>NSMainStoryboardFile</key>
 	<string>Main</string>
 	<key>NSPrincipalClass</key>

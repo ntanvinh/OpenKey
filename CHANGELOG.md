@@ -1,5 +1,27 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.5.6 (build 68): (15/10/2026)
+- fix(vi telex): correct dd→đ conversion logic
+- feat: release v3.5.2 with local AI assistant and system improvements
+- feat(macOS): add AI assistant and language detection features
+- feat(engine): add vRestoreWord and fix engine bugs
+- feat: release v3.2.1 with snippets and input source guard
+- chore(release): publish VOpenKey 3.1.3 build 55
+- chore(release): release v3.1.2 build 54
+- feat(vi macros): add common Vietnamese chat abbreviations and fix bt mapping
+- feat(macOS): add tab toggle, remembered apps, and macro presets
+
+##### VOpenKey 3.5.5 (build 67): (15/10/2026)
+- fix(vi telex): correct dd→đ conversion logic
+- feat: release v3.5.2 with local AI assistant and system improvements
+- feat(macOS): add AI assistant and language detection features
+- feat(engine): add vRestoreWord and fix engine bugs
+- feat: release v3.2.1 with snippets and input source guard
+- chore(release): publish VOpenKey 3.1.3 build 55
+- chore(release): release v3.1.2 build 54
+- feat(vi macros): add common Vietnamese chat abbreviations and fix bt mapping
+- feat(macOS): add tab toggle, remembered apps, and macro presets
+
 ##### VOpenKey 3.5.4 (build 66): (15/10/2026)
 - feat: release v3.5.2 with local AI assistant and system improvements
 - feat(macOS): add AI assistant and language detection features

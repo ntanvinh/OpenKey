@@ -4,6 +4,7 @@
 //
 
 #import "AIOllamaInstaller.h"
+#import "AppInfo.h"
 #import "AIOllama.h"
 #import <CommonCrypto/CommonDigest.h>
 #import <Security/Security.h>
@@ -108,7 +109,7 @@ static NSOperatingSystemVersion ParseVersion(NSString* text) {
     if (requirement != NULL) CFRelease(requirement);
     if (!ok && error != NULL)
         *error = InstallError(VOKAILocalErrorUnsafeDownload,
-                              [NSString stringWithFormat:@"%@ không phải bản chính thức của Ollama (chữ ký số không khớp hoặc đã bị sửa). VOpenKey không cài nó.", name]);
+                              [NSString stringWithFormat:@"%@ không phải bản chính thức của Ollama (chữ ký số không khớp hoặc đã bị sửa). VOpenKey AI không cài nó.", name]);
     return ok;
 }
 
@@ -138,7 +139,7 @@ static NSOperatingSystemVersion ParseVersion(NSString* text) {
 -(BOOL)verifyApplication:(NSURL*)app minimumOS:(NSOperatingSystemVersion*)minimumOS error:(NSError**)error {
     NSDictionary* info = [NSDictionary dictionaryWithContentsOfURL:[app URLByAppendingPathComponent:@"Contents/Info.plist"]];
     if (![info[@"CFBundleIdentifier"] isEqual:self.bundleIdentifier]) {
-        if (error) *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Bản tải về không phải ứng dụng Ollama (tên định danh không khớp). VOpenKey không cài nó.");
+        if (error) *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Bản tải về không phải ứng dụng Ollama (tên định danh không khớp). VOpenKey AI không cài nó.");
         return NO;
     }
     if (![self verifySignatureOfApplication:app error:error])
@@ -148,7 +149,7 @@ static NSOperatingSystemVersion ParseVersion(NSString* text) {
         int status = 0;
         BOOL ran = RunTool(@"/usr/sbin/spctl", @[@"--assess", @"--type", @"execute", @"--verbose=4", app.path], 120, &output, &status, NULL);
         if (!ran || status != 0 || ![output containsString:@"source=Notarized Developer ID"]) {
-            if (error) *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Không xác nhận được Apple đã công chứng bản tải về này (macOS sẽ không cho chạy nó). Có thể do mạng, hoặc bản tải về không hợp lệ. VOpenKey không cài; hãy thử lại sau.");
+            if (error) *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Không xác nhận được Apple đã công chứng bản tải về này (macOS sẽ không cho chạy nó). Có thể do mạng, hoặc bản tải về không hợp lệ. VOpenKey AI không cài; hãy thử lại sau.");
             return NO;
         }
     }
@@ -196,7 +197,7 @@ static NSString* const kWorkPrefix = @"ollama-install-";
 
 +(AIOllamaInstaller*)standardInstaller {
     NSURL* support = [[[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject
-                      URLByAppendingPathComponent:@"VOpenKey" isDirectory:YES];
+                      URLByAppendingPathComponent:VOK_DATA_DIR_NAME isDirectory:YES];
     return [[AIOllamaInstaller alloc] initWithReleaseURL:[NSURL URLWithString:@"https://api.github.com/repos/ollama/ollama/releases/latest"]
                                              fallbackURL:[NSURL URLWithString:@"https://github.com/ollama/ollama/releases/latest/download/Ollama-darwin.zip"]
                                         installDirectory:[self defaultInstallDirectory] workDirectory:support verifier:[AIOllamaVerifier standard]];
@@ -290,7 +291,7 @@ static BOOL AddressAllowed(NSURL* url) {
 
         //2. a folder of its own, that nobody else can read, in which nothing exists yet
         if (![fm createDirectoryAtURL:_workDirectory withIntermediateDirectories:YES attributes:nil error:nil]) {
-            *error = InstallError(VOKAILocalErrorInstall, @"Không tạo được thư mục làm việc của VOpenKey.");
+            *error = InstallError(VOKAILocalErrorInstall, @"Không tạo được thư mục làm việc của VOpenKey AI.");
             return nil;
         }
         work = [_workDirectory URLByAppendingPathComponent:[kWorkPrefix stringByAppendingString:[[NSUUID UUID] UUIDString]] isDirectory:YES];
@@ -327,11 +328,11 @@ static BOOL AddressAllowed(NSURL* url) {
         BOOL isDirectory = NO;
         if (items.count != 1 || ![items[0] isEqualToString:[AIOllamaInstaller applicationName]] ||
             ![fm fileExistsAtPath:extractedApp.path isDirectory:&isDirectory] || !isDirectory) {
-            *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File tải về không đúng cấu trúc của Ollama. VOpenKey không cài nó.");
+            *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File tải về không đúng cấu trúc của Ollama. VOpenKey AI không cài nó.");
             return nil;
         }
         if ([[fm contentsOfDirectoryAtPath:work.path error:nil] count] != 2) {          //the zip and "extracted", nothing else
-            *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File tải về có nội dung lạ. VOpenKey không cài nó.");
+            *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File tải về có nội dung lạ. VOpenKey AI không cài nó.");
             return nil;
         }
 
@@ -387,7 +388,7 @@ static BOOL AddressAllowed(NSURL* url) {
     if (asset != nil) {
         NSURL* url = [asset[@"browser_download_url"] isKindOfClass:[NSString class]] ? [NSURL URLWithString:asset[@"browser_download_url"]] : nil;
         if (url == nil || !AddressAllowed(url)) {
-            *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Thông tin bản phát hành của Ollama có địa chỉ tải không an toàn. VOpenKey không tải.");
+            *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Thông tin bản phát hành của Ollama có địa chỉ tải không an toàn. VOpenKey AI không tải.");
             return NO;
         }
         *fileURL = url;
@@ -397,7 +398,7 @@ static BOOL AddressAllowed(NSURL* url) {
             NSString* hex = [digest hasPrefix:@"sha256:"] ? [digest substringFromIndex:7] : nil;
             NSCharacterSet* hexDigits = [NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"];
             if (hex.length != 64 || [hex rangeOfCharacterFromSet:hexDigits.invertedSet].location != NSNotFound) {
-                *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Mã kiểm tra của file Ollama (SHA-256) không đọc được. VOpenKey không tải.");
+                *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Mã kiểm tra của file Ollama (SHA-256) không đọc được. VOpenKey AI không tải.");
                 return NO;
             }
             *sha = hex.lowercaseString;
@@ -463,7 +464,7 @@ static BOOL AddressAllowed(NSURL* url) {
     _downloadProgress = nil;
     if ([self isCancelled]) { *error = [self cancelledError]; return NO; }
     if (_downloadTooBig) {
-        *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File tải về lớn bất thường so với Ollama. VOpenKey dừng lại và không cài.");
+        *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File tải về lớn bất thường so với Ollama. VOpenKey AI dừng lại và không cài.");
         return NO;
     }
     if (_downloadError != nil || !_downloadSaved) {
@@ -480,7 +481,7 @@ static BOOL AddressAllowed(NSURL* url) {
     NSDictionary* attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:file.path error:nil];
     uint64_t actual = [attributes fileSize];
     if (actual == 0 || (size > 0 && actual != size)) {
-        *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File Ollama tải về không đủ dung lượng như công bố: bị cắt hoặc bị thay. VOpenKey không cài nó.");
+        *error = InstallError(VOKAILocalErrorUnsafeDownload, @"File Ollama tải về không đủ dung lượng như công bố: bị cắt hoặc bị thay. VOpenKey AI không cài nó.");
         return NO;
     }
     if (sha == nil)
@@ -503,7 +504,7 @@ static BOOL AddressAllowed(NSURL* url) {
     for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++)
         [hex appendFormat:@"%02x", digest[i]];
     if (![hex isEqualToString:sha]) {
-        *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Mã kiểm tra (SHA-256) của file Ollama không khớp với mã GitHub công bố: file bị hỏng hoặc bị thay. VOpenKey không cài nó.");
+        *error = InstallError(VOKAILocalErrorUnsafeDownload, @"Mã kiểm tra (SHA-256) của file Ollama không khớp với mã GitHub công bố: file bị hỏng hoặc bị thay. VOpenKey AI không cài nó.");
         return NO;
     }
     return YES;

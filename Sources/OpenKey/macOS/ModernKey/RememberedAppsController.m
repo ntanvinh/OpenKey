@@ -116,7 +116,7 @@ static RememberedAppsController* current; //alive while the sheet is up
 -(void)refreshState {
     _empty.hidden = _visibleApps.count > 0;
     if (_apps.count == 0) {
-        _empty.stringValue = @"Chưa có ứng dụng nào.\nVOpenKey sẽ ghi nhớ khi bạn đổi chế độ gõ hoặc bảng mã trong một ứng dụng.";
+        _empty.stringValue = @"Chưa có ứng dụng nào.\nVOpenKey AI sẽ ghi nhớ khi bạn đổi chế độ gõ hoặc bảng mã trong một ứng dụng.";
     } else {
         _empty.stringValue = @"Không tìm thấy ứng dụng phù hợp.";
     }
@@ -133,7 +133,7 @@ static RememberedAppsController* current; //alive while the sheet is up
                                              defer:NO];
 
     NSTextField* title = VOKLabel(@"Ứng dụng đã ghi nhớ", 15, NSFontWeightSemibold, nil);
-    NSTextField* explanation = VOKLabel(@"VOpenKey tự ghi nhớ chế độ gõ và bảng mã khi bạn đổi chúng trong một ứng dụng, rồi dùng lại khi bạn quay về ứng dụng đó. Bạn cũng có thể sửa ở đây. Thay đổi được lưu ngay.",
+    NSTextField* explanation = VOKLabel(@"VOpenKey AI tự ghi nhớ chế độ gõ và bảng mã khi bạn đổi chúng trong một ứng dụng, rồi dùng lại khi bạn quay về ứng dụng đó. Bạn cũng có thể sửa ở đây. Thay đổi được lưu ngay.",
                                         11, NSFontWeightRegular, [NSColor secondaryLabelColor]);
     explanation.preferredMaxLayoutWidth = kSheetWidth - 2 * kMargin;
 
@@ -182,7 +182,7 @@ static RememberedAppsController* current; //alive while the sheet is up
     filters.translatesAutoresizingMaskIntoConstraints = NO;
     [_languageFilter.widthAnchor constraintEqualToConstant:150].active = YES;
 
-    _empty = VOKLabel(@"Chưa có ứng dụng nào.\nVOpenKey sẽ ghi nhớ khi bạn đổi chế độ gõ hoặc bảng mã trong một ứng dụng.",
+    _empty = VOKLabel(@"Chưa có ứng dụng nào.\nVOpenKey AI sẽ ghi nhớ khi bạn đổi chế độ gõ hoặc bảng mã trong một ứng dụng.",
                       12, NSFontWeightRegular, [NSColor tertiaryLabelColor]);
     _empty.alignment = NSTextAlignmentCenter;
     _empty.preferredMaxLayoutWidth = 320;
@@ -200,7 +200,7 @@ static RememberedAppsController* current; //alive while the sheet is up
     [_plusMinus setWidth:32 forSegment:0];
     [_plusMinus setWidth:32 forSegment:1];
     [_plusMinus setToolTip:@"Thêm ứng dụng" forSegment:0];
-    [_plusMinus setToolTip:@"Bỏ ứng dụng đang chọn: VOpenKey sẽ ghi nhớ lại từ đầu khi bạn dùng nó" forSegment:1];
+    [_plusMinus setToolTip:@"Bỏ ứng dụng đang chọn: VOpenKey AI sẽ ghi nhớ lại từ đầu khi bạn dùng nó" forSegment:1];
 
     NSButton* done = [NSButton buttonWithTitle:@"Xong" target:self action:@selector(done:)];
     done.keyEquivalent = @"\r";

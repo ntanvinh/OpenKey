@@ -92,7 +92,7 @@ void BarHost::hideCandidates() {
 -(NSURL*)dataFolder {
     NSURL* support = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory
                                                             inDomains:NSUserDomainMask].firstObject;
-    return [support URLByAppendingPathComponent:VOK_APP_NAME isDirectory:YES];
+    return [support URLByAppendingPathComponent:VOK_DATA_DIR_NAME isDirectory:YES];
 }
 
 -(NSURL*)dictionaryFolder {
@@ -109,17 +109,17 @@ void BarHost::hideCandidates() {
     NSURL* readme = [[self dictionaryFolder] URLByAppendingPathComponent:@"README.txt"];
     if (![fm fileExistsAtPath:readme.path]) {
         NSString* text =
-            @"VOpenKey - Từ điển gợi ý\n\n"
-            @"Thả các file .txt vào thư mục này rồi vào Cài đặt > Gõ tắt > \"Tải lại từ điển\" (hoặc mở lại VOpenKey).\n"
+            @"VOpenKey AI - Từ điển gợi ý\n\n"
+            @"Thả các file .txt vào thư mục này rồi vào Cài đặt > Gõ tắt > \"Tải lại từ điển\" (hoặc mở lại VOpenKey AI).\n"
             @"Mỗi dòng một mục, dùng phím Tab để ngăn cách chữ và số lần dùng:\n\n"
             @"    xin chào<TAB>3000          một từ và số lần dùng (có thể bỏ số)\n"
-            @"    xin chào các bạn<TAB>20    nhiều từ: VOpenKey học từ nào hay đi sau từ nào\n"
+            @"    xin chào các bạn<TAB>20    nhiều từ: VOpenKey AI học từ nào hay đi sau từ nào\n"
             @"    # dòng bắt đầu bằng # là ghi chú\n\n"
             @"    thiết_kế<TAB>900           từ ghép (nối các âm tiết bằng dấu _): gõ liền \"thietke\" ra \"thiết kế\"\n"
             @"    #!compounds                từ dòng này trở xuống, nhiều từ trên một dòng là MỘT từ ghép, nên có thể viết\n"
             @"                               danh sách từ ghép bằng dấu cách; #!context để quay lại như cũ\n\n"
             @"\"Từ\" ở đây là một âm tiết giữa hai dấu cách. Không cần gõ đúng dấu: gõ \"hoc\" vẫn tìm ra \"học\".\n"
-            @"Từ bạn gõ được VOpenKey học và lưu ở file learned.txt trong thư mục cha; xoá file đó để quên hết.\n"
+            @"Từ bạn gõ được VOpenKey AI học và lưu ở file learned.txt trong thư mục cha; xoá file đó để quên hết.\n"
             @"Muốn tạo từ điển lớn từ văn bản tiếng Việt: scripts/build-dictionary.py trong mã nguồn.\n";
         [text writeToURL:readme atomically:YES encoding:NSUTF8StringEncoding error:nil];
     }

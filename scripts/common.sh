@@ -5,7 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="$ROOT/Sources/OpenKey/macOS/OpenKey.xcodeproj"
 SCHEME="OpenKey"
-APP_NAME="VOpenKey"
+APP_NAME="VOpenKey"            # name in file names without spaces: VOpenKey-<version>.dmg, VOpenKey-<version>-Windows.zip
+DISPLAY_NAME="VOpenKey AI"   # what the user reads, also the name of the app bundle and its executable: VOpenKey AI.app
 BUNDLE_ID="vn.io.lssoft.vopenkey"
 
 say()  { printf '\033[1m==> %s\033[0m\n' "$*" >&2; } # stderr: stdout is for values a function returns
@@ -29,9 +30,9 @@ build_app() {
     local identity; identity="$(find_identity)"
     [ -n "$identity" ] || die "no 'Developer ID Application' certificate in the keychain (set SIGN_IDENTITY to use another)"
     local team; team="$(team_of "$identity")"
-    say "Building $APP_NAME ($configuration), signed as: $identity"
+    say "Building $DISPLAY_NAME ($configuration), signed as: $identity"
     xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$configuration" -derivedDataPath "$derived" \
         CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$identity" DEVELOPMENT_TEAM="$team" PROVISIONING_PROFILE_SPECIFIER="" \
         "$@" build > "$derived.log" 2>&1 || { tail -30 "$derived.log" >&2; die "build failed, full log: $derived.log"; }
-    echo "$derived/Build/Products/$configuration/$APP_NAME.app"
+    echo "$derived/Build/Products/$configuration/$DISPLAY_NAME.app"
 }

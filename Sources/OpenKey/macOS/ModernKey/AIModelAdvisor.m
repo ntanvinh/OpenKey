@@ -85,7 +85,7 @@ static NSInteger RoundUpToSoldRAM(double gib) {
                              (long)kRuntimeMinimumOS, (long)hardware.osMajor]];
     }
     if (sizeUnknown) {
-        [warnings addObject:@"Chưa biết dung lượng model này nên VOpenKey không đánh giá được máy bạn có chạy nổi không. Model quá nặng sẽ làm máy rất chậm hoặc treo; nếu vậy, hãy chọn model nhỏ hơn."];
+        [warnings addObject:@"Chưa biết dung lượng model này nên VOpenKey AI không đánh giá được máy bạn có chạy nổi không. Model quá nặng sẽ làm máy rất chậm hoặc treo; nếu vậy, hãy chọn model nhỏ hơn."];
     }
     if (result.fit == AIModelFitTooBig) {
         NSString* ramNow = [NSString stringWithFormat:@"%.0f GB", round(hardware.memoryBytes / GiB)];

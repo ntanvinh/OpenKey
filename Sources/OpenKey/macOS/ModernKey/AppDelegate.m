@@ -127,7 +127,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [AIAssistant setSettingsHandler:^{ [self onAISettingsSelected]; }];
     //a download of Ollama that was cut by quitting leaves its working folder behind
     [AIOllamaInstaller removeLeftoversInWorkDirectory:[[[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject
-                                                       URLByAppendingPathComponent:@"VOpenKey" isDirectory:YES]];
+                                                       URLByAppendingPathComponent:VOK_DATA_DIR_NAME isDirectory:YES]];
     
     [self registerSupportedNotification];
     

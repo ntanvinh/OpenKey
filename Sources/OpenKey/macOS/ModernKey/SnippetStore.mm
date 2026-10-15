@@ -86,7 +86,7 @@ static SnippetStore* sShared;
     dispatch_once(&once, ^{
         NSURL* support = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory
                                                                 inDomains:NSUserDomainMask].firstObject;
-        NSURL* file = [[[support URLByAppendingPathComponent:VOK_APP_NAME isDirectory:YES]
+        NSURL* file = [[[support URLByAppendingPathComponent:VOK_DATA_DIR_NAME isDirectory:YES]
                         URLByAppendingPathComponent:@"Snippets" isDirectory:YES] URLByAppendingPathComponent:@"snippets.json"];
         NSURL* defaults = [[NSBundle mainBundle] URLForResource:@"default-snippets" withExtension:@"json"];
         sShared = [[SnippetStore alloc] initWithFileURL:file defaultsURL:defaults];

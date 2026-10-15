@@ -103,7 +103,7 @@ static NSColor* LogoTint(void) {
         [credits appendAttributedString:[[NSAttributedString alloc] initWithString:text attributes:attributes]];
     };
     addText([NSString stringWithFormat:@"Fork từ OpenKey của %@,\u2028phát hành theo giấy phép GPL-3.0.\n", VOK_UPSTREAM_AUTHOR]);
-    addLink(@"Mã nguồn VOpenKey", VOK_REPO_URL);
+    addLink(@"Mã nguồn VOpenKey AI", VOK_REPO_URL);
     addText(@"  ·  ");
     addLink(@"OpenKey gốc", VOK_UPSTREAM_URL);
     addText(@"\nTừ điển gợi ý dùng các mục từ của\u2028");

@@ -1,14 +1,14 @@
-/* Class = "NSMenuItem"; title = "VOpenKey"; ObjectID = "1Xt-HY-uBw"; */
-"1Xt-HY-uBw.title" = "VOpenKey";
+/* Class = "NSMenuItem"; title = "VOpenKey AI"; ObjectID = "1Xt-HY-uBw"; */
+"1Xt-HY-uBw.title" = "VOpenKey AI";
 
-/* Class = "NSMenuItem"; title = "Thoát VOpenKey"; ObjectID = "4sb-4s-VLi"; */
-"4sb-4s-VLi.title" = "Thoát VOpenKey";
+/* Class = "NSMenuItem"; title = "Thoát VOpenKey AI"; ObjectID = "4sb-4s-VLi"; */
+"4sb-4s-VLi.title" = "Thoát VOpenKey AI";
 
 /* Class = "NSMenuItem"; title = "Chỉnh sửa"; ObjectID = "5QF-Oa-p0T"; */
 "5QF-Oa-p0T.title" = "Chỉnh sửa";
 
-/* Class = "NSMenuItem"; title = "Giới thiệu VOpenKey"; ObjectID = "5kV-Vb-QxS"; */
-"5kV-Vb-QxS.title" = "Giới thiệu VOpenKey";
+/* Class = "NSMenuItem"; title = "Giới thiệu VOpenKey AI"; ObjectID = "5kV-Vb-QxS"; */
+"5kV-Vb-QxS.title" = "Giới thiệu VOpenKey AI";
 
 /* Class = "NSMenuItem"; title = "Làm lại"; ObjectID = "6dh-zS-Vam"; */
 "6dh-zS-Vam.title" = "Làm lại";
@@ -31,8 +31,8 @@
 /* Class = "NSMenuItem"; title = "Thu nhỏ"; ObjectID = "OY7-WF-poV"; */
 "OY7-WF-poV.title" = "Thu nhỏ";
 
-/* Class = "NSMenuItem"; title = "Ẩn VOpenKey"; ObjectID = "Olw-nP-bQN"; */
-"Olw-nP-bQN.title" = "Ẩn VOpenKey";
+/* Class = "NSMenuItem"; title = "Ẩn VOpenKey AI"; ObjectID = "Olw-nP-bQN"; */
+"Olw-nP-bQN.title" = "Ẩn VOpenKey AI";
 
 /* Class = "NSMenuItem"; title = "Phóng to"; ObjectID = "R4o-n2-Eq4"; */
 "R4o-n2-Eq4.title" = "Phóng to";
@@ -67,8 +67,8 @@
 /* Class = "NSMenuItem"; title = "Xóa"; ObjectID = "pa3-QI-u2k"; */
 "pa3-QI-u2k.title" = "Xóa";
 
-/* Class = "NSMenu"; title = "VOpenKey"; ObjectID = "uQy-DD-JDr"; */
-"uQy-DD-JDr.title" = "VOpenKey";
+/* Class = "NSMenu"; title = "VOpenKey AI"; ObjectID = "uQy-DD-JDr"; */
+"uQy-DD-JDr.title" = "VOpenKey AI";
 
 /* Class = "NSMenuItem"; title = "Cắt"; ObjectID = "uRl-iY-unG"; */
 "uRl-iY-unG.title" = "Cắt";

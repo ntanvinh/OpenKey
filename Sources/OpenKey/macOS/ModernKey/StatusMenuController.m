@@ -100,7 +100,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _menu.delegate = self;
 
     //notices, only there when there is something to tell
-    _permissionItem = MakeItem(@"Cấp quyền để VOpenKey hoạt động…", @"exclamationmark.shield", self, @selector(askPermissions:));
+    _permissionItem = MakeItem(@"Cấp quyền để VOpenKey AI hoạt động…", @"exclamationmark.shield", self, @selector(askPermissions:));
     _secureItem = MakeItem(@"Secure Input đang bật", @"exclamationmark.triangle", nil, nil);
     _secureItem.enabled = NO;
     _noticeSeparator = [NSMenuItem separatorItem];

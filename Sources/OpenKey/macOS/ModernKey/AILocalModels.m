@@ -28,7 +28,7 @@
 
 +(AILocalModel*)customModelWithTag:(NSString*)tag bytes:(uint64_t)bytes {
     return [[AILocalModel alloc] initWithTag:tag name:tag family:@"Model do bạn chọn" parameters:@""
-                                     summary:@"Model bạn tự nhập tên. VOpenKey không biết nó viết tiếng Việt tốt đến đâu. Model có chế độ suy nghĩ (qwen3, gemma4, deepseek-r1…) sẽ chậm hơn lúc bắt đầu trả lời; VOpenKey bỏ phần suy nghĩ và chỉ lấy câu trả lời."
+                                     summary:@"Model bạn tự nhập tên. VOpenKey AI không biết nó viết tiếng Việt tốt đến đâu. Model có chế độ suy nghĩ (qwen3, gemma4, deepseek-r1…) sẽ chậm hơn lúc bắt đầu trả lời; VOpenKey AI bỏ phần suy nghĩ và chỉ lấy câu trả lời."
                                   vietnamese:@"Chưa rõ" bytes:bytes quality:0 speed:0 custom:YES];
 }
 

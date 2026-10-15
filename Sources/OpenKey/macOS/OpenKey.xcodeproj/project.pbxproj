@@ -48,7 +48,6 @@
 		5EC0DE1420261017000A0003 /* MacroPresets.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1420261017000A0002 /* MacroPresets.mm */; };
 		5EC0DE1620261019000A0002 /* CaretLocator.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1620261019000A0001 /* CaretLocator.m */; };
 		5EC0DE1420261017000A0005 /* vi-macros.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1420261017000A0004 /* vi-macros.txt */; };
-		238AF97122042EC600AEFA17 /* Icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 238AF97022042EC600AEFA17 /* Icon.icns */; };
 		23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23963B4F22040C720097189E /* ServiceManagement.framework */; };
 		5EC0DE1520261018000A0002 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE1520261018000A0001 /* UniformTypeIdentifiers.framework */; };
 		23CA6D1722F0439100804D6E /* MyTextField.m in Sources */ = {isa = PBXBuildFile; fileRef = 23CA6D1622F0439100804D6E /* MyTextField.m */; };
@@ -106,7 +105,7 @@
 		232DB1E121FAED280049A0B5 /* Status.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Status.png; sourceTree = "<group>"; };
 		232DB1E221FAED280049A0B5 /* Status@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Status@2x.png"; sourceTree = "<group>"; };
 		232DB1E321FAED280049A0B5 /* StatusHighlighted@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "StatusHighlighted@2x.png"; sourceTree = "<group>"; };
-		232EDA5421F1B33E0085D362 /* VOpenKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VOpenKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		232EDA5421F1B33E0085D362 /* VOpenKey AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "VOpenKey AI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		232EDA5721F1B33E0085D362 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		232EDA5821F1B33E0085D362 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		232EDA5D21F1B33F0085D362 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -114,7 +113,6 @@
 		232EDA6221F1B33F0085D362 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		232EDA6321F1B33F0085D362 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		232EDA6521F1B33F0085D362 /* ModernKey.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ModernKey.entitlements; sourceTree = "<group>"; };
-		23310EA12314F31400226CA5 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
 		233C4A6D231F923D00DD7052 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		233C4A6F231F937900DD7052 /* ConvertTool.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ConvertTool.cpp; sourceTree = "<group>"; };
 		233C4A71231F938800DD7052 /* ConvertTool.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ConvertTool.h; sourceTree = "<group>"; };
@@ -182,7 +180,6 @@
 		5EC0DE1720261020000A0001 /* SuggestionKeys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SuggestionKeys.h; sourceTree = "<group>"; };
 		5EC0DE1620261019000A0003 /* CaretLocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CaretLocator.h; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0004 /* vi-macros.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-macros.txt; path = dictionaries/vi-macros.txt; sourceTree = "<group>"; };
-		238AF97022042EC600AEFA17 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
 		23963B4F22040C720097189E /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		2397059323143266002DDEA7 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		2397059423143266002DDEA7 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -280,7 +277,6 @@
 			isa = PBXGroup;
 			children = (
 				5EC0DE19202610140001 /* lss-logo.png */,
-				238AF97022042EC600AEFA17 /* Icon.icns */,
 				234F70AB21FB50BD00D2F2CA /* StatusEng.png */,
 				234F70A921FB50BC00D2F2CA /* StatusEng@2x.png */,
 				234F70A821FB50BC00D2F2CA /* StatusHighlightedEng.png */,
@@ -310,7 +306,7 @@
 		232EDA5521F1B33E0085D362 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				232EDA5421F1B33E0085D362 /* VOpenKey.app */,
+				232EDA5421F1B33E0085D362 /* VOpenKey AI.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -416,7 +412,6 @@
 		23310EA02314F31400226CA5 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				23310EA12314F31400226CA5 /* Icon.icns */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -534,7 +529,7 @@
 			);
 			name = OpenKey;
 			productName = ModernKey;
-			productReference = 232EDA5421F1B33E0085D362 /* VOpenKey.app */;
+			productReference = 232EDA5421F1B33E0085D362 /* VOpenKey AI.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -584,7 +579,6 @@
 				5EC0DE19202610140002 /* lss-logo.png in Resources */,
 				234F70AC21FB50BD00D2F2CA /* StatusHighlightedEng.png in Resources */,
 				232DB1E721FAED290049A0B5 /* StatusHighlighted@2x.png in Resources */,
-				238AF97122042EC600AEFA17 /* Icon.icns in Resources */,
 				234F70AE21FB50BD00D2F2CA /* StatusHighlightedEng@2x.png in Resources */,
 				232DB1E421FAED290049A0B5 /* StatusHighlighted.png in Resources */,
 				234F70AF21FB50BD00D2F2CA /* StatusEng.png in Resources */,
@@ -810,21 +804,22 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 66;
+				CURRENT_PROJECT_VERSION = 68;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.5.4;
+				MARKETING_VERSION = 3.5.6;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = vn.io.lssoft.vopenkey;
-				PRODUCT_NAME = VOpenKey;
+				PRODUCT_NAME = "VOpenKey AI";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Debug;
@@ -837,21 +832,22 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 66;
+				CURRENT_PROJECT_VERSION = 68;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.5.4;
+				MARKETING_VERSION = 3.5.6;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = vn.io.lssoft.vopenkey;
-				PRODUCT_NAME = VOpenKey;
+				PRODUCT_NAME = "VOpenKey AI";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 			};
 			name = Release;

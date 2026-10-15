@@ -56,9 +56,9 @@
         return _status.installed ? @"Ollama đã cài và đang tắt: không tốn RAM hay điện." : @"Chưa cài Ollama trên máy này.";
     NSString* who;
     switch (_status.origin) {
-        case AIOllamaOriginManaged:  who = @"do VOpenKey mở"; break;
-        case AIOllamaOriginLeftover: who = @"do VOpenKey mở từ lần trước, chưa ai tắt"; break;
-        default:                     who = @"do ứng dụng khác mở, ví dụ ứng dụng Ollama hoặc Terminal; VOpenKey không tắt giúp"; break;
+        case AIOllamaOriginManaged:  who = @"do VOpenKey AI mở"; break;
+        case AIOllamaOriginLeftover: who = @"do VOpenKey AI mở từ lần trước, chưa ai tắt"; break;
+        default:                     who = @"do ứng dụng khác mở, ví dụ ứng dụng Ollama hoặc Terminal; VOpenKey AI không tắt giúp"; break;
     }
     NSString* loaded;
     if (_status.loadedModels.count == 0) {

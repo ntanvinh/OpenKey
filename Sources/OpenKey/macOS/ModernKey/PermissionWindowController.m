@@ -126,7 +126,7 @@ static BOOL RunsFromApplicationsFolder(void) {
     [icon.widthAnchor constraintEqualToConstant:36].active = YES;
     [icon.heightAnchor constraintEqualToConstant:36].active = YES;
     
-    NSTextField* text = VOKLabel(@"Không thấy VOpenKey trong danh sách? Kéo biểu tượng này thả vào danh sách, hoặc bấm nút \"+\" rồi chọn app tại vị trí hiện trong Finder.",
+    NSTextField* text = VOKLabel(@"Không thấy VOpenKey AI trong danh sách? Kéo biểu tượng này thả vào danh sách, hoặc bấm nút \"+\" rồi chọn app tại vị trí hiện trong Finder.",
                                  11, NSFontWeightRegular, [NSColor secondaryLabelColor]);
     NSButton* reveal = [NSButton buttonWithTitle:@"Hiện trong Finder" target:self action:@selector(revealApp:)];
     reveal.controlSize = NSControlSizeSmall;
@@ -157,7 +157,7 @@ static BOOL RunsFromApplicationsFolder(void) {
 
     NSTextField* title = VOKLabel([NSString stringWithFormat:@"Chào mừng đến với %@", VOK_APP_NAME], 22, NSFontWeightBold, nil);
     title.alignment = NSTextAlignmentCenter;
-    NSTextField* intro = VOKLabel(@"Để gõ tiếng Việt trong mọi ứng dụng, bạn chỉ cần cấp 2 quyền dưới đây: bấm công tắc, rồi bật VOpenKey trong Cài đặt hệ thống.",
+    NSTextField* intro = VOKLabel(@"Để gõ tiếng Việt trong mọi ứng dụng, bạn chỉ cần cấp 2 quyền dưới đây: bấm công tắc, rồi bật VOpenKey AI trong Cài đặt hệ thống.",
                                   13, NSFontWeightRegular, [NSColor secondaryLabelColor]);
     intro.alignment = NSTextAlignmentCenter;
     [intro.widthAnchor constraintEqualToConstant:kContentWidth - 20].active = YES;

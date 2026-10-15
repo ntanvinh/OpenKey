@@ -4,7 +4,7 @@ Yêu cầu:
 - macOS 13 (Ventura) trở lên, Xcode 15 trở lên (đã thử với Xcode 26).
 - Để ký và phát hành: chứng chỉ **Developer ID Application** trong Keychain (lệnh dưới tự tìm).
 
-Dự án nằm ở `Sources/OpenKey/macOS/OpenKey.xcodeproj` (target và scheme `OpenKey`, sản phẩm ra là `VOpenKey.app`).
+Dự án nằm ở `Sources/OpenKey/macOS/OpenKey.xcodeproj` (target và scheme `OpenKey`, sản phẩm ra là `VOpenKey AI.app`).
 
 ### Chạy thử khi phát triển
 
@@ -12,7 +12,7 @@ Dự án nằm ở `Sources/OpenKey/macOS/OpenKey.xcodeproj` (target và scheme 
 scripts/dev.sh
 ```
 
-Mỗi lần chạy, script tự tăng patch version (ví dụ `3.0.0` thành `3.0.1`) bằng `scripts/version.sh bump patch`, rồi build bản Debug, ký, cài vào `~/Applications/VOpenKey.app` và mở. Phiên bản được đồng bộ trong cấu hình macOS, Windows và changelog; `version.json` không đổi nên bản dev không được công bố là bản cập nhật. Thêm `--reset-permissions` để xóa quyền đã cấp và xem lại cửa sổ cấp quyền lần đầu, `--no-open` để chỉ cài.
+Mỗi lần chạy, script tự tăng patch version (ví dụ `3.0.0` thành `3.0.1`) bằng `scripts/version.sh bump patch`, rồi build bản Debug, ký, cài vào `~/Applications/VOpenKey AI.app` và mở. Phiên bản được đồng bộ trong cấu hình macOS, Windows và changelog; `version.json` không đổi nên bản dev không được công bố là bản cập nhật. Thêm `--reset-permissions` để xóa quyền đã cấp và xem lại cửa sổ cấp quyền lần đầu, `--no-open` để chỉ cài.
 
 Trước khi thay app, script kiểm tra chữ ký bản mới và dừng mọi bản VOpenKey của tài khoản hiện tại theo bundle ID, kể cả bản chạy từ Xcode hoặc thư mục khác. Sau khi cài, script đăng ký lại app với macOS, mở lần đầu rồi tự thoát/mở lại để tránh trạng thái bộ gõ cũ sau khi thay bundle. Script kiểm tra tiến trình mới và keyboard hook; nếu hook chưa sẵn sàng, sẽ báo cần kiểm tra quyền hoặc Secure Input. Không xóa cấu hình, dữ liệu hay quyền đã cấp. `--no-open` bỏ qua khởi động; `--reset-permissions` chỉ mở một lần để bạn cấp quyền.
 

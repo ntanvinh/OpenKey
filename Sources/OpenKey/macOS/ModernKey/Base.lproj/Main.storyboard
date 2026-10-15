@@ -16,11 +16,11 @@
                 <application id="hnw-xV-0zn" sceneMemberID="viewController">
                     <menu key="mainMenu" title="Main Menu" systemMenu="main" id="AYu-sK-qS6">
                         <items>
-                            <menuItem title="VOpenKey" id="1Xt-HY-uBw">
+                            <menuItem title="VOpenKey AI" id="1Xt-HY-uBw">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="VOpenKey" systemMenu="apple" id="uQy-DD-JDr">
+                                <menu key="submenu" title="VOpenKey AI" systemMenu="apple" id="uQy-DD-JDr">
                                     <items>
-                                        <menuItem title="Giới thiệu VOpenKey" id="5kV-Vb-QxS">
+                                        <menuItem title="Giới thiệu VOpenKey AI" id="5kV-Vb-QxS">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="onAboutSelected" target="Voe-Tx-rLC" id="Exp-CZ-Vem"/>
@@ -38,7 +38,7 @@
                                             <menu key="submenu" title="Dịch vụ" systemMenu="services" id="hz9-B4-Xy5"/>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="4je-JR-u6R"/>
-                                        <menuItem title="Ẩn VOpenKey" keyEquivalent="h" id="Olw-nP-bQN">
+                                        <menuItem title="Ẩn VOpenKey AI" keyEquivalent="h" id="Olw-nP-bQN">
                                             <connections>
                                                 <action selector="hide:" target="Ady-hI-5gd" id="PnN-Uc-m68"/>
                                             </connections>
@@ -56,7 +56,7 @@
                                             </connections>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="kCx-OE-vgT"/>
-                                        <menuItem title="Thoát VOpenKey" keyEquivalent="q" id="4sb-4s-VLi">
+                                        <menuItem title="Thoát VOpenKey AI" keyEquivalent="q" id="4sb-4s-VLi">
                                             <connections>
                                                 <action selector="terminate:" target="Ady-hI-5gd" id="Te7-pn-YzF"/>
                                             </connections>

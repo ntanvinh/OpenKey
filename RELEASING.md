@@ -1,4 +1,4 @@
-# Phát hành VOpenKey
+# Phát hành VOpenKey AI
 
 Mỗi phiên bản là **một GitHub Release** (tag `v<phiên bản>`, ví dụ `v3.0.0`) chứa file của từng nền tảng:
 
@@ -19,8 +19,8 @@ Thêm `--dry-run` để chỉ kiểm tra và xem kế hoạch, `--yes` để kh�
 
 1. **Kiểm tra trước khi đụng vào file nào**: đang ở nhánh `master`, đã đồng bộ với `origin`, cây làm việc sạch (script tự commit, nên hãy commit việc dở trước), `gh` đã đăng nhập, hồ sơ notarize có trong keychain, workflow Windows đã được commit, tag chưa tồn tại.
 2. **Nâng phiên bản** bằng `scripts/version.sh bump`: `project.pbxproj` (MARKETING_VERSION, CURRENT_PROJECT_VERSION tăng 1), `OpenKey.rc` của Windows, và thêm mục vào `CHANGELOG.md` (nếu bạn đã tự viết sẵn mục cho phiên bản đó thì giữ nguyên).
-3. **Build, ký và notarize** `VOpenKey.app` và file `.dmg`. Nếu bước này lỗi, phiên bản vừa nâng được hoàn tác.
-4. **Commit `release: VOpenKey x.y.z`, push `master`, tạo GitHub Release `vx.y.z`** kèm `.dmg` và `.sha256`; mô tả phát hành lấy từ mục CHANGELOG.
+3. **Build, ký và notarize** `VOpenKey AI.app` và file `.dmg`. Nếu bước này lỗi, phiên bản vừa nâng được hoàn tác.
+4. **Commit `release: VOpenKey AI x.y.z`, push `master`, tạo GitHub Release `vx.y.z`** kèm `.dmg` và `.sha256`; mô tả phát hành lấy từ mục CHANGELOG.
 5. **Windows tự chạy**: Release vừa publish kích hoạt workflow `Release Windows`; script chờ nó xong và kiểm tra `VOpenKey-x.y.z-Windows.zip` đã nằm trong Release. Dùng `--no-windows` để bỏ qua.
 6. **Cuối cùng mới ghi `version.json`** rồi commit và push. Các app đọc file này trên nhánh `master` để báo có bản mới, nên chỉ khi mọi file tải về đã sẵn sàng người dùng mới nhận thông báo.
 

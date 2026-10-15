@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build, sign and package VOpenKey for release, and with a version argument do the whole release in one go.
+# Build, sign and package VOpenKey AI for release, and with a version argument do the whole release in one go.
 #
 #   scripts/release.sh patch           raise the version (3.0.0 -> 3.0.1; minor, major or an explicit 3.1.0 also work), build,
 #                                      sign, notarize, push, publish the GitHub release with the dmg, wait for the Windows
@@ -123,7 +123,7 @@ if [ "$FULL" = 1 ]; then
     {
         echo "  $APP_NAME $(setting MARKETING_VERSION) (build $(setting CURRENT_PROJECT_VERSION))  ->  $NEXT_VERSION (build $NEXT_BUILD)"
         echo "  1. raise the version in the Xcode project, the Windows resources and the change log"
-        if [ "$NOTARIZE" = 1 ]; then echo "  2. build, sign and notarize $APP_NAME.app and the dmg"; else echo "  2. build and sign $APP_NAME.app and the dmg (NOT notarized)"; fi
+        if [ "$NOTARIZE" = 1 ]; then echo "  2. build, sign and notarize $DISPLAY_NAME.app and the dmg"; else echo "  2. build and sign $DISPLAY_NAME.app and the dmg (NOT notarized)"; fi
         echo "  3. commit and push to master, create the GitHub release $TAG on $REPO with the dmg"
         [ "$WINDOWS" = 1 ] && echo "  4. wait for GitHub Actions to build the Windows version and attach it to the release"
         echo "  5. write the version in version.json and push it: only then do the apps offer the update"
@@ -160,7 +160,7 @@ codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | sed 's/^/    /' >&2
 SIGNING="$(codesign -dv --verbose=4 "$APP" 2>&1)"
 echo "$SIGNING" | grep -q "flags=.*runtime" || die "the app is not signed with the hardened runtime, Apple would refuse to notarize it"
 echo "$SIGNING" | grep -q "Timestamp=" || die "the signature has no secure timestamp, Apple would refuse to notarize it"
-echo "    architectures: $(lipo -archs "$APP/Contents/MacOS/$APP_NAME")" >&2
+echo "    architectures: $(lipo -archs "$APP/Contents/MacOS/$DISPLAY_NAME")" >&2
 echo "    identity:      $(echo "$SIGNING" | sed -n 's/^Authority=\(Developer ID Application.*\)$/\1/p' | head -1)" >&2
 
 # --- notarization -----------------------------------------------------------------------------------------------------
@@ -191,10 +191,10 @@ fi
 say "Making $(basename "$DMG")"
 STAGING="$ROOT/build/dmg/$APP_NAME"
 mkdir -p "$STAGING"
-ditto "$APP" "$STAGING/$APP_NAME.app"
+ditto "$APP" "$STAGING/$DISPLAY_NAME.app"
 ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
-hdiutil create -volname "$APP_NAME $VERSION" -srcfolder "$STAGING" -ov -format UDZO -fs HFS+ "$DMG" >/dev/null
+hdiutil create -volname "$DISPLAY_NAME $VERSION" -srcfolder "$STAGING" -ov -format UDZO -fs HFS+ "$DMG" >/dev/null
 codesign --force --sign "$IDENTITY" --timestamp "$DMG"
 
 if [ "$NOTARIZE" = 1 ]; then
@@ -208,7 +208,7 @@ fi
 
 # --- what macOS thinks of it ------------------------------------------------------------------------------------------
 say "Gatekeeper's verdict"
-spctl -a -vv -t exec "$STAGING/$APP_NAME.app" 2>&1 | sed 's/^/    /' >&2 || true
+spctl -a -vv -t exec "$STAGING/$DISPLAY_NAME.app" 2>&1 | sed 's/^/    /' >&2 || true
 if [ "$NOTARIZE" = 0 ]; then
     warn "not notarized: it runs on this Mac, but another Mac will warn that it cannot check it for malicious software. Use --notarize for a release."
 fi
@@ -256,16 +256,16 @@ if [ "$PUBLISH" = 1 ]; then
         "$VERSION_SH" notes > "$NOTES"
         say "Publishing $TAG on $REPO"
         if [ -s "$NOTES" ]; then
-            gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --target "$SHA" --title "$APP_NAME $VERSION" --notes-file "$NOTES"
+            gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --notes-file "$NOTES"
         else
-            gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --target "$SHA" --title "$APP_NAME $VERSION" --generate-notes
+            gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --generate-notes
         fi
         if [ "$WINDOWS" = 1 ]; then wait_for_windows "$TAG" "$SHA"; fi
         announce_release
         say "Released: https://github.com/$REPO/releases/tag/$TAG"
     else
         say "Publishing $TAG on $REPO"
-        gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --title "$APP_NAME $VERSION" --generate-notes
+        gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --title "$DISPLAY_NAME $VERSION" --generate-notes
         warn "the app's update check reads version.json from the master branch of $REPO: make sure the version in it ($VERSION, build $BUILD) is pushed (scripts/release.sh --announce)"
     fi
 fi

@@ -291,7 +291,7 @@ static AIOllamaRuntime* sReplacement;
             return;
         }
         if (!status.canStop) {
-            completion(RuntimeError(VOKAILocalErrorFailed, @"Ollama đang chạy do một ứng dụng khác mở (ví dụ ứng dụng Ollama hoặc cửa sổ Terminal), nên VOpenKey không tắt giúp. Hãy thoát ứng dụng đó, hoặc dùng “Giải phóng RAM” để model rời khỏi bộ nhớ."));
+            completion(RuntimeError(VOKAILocalErrorFailed, @"Ollama đang chạy do một ứng dụng khác mở (ví dụ ứng dụng Ollama hoặc cửa sổ Terminal), nên VOpenKey AI không tắt giúp. Hãy thoát ứng dụng đó, hoặc dùng “Giải phóng RAM” để model rời khỏi bộ nhớ."));
             return;
         }
         int pid = status.processIdentifier;

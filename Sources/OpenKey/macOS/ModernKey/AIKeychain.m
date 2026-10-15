@@ -64,7 +64,7 @@ static NSString* sService;
     if (status == errSecItemNotFound) {
         AIProvider* known = [AIProvider providerWithIdentifier:provider];
         query[(__bridge id)kSecValueData] = data;
-        query[(__bridge id)kSecAttrLabel] = [NSString stringWithFormat:@"VOpenKey: %@", known.name ?: provider];
+        query[(__bridge id)kSecAttrLabel] = [NSString stringWithFormat:@"VOpenKey AI: %@", known.name ?: provider];
         query[(__bridge id)kSecAttrAccessible] = (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly;
         status = SecItemAdd((__bridge CFDictionaryRef)query, NULL);
     }

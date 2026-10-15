@@ -591,7 +591,7 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
     if (status == 429)
         return MakeError(VOKAIErrorRateLimit, [NSString stringWithFormat:@"Đã vượt giới hạn yêu cầu hoặc hết hạn mức của %@. Thử lại sau, hoặc kiểm tra gói sử dụng.%@", c.provider.name, detail]);
     if (status >= 300 && status < 400)
-        return MakeError(VOKAIErrorServer, @"Máy chủ chuyển hướng sang địa chỉ khác nên VOpenKey dừng lại để không gửi key đi nơi khác. Hãy sửa địa chỉ máy chủ trong Cài đặt > AI.");
+        return MakeError(VOKAIErrorServer, @"Máy chủ chuyển hướng sang địa chỉ khác nên VOpenKey AI dừng lại để không gửi key đi nơi khác. Hãy sửa địa chỉ máy chủ trong Cài đặt > AI.");
     if (status >= 500)
         return MakeError(VOKAIErrorServer, [NSString stringWithFormat:@"Máy chủ AI đang gặp sự cố (mã %ld). Thử lại sau.%@", (long)status, detail]);
     return MakeError(VOKAIErrorServer, [NSString stringWithFormat:@"Máy chủ từ chối yêu cầu (mã %ld).%@", (long)status, detail]);

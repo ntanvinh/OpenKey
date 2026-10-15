@@ -464,7 +464,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     };
 
     SettingsToggle* forceABC = [SettingsToggle title:@"Giữ bộ gõ macOS ở ABC khi gõ tiếng Việt"
-                                              detail:@"Tránh gõ hai lần khi bộ gõ Vietnamese của macOS cũng đang bật: nếu gặp nó, VOpenKey chuyển về ABC."
+                                              detail:@"Tránh gõ hai lần khi bộ gõ Vietnamese của macOS cũng đang bật: nếu gặp nó, VOpenKey AI chuyển về ABC."
                                                  key:@"ForceABCWhenVietnamese" variable:&vForceABC];
     forceABC.onChange = ^(BOOL on) { [InputSourceGuard enforce]; };
 
@@ -592,7 +592,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSButton* reload = [NSButton buttonWithTitle:@"Tải lại" target:self action:@selector(reloadDictionaries:)];
     [rows addObject:[self buttonRowWithTitle:@"Tải lại từ điển" detail:@"Sau khi thêm hoặc sửa file từ điển." button:reload]];
     NSButton* forget = [NSButton buttonWithTitle:@"Xóa…" target:self action:@selector(forgetLearnedWords:)];
-    [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey đã học từ bạn." button:forget]];
+    [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey AI đã học từ bạn." button:forget]];
     return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows
                            footer:@"Chỉ dùng được với bảng mã Unicode. Tự tắt trong Terminal và khi gõ mật khẩu."];
 }
@@ -676,7 +676,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     };
 
     SettingsToggle* copy = [SettingsToggle title:@"Lấy chữ đang chọn bằng ⌘C khi cần"
-                                          detail:@"Trình duyệt, Trae, VS Code… không cho đọc vùng chọn trực tiếp. VOpenKey bấm ⌘C rồi trả clipboard về như cũ."
+                                          detail:@"Trình duyệt, Trae, VS Code… không cho đọc vùng chọn trực tiếp. VOpenKey AI bấm ⌘C rồi trả clipboard về như cũ."
                                              key:@"AICopySelection" variable:&vAICopySelection];
     return [self sectionWithTitle:@"Trợ lý AI" rows:@[
         [self rowForToggle:enabled],
@@ -699,7 +699,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     VOKSetButtonSymbol(_aiLocalStart, @"play.fill", 11);
     VOKSetButtonSymbol(_aiLocalStop, @"stop.fill", 11);
     VOKSetButtonSymbol(_aiLocalUnload, @"memorychip", 11);
-    _aiLocalStop.toolTip = @"Tắt hẳn Ollama do VOpenKey mở. Ollama do ứng dụng khác mở thì phải tắt ở ứng dụng đó.";
+    _aiLocalStop.toolTip = @"Tắt hẳn Ollama do VOpenKey AI mở. Ollama do ứng dụng khác mở thì phải tắt ở ứng dụng đó.";
     _aiLocalStart.toolTip = @"Mở Ollama ngay, để lần hỏi đầu tiên không phải chờ khởi động.";
     _aiLocalUnload.toolTip = @"Đưa model ra khỏi RAM ngay mà không tắt Ollama. Lần hỏi sau model sẽ nạp lại nên câu trả lời đầu chậm hơn.";
     for (NSButton* button in @[_aiLocalStart, _aiLocalStop, _aiLocalUnload])
@@ -712,11 +712,11 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSStackView* control = [self aiStack:@[install, _aiLocalStatus, _aiLocalButtons, _aiLocalLoad, _aiLocalProblem] vertical:YES spacing:6];
     NSView* section = [self sectionWithTitle:@"AI chạy trên máy" rows:@[
         [self rowWithTitle:@"Dùng AI không cần internet"
-                    detail:@"Không cần API key, không tính tiền theo lượt dùng, chữ của bạn không rời khỏi máy. VOpenKey kiểm tra cấu hình máy, khuyên model phù hợp rồi tự cài."
+                    detail:@"Không cần API key, không tính tiền theo lượt dùng, chữ của bạn không rời khỏi máy. VOpenKey AI kiểm tra cấu hình máy, khuyên model phù hợp rồi tự cài."
                    control:control indent:0],
     ] footer:@"Chạy model là việc rất nặng: nó dùng hết sức của bộ xử lý và chiếm nhiều RAM, nên chỉ hợp khi máy đang ít việc. "
              @"Cần macOS 14 trở lên, chip Apple Silicon (M1 trở lên) và RAM từ 8 GB; Mac chip Intel chạy được nhưng chậm. "
-             @"Ollama do VOpenKey mở chỉ chạy khi cần và tắt khi thoát VOpenKey; bấm Dừng để tắt ngay."];
+             @"Ollama do VOpenKey AI mở chỉ chạy khi cần và tắt khi thoát VOpenKey AI; bấm Dừng để tắt ngay."];
     AILocalControl* local = [AILocalControl shared];
     __weak SettingsWindowController* weakSelf = self;
     local.onChange = ^{ [weakSelf reloadAILocalStatus]; };
@@ -1106,13 +1106,13 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     SettingsToggle* otherLanguage = [SettingsToggle title:@"Tắt tiếng Việt khi bộ gõ hệ thống khác tiếng Anh"
                                                    detail:@"Tự tắt khi bạn đang dùng một bộ gõ khác của macOS."
                                                       key:@"vOtherLanguage" variable:&vOtherLanguage];
-    SettingsToggle* tempOff = [SettingsToggle title:@"Tạm tắt VOpenKey bằng phím ⌘" detail:@"Bấm ⌘ để tạm ngừng cho tới khi bạn gõ một từ mới."
+    SettingsToggle* tempOff = [SettingsToggle title:@"Tạm tắt VOpenKey AI bằng phím ⌘" detail:@"Bấm ⌘ để tạm ngừng cho tới khi bạn gõ một từ mới."
                                                 key:@"vTempOffOpenKey" variable:&vTempOffOpenKey];
     NSMutableArray* rows = [NSMutableArray array];
     for (SettingsToggle* toggle in @[smart, remember, otherLanguage, tempOff])
         [rows addObject:[self rowForToggle:toggle]];
     NSButton* list = [NSButton buttonWithTitle:@"Xem danh sách…" target:self action:@selector(openRememberedApps:)];
-    [rows addObject:[self buttonRowWithTitle:@"Ứng dụng đã ghi nhớ" detail:@"Xem và sửa chế độ gõ, bảng mã VOpenKey đã nhớ cho từng ứng dụng." button:list]];
+    [rows addObject:[self buttonRowWithTitle:@"Ứng dụng đã ghi nhớ" detail:@"Xem và sửa chế độ gõ, bảng mã VOpenKey AI đã nhớ cho từng ứng dụng." button:list]];
     return [self sectionWithTitle:@"Theo từng ứng dụng" rows:rows];
 }
 
@@ -1134,7 +1134,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(NSView*)sectionStartup {
     SettingsToggle* startup = [SettingsToggle title:@"Khởi động cùng macOS" detail:nil key:@"RunOnStartup" variable:NULL];
     startup.onChange = ^(BOOL on) { [appDelegate setRunOnStartup:on]; };
-    SettingsToggle* showSettings = [SettingsToggle title:@"Mở cài đặt khi khởi động" detail:@"Hiện cửa sổ này mỗi khi chạy VOpenKey."
+    SettingsToggle* showSettings = [SettingsToggle title:@"Mở cài đặt khi khởi động" detail:@"Hiện cửa sổ này mỗi khi chạy VOpenKey AI."
                                                      key:@"ShowUIOnStartup" variable:NULL];
     __weak SettingsWindowController* weakSelf = self;
     SettingsToggle* dock = [SettingsToggle title:@"Hiện biểu tượng trên thanh Dock" detail:nil key:@"vShowIconOnDock" variable:&vShowIconOnDock];
@@ -1189,7 +1189,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
                                       button:[NSButton buttonWithTitle:[NSString stringWithFormat:@"Giới thiệu %@", VOK_APP_NAME] target:self action:@selector(openAbout:)]]];
     [rows addObject:[self buttonRowWithTitle:@"Khôi phục mặc định" detail:@"Đưa mọi tùy chọn về như lúc mới cài."
                                       button:[NSButton buttonWithTitle:@"Khôi phục…" target:self action:@selector(resetToDefaults:)]]];
-    return [self sectionWithTitle:@"Về VOpenKey" rows:rows];
+    return [self sectionWithTitle:@"Về VOpenKey AI" rows:rows];
 }
 
 #pragma mark - Reading the settings back
@@ -1260,7 +1260,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(void)forgetLearnedWords:(id)sender {
     NSAlert* alert = [[NSAlert alloc] init];
     alert.messageText = @"Xóa dữ liệu đã học?";
-    alert.informativeText = @"VOpenKey sẽ quên mọi từ và cụm từ đã học từ cách gõ của bạn. Từ điển có sẵn không bị ảnh hưởng.";
+    alert.informativeText = @"VOpenKey AI sẽ quên mọi từ và cụm từ đã học từ cách gõ của bạn. Từ điển có sẵn không bị ảnh hưởng.";
     //the safe choice is the default one, the destructive one is in red
     [alert addButtonWithTitle:@"Hủy"];
     [alert addButtonWithTitle:@"Xóa"].hasDestructiveAction = YES;

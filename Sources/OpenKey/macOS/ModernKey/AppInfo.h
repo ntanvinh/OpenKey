@@ -9,7 +9,9 @@
 #ifndef AppInfo_h
 #define AppInfo_h
 
-#define VOK_APP_NAME            @"VOpenKey"
+#define VOK_APP_NAME            @"VOpenKey AI"
+//the folder in ~/Library/Application Support: not the display name, so renaming the app does not orphan the user's data
+#define VOK_DATA_DIR_NAME       @"VOpenKey"
 #define VOK_BUNDLE_ID           @"vn.io.lssoft.vopenkey"
 #define VOK_COMPANY             @"LSSoft"
 
