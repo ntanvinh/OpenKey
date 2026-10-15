@@ -138,7 +138,8 @@ static void TestInstalledNotRunning(void) {
     [control start];                                                                           //a second click does nothing
     WaitFor(control, ^BOOL { return !control.busy && control.canStop; });
     CHECK(!control.busy && control.problemText == nil && runtime.isManaged && Answers());
-    CHECK([control.statusText containsString:@"đang chạy (do VOpenKey mở)"] && [control.statusText containsString:@"Chưa nạp model nào"]);
+    CHECK([control.statusText containsString:@"đang chạy (do VOpenKey AI mở)"] && [control.statusText containsString:@"Chưa nạp model nào"]);
+    CHECK([control.briefStatusText hasPrefix:@"Ollama đang chạy"] && [control.briefStatusText containsString:@"chưa nạp model"] && control.briefStatusText.length < control.statusText.length);   //the short line the settings show
     CHECK(control.canStop && !control.canStart && !control.canUnload && changes >= 2);
 
     //a model is loaded when it answers: the memory it takes is said, and it can be freed without stopping the server
@@ -246,6 +247,7 @@ static void TestBusyMac(void) {
     Refresh(control);
     CHECK(!control.macIsBusy && [control.loadText containsString:@"đang rảnh"] && [control.loadText containsString:@"khoảng 10%"] && [control.loadText containsString:@"bộ nhớ ổn"]);
     CHECK([control.loadText containsString:@"chỉ hợp khi máy ít việc"]);
+    CHECK([control.briefLoadText containsString:@"Máy đang rảnh"] && [control.briefLoadText containsString:@"CPU 10%"] && control.briefLoadText.length < control.loadText.length);
     control = Control(runtime, Mac(0.5, AIMemoryPressureNormal));
     Refresh(control);
     CHECK(!control.macIsBusy && [control.loadText containsString:@"hơi bận"]);

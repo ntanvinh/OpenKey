@@ -75,6 +75,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 @interface SettingsToggle : NSObject
 @property (copy) NSString* title;
 @property (copy) NSString* detail;
+@property (copy) NSString* hint;                //the longer explanation, shown when the pointer rests on the row
 @property (copy) NSString* key;                 //saved as 0/1 under this key, unless there is a getter/setter
 @property int* variable;                        //the engine's copy of the value, may be NULL
 @property BOOL inverted;                        //saved value is the opposite of what the switch shows
@@ -163,7 +164,6 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     //the AI tab
     ShortcutRecorder* _aiRecorder;
     NSPopUpButton* _aiProvider;
-    NSTextField* _aiNote;
     NSSecureTextField* _aiKey;
     NSTextField* _aiKeyStatus;
     NSButton* _aiSaveKey;
@@ -277,7 +277,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [content layoutSubtreeIfNeeded];
 
     //a page taller than the screen scrolls instead of making a window that does not fit
-    CGFloat limit = MAX(480, [NSScreen mainScreen].visibleFrame.size.height - 170); //minus the title bar, the toolbar, the menu bar
+    CGFloat limit = [self pageHeightLimit];
     NSView* pageView = content;
     if (size.height > limit) {
         NSScrollView* scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, size.width, limit)];
@@ -355,18 +355,43 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 //The padding above and below the text is made of constraints: the edge insets of a stack view are not applied
 //vertically when its views are centred, which left rows with several lines of text without any padding.
 -(NSView*)rowWithTitle:(NSString*)title detail:(NSString*)detail control:(NSView*)control indent:(CGFloat)indent {
+    return [self rowWithTitle:title detail:detail hint:nil control:control indent:indent];
+}
+
+//`detail` is the short line under the name that everybody reads. `hint` is for what takes more words: it is shown as a tooltip
+//on the row, and a small (i) after the name tells that there is one.
+-(NSView*)rowWithTitle:(NSString*)title detail:(NSString*)detail hint:(NSString*)hint control:(NSView*)control indent:(CGFloat)indent {
     control.translatesAutoresizingMaskIntoConstraints = NO;
     [control setContentHuggingPriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
     [control setContentCompressionResistancePriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
 
     //the text may be as wide as what the control leaves
     CGFloat textWidth = kCardWidth - 2 * kRowInset - kRowSpacing - ceil(control.fittingSize.width) - indent;
+    const CGFloat kHintIcon = 14, kHintGap = 5;
+    NSString* tip = VOKTooltip(hint);
     NSTextField* name = VOKLabel(title, 13, NSFontWeightRegular, nil);
-    [self fixSizeOfLabel:name width:textWidth];
-    NSMutableArray* texts = [NSMutableArray arrayWithObject:name];
+    [self fixSizeOfLabel:name width:tip != nil ? textWidth - kHintIcon - kHintGap : textWidth];
+    NSView* nameLine = name;
+    if (tip != nil) {
+        NSImageView* icon = [NSImageView imageViewWithImage:VOKSymbol(@"info.circle", 12, NSFontWeightRegular)];
+        icon.contentTintColor = [NSColor tertiaryLabelColor];
+        icon.translatesAutoresizingMaskIntoConstraints = NO;
+        [icon.widthAnchor constraintEqualToConstant:kHintIcon].active = YES;
+        [icon.heightAnchor constraintEqualToConstant:kHintIcon].active = YES;
+        icon.toolTip = tip;
+        name.toolTip = tip;
+        NSStackView* line = [NSStackView stackViewWithViews:@[name, icon]];
+        line.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+        line.alignment = NSLayoutAttributeCenterY;
+        line.spacing = kHintGap;
+        line.translatesAutoresizingMaskIntoConstraints = NO;
+        nameLine = line;
+    }
+    NSMutableArray* texts = [NSMutableArray arrayWithObject:nameLine];
     if (detail.length > 0) {
         NSTextField* explanation = VOKLabel(detail, 11, NSFontWeightRegular, [NSColor secondaryLabelColor]);
         [self fixSizeOfLabel:explanation width:textWidth];
+        explanation.toolTip = tip;
         [texts addObject:explanation];
     }
     NSStackView* textStack = [NSStackView stackViewWithViews:texts];
@@ -377,6 +402,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
     NSView* row = [[NSView alloc] init];
     row.translatesAutoresizingMaskIntoConstraints = NO;
+    row.toolTip = tip;
+    textStack.toolTip = tip;
     [row addSubview:textStack];
     [row addSubview:control];
     [NSLayoutConstraint activateConstraints:@[
@@ -408,7 +435,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [weakSelf reload]; //children follow their parent
     };
     [_toggles addObject:toggle];
-    return [self rowWithTitle:toggle.title detail:toggle.detail control:control indent:parent != nil ? kChildIndent : 0];
+    return [self rowWithTitle:toggle.title detail:toggle.detail hint:toggle.hint control:control indent:parent != nil ? kChildIndent : 0];
 }
 
 -(NSView*)sectionOfToggles:(NSString*)title toggles:(NSArray<SettingsToggle*>*)toggles {
@@ -658,14 +685,13 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 //what the shortcut does, and how the selected text is found
 -(NSView*)sectionAI {
-    SettingsToggle* enabled = [SettingsToggle title:@"Mở trợ lý AI bằng phím tắt"
-                                             detail:@"Chọn một đoạn văn rồi bấm phím tắt để nhờ AI dịch, sửa, tóm tắt. Không chọn gì thì nhờ viết nội dung mới."
-                                                key:@"AIEnabled" variable:&vAIEnabled];
+    SettingsToggle* enabled = [SettingsToggle title:@"Mở trợ lý AI bằng phím tắt" detail:nil key:@"AIEnabled" variable:&vAIEnabled];
+    enabled.hint = @"Chọn một đoạn văn rồi bấm phím tắt để nhờ AI dịch, sửa, tóm tắt. Không chọn gì thì nhờ viết nội dung mới.";
     enabled.onChange = ^(BOOL on) { [appDelegate refreshMenu]; };
 
     _aiRecorder = [[ShortcutRecorder alloc] init];
     _aiRecorder.value = vAIHotKey;
-    _aiRecorder.toolTip = @"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.";
+    _aiRecorder.toolTip = VOKTooltip(@"Bấm vào ô rồi nhấn phím tắt mới. Cũng có thể chỉ giữ hai phím bổ trợ, ví dụ ⌃⇧, rồi thả ra. Xóa để bỏ phím tắt.");
     _aiRecorder.conflict = ^NSString*(int data) {
         return VOKShortcutConflict(data, VOKShortcutOwnerAI);
     };
@@ -675,12 +701,11 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [appDelegate refreshMenu]; //the shortcut is shown on the menu
     };
 
-    SettingsToggle* copy = [SettingsToggle title:@"Lấy chữ đang chọn bằng ⌘C khi cần"
-                                          detail:@"Trình duyệt, Trae, VS Code… không cho đọc vùng chọn trực tiếp. VOpenKey AI bấm ⌘C rồi trả clipboard về như cũ."
-                                             key:@"AICopySelection" variable:&vAICopySelection];
+    SettingsToggle* copy = [SettingsToggle title:@"Lấy chữ đang chọn bằng ⌘C khi cần" detail:nil key:@"AICopySelection" variable:&vAICopySelection];
+    copy.hint = @"Trình duyệt, Trae, VS Code… không cho đọc vùng chọn trực tiếp. VOpenKey AI bấm ⌘C rồi trả clipboard về như cũ.";
     return [self sectionWithTitle:@"Trợ lý AI" rows:@[
         [self rowForToggle:enabled],
-        [self rowWithTitle:@"Phím tắt mở trợ lý AI" detail:@"Bấm vào ô rồi nhấn tổ hợp phím mới." control:_aiRecorder indent:0],
+        [self rowWithTitle:@"Phím tắt" detail:nil control:_aiRecorder indent:0],
         [self rowForToggle:copy],
     ]];
 }
@@ -699,9 +724,9 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     VOKSetButtonSymbol(_aiLocalStart, @"play.fill", 11);
     VOKSetButtonSymbol(_aiLocalStop, @"stop.fill", 11);
     VOKSetButtonSymbol(_aiLocalUnload, @"memorychip", 11);
-    _aiLocalStop.toolTip = @"Tắt hẳn Ollama do VOpenKey AI mở. Ollama do ứng dụng khác mở thì phải tắt ở ứng dụng đó.";
-    _aiLocalStart.toolTip = @"Mở Ollama ngay, để lần hỏi đầu tiên không phải chờ khởi động.";
-    _aiLocalUnload.toolTip = @"Đưa model ra khỏi RAM ngay mà không tắt Ollama. Lần hỏi sau model sẽ nạp lại nên câu trả lời đầu chậm hơn.";
+    _aiLocalStop.toolTip = VOKTooltip(@"Tắt hẳn Ollama do VOpenKey AI mở. Ollama do ứng dụng khác mở thì phải tắt ở ứng dụng đó.");
+    _aiLocalStart.toolTip = VOKTooltip(@"Mở Ollama ngay, để lần hỏi đầu tiên không phải chờ khởi động.");
+    _aiLocalUnload.toolTip = VOKTooltip(@"Đưa model ra khỏi RAM ngay mà không tắt Ollama. Lần hỏi sau model sẽ nạp lại nên câu trả lời đầu chậm hơn.");
     for (NSButton* button in @[_aiLocalStart, _aiLocalStop, _aiLocalUnload])
         button.bezelStyle = NSBezelStyleRounded;
     _aiLocalButtons = [self aiStack:@[_aiLocalStart, _aiLocalStop, _aiLocalUnload] vertical:NO spacing:6];
@@ -710,13 +735,15 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _aiLocalProblem = [self aiStatusLabelWithWidth:width];
     _aiLocalProblem.textColor = [NSColor systemRedColor];
     NSStackView* control = [self aiStack:@[install, _aiLocalStatus, _aiLocalButtons, _aiLocalLoad, _aiLocalProblem] vertical:YES spacing:6];
+    install.toolTip = VOKTooltip(@"Kiểm tra máy, khuyên một model phù hợp rồi tự cài Ollama và model đó.");
     NSView* section = [self sectionWithTitle:@"AI chạy trên máy" rows:@[
-        [self rowWithTitle:@"Dùng AI không cần internet"
-                    detail:@"Không cần API key, không tính tiền theo lượt dùng, chữ của bạn không rời khỏi máy. VOpenKey AI kiểm tra cấu hình máy, khuyên model phù hợp rồi tự cài."
+        [self rowWithTitle:@"Không cần internet" detail:@"Không cần API key, chữ không rời khỏi máy."
+                      hint:@"Không cần API key, không tính tiền theo lượt dùng, chữ của bạn không rời khỏi máy.\n"
+                           @"Chạy model là việc rất nặng: nó dùng hết sức của bộ xử lý và chiếm nhiều RAM, nên chỉ hợp khi máy đang ít việc. "
+                           @"Cần macOS 14 trở lên, chip Apple Silicon (M1 trở lên) và RAM từ 8 GB; Mac chip Intel chạy được nhưng chậm.\n"
+                           @"Ollama do VOpenKey AI mở chỉ chạy khi cần và tắt khi thoát VOpenKey AI; bấm Dừng để tắt ngay."
                    control:control indent:0],
-    ] footer:@"Chạy model là việc rất nặng: nó dùng hết sức của bộ xử lý và chiếm nhiều RAM, nên chỉ hợp khi máy đang ít việc. "
-             @"Cần macOS 14 trở lên, chip Apple Silicon (M1 trở lên) và RAM từ 8 GB; Mac chip Intel chạy được nhưng chậm. "
-             @"Ollama do VOpenKey AI mở chỉ chạy khi cần và tắt khi thoát VOpenKey AI; bấm Dừng để tắt ngay."];
+    ]];
     AILocalControl* local = [AILocalControl shared];
     __weak SettingsWindowController* weakSelf = self;
     local.onChange = ^{ [weakSelf reloadAILocalStatus]; };
@@ -746,14 +773,16 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     AIProvider* provider = AISettings.provider;
     NSMutableArray<NSString*>* lines = [NSMutableArray array];
     if ([provider.identifier isEqualToString:@"ollama"])
-        [lines addObject:[NSString stringWithFormat:@"Trợ lý AI đang dùng model %@ chạy trên máy.", [AISettings modelForProvider:provider]]];
-    [lines addObject:local.statusText];
+        [lines addObject:[NSString stringWithFormat:@"Trợ lý đang dùng model %@.", [AISettings modelForProvider:provider]]];
+    [lines addObject:local.briefStatusText];
     [self aiSetText:[lines componentsJoinedByString:@"\n"] label:_aiLocalStatus height:&_aiLocalStatusHeight];
+    _aiLocalStatus.toolTip = VOKTooltip(local.statusText);
     _aiLocalButtons.hidden = !local.detected;                       //nothing to start or stop until there is an Ollama
     _aiLocalStart.enabled = local.canStart;
     _aiLocalStop.enabled = local.canStop;
     _aiLocalUnload.enabled = local.canUnload;
-    [self aiSetText:local.detected ? local.loadText : @"" label:_aiLocalLoad height:&_aiLocalLoadHeight];
+    [self aiSetText:local.detected ? local.briefLoadText : @"" label:_aiLocalLoad height:&_aiLocalLoadHeight];
+    _aiLocalLoad.toolTip = VOKTooltip(local.loadText);
     _aiLocalLoad.hidden = !local.detected;
     _aiLocalLoad.textColor = local.macIsBusy ? [NSColor systemOrangeColor] : [NSColor secondaryLabelColor];
     [self aiSetText:local.problemText ?: @"" label:_aiLocalProblem height:&_aiLocalProblemHeight];
@@ -765,6 +794,13 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 //of one) or a control that appears or hides makes the content taller or shorter than the frame, and the rows are then squeezed over
 //each other. After such a change the page is measured again.
 -(void)refitPageOf:(NSView*)view {
+    //not while the tab view controller is still putting the page in its window: that resizes the window too, and changing the page
+    //under it left the window at the size of an empty page (a clipped page when the AI tab was the one open at launch)
+    __weak SettingsWindowController* weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf refitNowPageOf:view]; });
+}
+
+-(void)refitNowPageOf:(NSView*)view {
     NSView* content = view;
     while (content != nil && ![content isKindOfClass:[SettingsPageView class]])
         content = content.superview;
@@ -777,6 +813,19 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         return;
     content.frame = NSMakeRect(0, 0, size.width, size.height);
     [content layoutSubtreeIfNeeded];
+    //the window follows the page: its size is what the tab view controller asks the page for
+    for (NSViewController* page in _tabs.childViewControllers) {
+        NSView* shown = page.view;
+        if ([shown isKindOfClass:[NSScrollView class]])
+            shown = ((NSScrollView*)shown).documentView;
+        if (shown == content)
+            page.preferredContentSize = NSMakeSize(size.width, MIN(size.height, [self pageHeightLimit]));
+    }
+}
+
+//a page taller than the screen scrolls instead of making a window that does not fit
+-(CGFloat)pageHeightLimit {
+    return MAX(480, [NSScreen mainScreen].visibleFrame.size.height - 170);          //minus the title bar, the toolbar, the menu bar
 }
 
 //a text of several lines in a column of fixed width, whose height has to follow the text when it changes
@@ -817,11 +866,10 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _aiProvider.action = @selector(aiProviderChanged:);
     _aiProvider.translatesAutoresizingMaskIntoConstraints = NO;
     [_aiProvider.widthAnchor constraintEqualToConstant:width].active = YES;
-    _aiNote = [self aiStatusLabelWithWidth:width];
     _aiKeyPage = [NSButton buttonWithTitle:@"Lấy key…" target:self action:@selector(aiOpenKeyPage:)];
     _aiKeyPage.bezelStyle = NSBezelStyleInline;
     _aiKeyPage.controlSize = NSControlSizeSmall;
-    NSStackView* providerControl = [self aiStack:@[_aiProvider, _aiNote, _aiKeyPage] vertical:YES spacing:4];
+    NSStackView* providerControl = [self aiStack:@[_aiProvider, _aiKeyPage] vertical:YES spacing:4];
 
     //the key: typed once, then it only lives in the keychain
     _aiKey = (NSSecureTextField*)[self aiFieldWithWidth:width - 150 placeholder:@"Dán API key vào đây" secure:YES];
@@ -867,15 +915,20 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSStackView* promptControl = [self aiStack:@[_aiPrompt, resetPrompt] vertical:YES spacing:4];
 
     NSView* section = [self sectionWithTitle:@"Dịch vụ AI" rows:@[
-        [self rowWithTitle:@"Dịch vụ" detail:nil control:providerControl indent:0],
-        [self rowWithTitle:@"API key" detail:@"Lưu trong Keychain của tài khoản macOS này." control:keyControl indent:0],
+        [self rowWithTitle:@"Dịch vụ" detail:nil
+                      hint:@"Nội dung bạn nhập và chữ đang chọn được gửi tới dịch vụ bạn chọn; AI chạy trên máy (Ollama, LM Studio) thì không rời khỏi máy."
+                   control:providerControl indent:0],
+        [self rowWithTitle:@"API key" detail:nil
+                      hint:@"Chỉ lưu trong Keychain của tài khoản macOS đang dùng, không ghi ra file, không đồng bộ iCloud. Tài khoản macOS khác trên máy này phải nhập key riêng."
+                   control:keyControl indent:0],
         [self rowWithTitle:@"Địa chỉ máy chủ" detail:nil control:urlControl indent:0],
         [self rowWithTitle:@"Model" detail:nil control:modelControl indent:0],
         [self rowWithTitle:@"Kết nối" detail:nil control:testControl indent:0],
-        [self rowWithTitle:@"Lời nhắc hệ thống" detail:@"Dặn AI cách trả lời, gửi kèm mọi yêu cầu." control:promptControl indent:0],
-    ] footer:@"API key chỉ được lưu trong Keychain của tài khoản macOS đang dùng, không ghi ra file, không đồng bộ iCloud. "
-             @"Tài khoản macOS khác trên máy này phải nhập key riêng. Nội dung bạn nhập và chữ đang chọn được gửi tới dịch vụ bạn chọn; "
-             @"AI chạy trên máy (Ollama, LM Studio) thì không rời khỏi máy."];
+        [self rowWithTitle:@"Lời nhắc hệ thống" detail:nil
+                      hint:@"Dặn AI cách trả lời, gửi kèm mọi yêu cầu."
+                   control:promptControl indent:0],
+    ]];
+
     [self reloadAI];
     return section;
 }
@@ -890,14 +943,13 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         return;
     AIProvider* provider = [self aiProviderInUse];
     [_aiProvider selectItemAtIndex:(NSInteger)[[AIProvider allProviders] indexOfObject:provider]];
-    _aiNote.stringValue = provider.note ?: @"";
-    _aiNote.hidden = provider.note.length == 0;
+    _aiProvider.toolTip = VOKTooltip(provider.note);     //what is special about this service: a tooltip, not a paragraph
     _aiKeyPage.hidden = provider.keyPageURL.length == 0;
 
     BOOL hasKey = [AIKeychain hasKeyForProvider:provider.identifier];
     _aiKey.stringValue = @"";
     _aiKey.placeholderString = hasKey ? @"•••••••••••• (đã lưu)" : (provider.needsKey ? @"Dán API key vào đây" : @"Không bắt buộc");
-    [self aiShow:hasKey ? @"Đã lưu trong Keychain." : (provider.needsKey ? @"Chưa có key." : @"Dịch vụ này không cần key.") in:_aiKeyStatus error:NO];
+    [self aiShow:hasKey ? @"Đã lưu." : (provider.needsKey ? @"Chưa có key." : @"Dịch vụ này không cần key.") in:_aiKeyStatus error:NO];
     _aiSaveKey.enabled = NO;
     _aiRemoveKey.enabled = hasKey;
 

@@ -26,7 +26,8 @@ static const CGFloat kInner = 640;                 //width of what is inside a c
     BOOL _hardwareGiven;                           //described by the caller (tests): not replaced by the real Mac when the window opens
 
     NSWindow* _window;
-    NSTextField* _machineLabel, *_overviewLabel, *_summaryLabel, *_requirementsLabel, *_verdictLabel, *_problemsLabel, *_notesLabel, *_resultLabel, *_customStatus;
+    NSString* _overview;
+    NSTextField* _machineLabel, *_summaryLabel, *_requirementsLabel, *_verdictLabel, *_problemsLabel, *_notesLabel, *_resultLabel, *_customStatus;
     NSPopUpButton* _modelPopUp;
     NSTextField* _customField;
     NSButton* _installButton, *_cancelButton, *_removeButton, *_refreshButton;
@@ -89,7 +90,7 @@ static const CGFloat kInner = 640;                 //width of what is inside a c
 -(AIModelAssessment*)assessment { return _assessment; }
 -(NSWindow*)window { [self buildIfNeeded]; return _window; }
 -(NSTextField*)machineLabel { [self buildIfNeeded]; return _machineLabel; }
--(NSTextField*)overviewLabel { [self buildIfNeeded]; return _overviewLabel; }
+-(NSString*)overviewText { [self buildIfNeeded]; return _overview; }
 -(NSPopUpButton*)modelPopUp { [self buildIfNeeded]; return _modelPopUp; }
 -(NSTextField*)customField { [self buildIfNeeded]; return _customField; }
 -(NSTextField*)summaryLabel { [self buildIfNeeded]; return _summaryLabel; }
@@ -147,12 +148,11 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
     if (_hardware == nil)
         _hardware = [AIHardware currentForDirectory:_modelsDirectory];
 
-    _machineLabel = Wrapped(@"", 12, NSFontWeightMedium, nil, kInner);
-    _overviewLabel = Wrapped(@"", 12, NSFontWeightRegular, [NSColor secondaryLabelColor], kInner);
+    _machineLabel = Wrapped(@"", 12, NSFontWeightMedium, nil, kInner - 120);
     _refreshButton = [self buttonWithTitle:@"Kiểm tra lại" action:@selector(refreshHardware:)];
     _refreshButton.controlSize = NSControlSizeSmall;
     VOKSetButtonSymbol(_refreshButton, @"arrow.clockwise", 11);
-    NSView* machine = Section(@"Máy của bạn", @[_machineLabel, _overviewLabel, _refreshButton]);
+    NSView* machine = Section(@"Máy của bạn", @[Stack(@[_machineLabel, _refreshButton], NO, 12)]);
 
     _modelPopUp = [[NSPopUpButton alloc] init];
     _modelPopUp.translatesAutoresizingMaskIntoConstraints = NO;
@@ -172,10 +172,8 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
     _requirementsLabel = Wrapped(@"", 12, NSFontWeightRegular, [NSColor secondaryLabelColor], kInner);
     _verdictLabel = Wrapped(@"", 13, NSFontWeightSemibold, nil, kInner);
     _problemsLabel = Wrapped(@"", 12, NSFontWeightRegular, nil, kInner);
-    NSView* choose = Section(@"Chọn model", @[_modelPopUp, _customRow, _summaryLabel, _requirementsLabel, _verdictLabel, _problemsLabel]);
-
-    _notesLabel = Wrapped(@"", 12, NSFontWeightRegular, [NSColor secondaryLabelColor], kInner);
-    NSView* notes = Section(@"Sẽ cài những gì, và chạy thế nào", @[_notesLabel]);
+    _notesLabel = Wrapped(@"", 11, NSFontWeightRegular, [NSColor secondaryLabelColor], kInner);
+    NSView* choose = Section(@"Chọn model", @[_modelPopUp, _customRow, _summaryLabel, _requirementsLabel, _verdictLabel, _problemsLabel, _notesLabel]);
 
     NSMutableArray<NSView*>* stepViews = [NSMutableArray array];
     for (int i = 0; i < AILocalStepCount; i++) {
@@ -213,10 +211,12 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
     [buttons.widthAnchor constraintEqualToConstant:kInner + 32].active = YES;
 
     NSTextField* title = VOKLabel(@"Cài AI chạy trên máy này", 20, NSFontWeightBold, nil);
-    NSTextField* intro = Wrapped(@"AI chạy ngay trên Mac của bạn: không cần API key, không tính tiền theo lượt dùng, và chữ bạn viết không rời khỏi máy. "
-                                 @"Đổi lại, máy phải đủ mạnh và đang ít việc: chạy model dùng hết sức bộ xử lý và chiếm nhiều RAM. VOpenKey AI kiểm tra máy rồi mới khuyên bạn chọn model nào.", 12, NSFontWeightRegular,
+    NSTextField* intro = Wrapped(@"Chạy AI ngay trên Mac: không cần API key, chữ của bạn không rời máy.", 12, NSFontWeightRegular,
                                  [NSColor secondaryLabelColor], kInner + 32);
-    NSStackView* content = Stack(@[title, intro, machine, choose, notes, progress, buttons], YES, 16);
+    intro.toolTip = VOKTooltip(@"Không cần API key, không tính tiền theo lượt dùng, và chữ bạn viết không rời khỏi máy. "
+                               @"Đổi lại, máy phải đủ mạnh và đang ít việc: chạy model dùng hết sức bộ xử lý và chiếm nhiều RAM. "
+                               @"VOpenKey AI kiểm tra máy rồi mới khuyên bạn chọn model nào.");
+    NSStackView* content = Stack(@[title, intro, machine, choose, progress, buttons], YES, 16);
     content.edgeInsets = NSEdgeInsetsMake(24, 24, 24, 24);
     content.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -236,7 +236,7 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
         [documentView.widthAnchor constraintEqualToAnchor:scroll.contentView.widthAnchor],
     ]];
 
-    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, kWindowWidth, 760)
+    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, kWindowWidth, 600)
                                           styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
                                             backing:NSBackingStoreBuffered defer:NO];
     _window.title = @"Cài AI chạy trên máy";
@@ -300,7 +300,8 @@ static NSString* Stars(NSInteger value) {
     BOOL keepCustomChoice = _modelPopUp.numberOfItems > 0 && _modelPopUp.indexOfSelectedItem >= (NSInteger)_catalog.count;   //"other", even if nothing is typed yet
 
     _machineLabel.stringValue = [_hardware summary];
-    _overviewLabel.stringValue = [AIModelAdvisor overviewForHardware:_hardware models:_catalog];
+    _overview = [AIModelAdvisor overviewForHardware:_hardware models:_catalog];
+    _machineLabel.toolTip = VOKTooltip(_overview);
 
     [_modelPopUp removeAllItems];
     for (AILocalModel* model in _catalog) {
@@ -351,11 +352,14 @@ static NSString* Stars(NSInteger value) {
     AILocalModel* model = self.selectedModel;
     if (custom && _customModel == nil) {
         _assessment = nil;
-        _summaryLabel.stringValue = @"Nhập tên một model của thư viện Ollama (ollama.com/library). VOpenKey AI tra dung lượng của nó rồi đánh giá máy bạn có chạy nổi không.";
+        _summaryLabel.stringValue = @"Nhập tên một model của thư viện Ollama (ollama.com/library).";
+        _summaryLabel.toolTip = VOKTooltip(@"VOpenKey AI tra dung lượng của model đó rồi đánh giá máy bạn có chạy nổi không.");
+        _requirementsLabel.toolTip = nil;
         _requirementsLabel.stringValue = @"";
         _verdictLabel.stringValue = @"";
         _problemsLabel.stringValue = @"";
-        _notesLabel.stringValue = [self notesForModel:nil];
+        _problemsLabel.hidden = YES;
+        [self setNotesForModel:nil];
         [self reloadButtons];
         return;
     }
@@ -369,27 +373,36 @@ static NSString* Stars(NSInteger value) {
     _assessment = [AIModelAdvisor assessModel:model hardware:_hardware runtimeInstalled:_setup.runtime.isInstalled modelDownloaded:downloaded];
     AIModelAssessment* a = _assessment;
 
-    NSMutableString* summary = [NSMutableString stringWithString:model.summary];
-    if (!model.isCustom)
-        [summary appendFormat:@"\nChất lượng %@   Tốc độ %@   Tiếng Việt: %@", Stars(model.quality), Stars(model.speed), model.vietnamese];
-    _summaryLabel.stringValue = summary;
+    //what the model is goes in the tooltip of the list and of this line, the line itself is the three marks that decide the choice
+    NSString* stars = model.isCustom ? model.summary
+        : [NSString stringWithFormat:@"Chất lượng %@   Tốc độ %@   Tiếng Việt: %@", Stars(model.quality), Stars(model.speed), model.vietnamese];
+    _summaryLabel.stringValue = stars;
+    _summaryLabel.toolTip = VOKTooltip(model.isCustom ? nil : model.summary);
+    _modelPopUp.toolTip = _summaryLabel.toolTip;
 
     NSString* ramNow = [NSString stringWithFormat:@"%.0f GB", round(_hardware.memoryBytes / 1073741824.0)];
     NSMutableString* needs = [NSMutableString string];
+    NSMutableString* needsDetail = [NSMutableString string];
     if (model.bytes > 0) {
         NSString* ramNeeded = a.minimumRAMGB == a.comfortableRAMGB
             ? [NSString stringWithFormat:@"từ %ld GB", (long)a.minimumRAMGB]
             : [NSString stringWithFormat:@"từ %ld GB (thoải mái từ %ld GB)", (long)a.minimumRAMGB, (long)a.comfortableRAMGB];
-        [needs appendFormat:@"Dung lượng tải: %@. Bộ nhớ khi chạy: khoảng %@. Cần RAM %@; máy bạn có %@.",
+        [needs appendFormat:@"Tải %@  ·  RAM %@ (máy bạn %@)", VOKAIFormatBytes(model.bytes), ramNeeded, ramNow];
+        if (a.diskNeededBytes > 0)
+            [needs appendFormat:@"  ·  Ổ đĩa cần trống %@", VOKAIFormatBytes(a.diskNeededBytes)];
+        else
+            [needs appendString:@"  ·  Đã có trong máy"];
+        [needsDetail appendFormat:@"Dung lượng tải: %@. Bộ nhớ khi chạy: khoảng %@. Cần RAM %@; máy bạn có %@.",
          VOKAIFormatBytes(model.bytes), VOKAIFormatBytes(a.memoryNeededBytes), ramNeeded, ramNow];
         if (a.diskNeededBytes > 0)
-            [needs appendFormat:@"\nỔ đĩa cần trống: %@ (đã tính chỗ để macOS hoạt động); còn trống %@.", VOKAIFormatBytes(a.diskNeededBytes), VOKAIFormatBytes(_hardware.freeDiskBytes)];
+            [needsDetail appendFormat:@"\nỔ đĩa cần trống: %@ (đã tính chỗ để macOS hoạt động); còn trống %@.", VOKAIFormatBytes(a.diskNeededBytes), VOKAIFormatBytes(_hardware.freeDiskBytes)];
         else
-            [needs appendString:@"\nModel đã có trong máy, không cần tải thêm."];
+            [needsDetail appendString:@"\nModel đã có trong máy, không cần tải thêm."];
     } else {
         [needs appendString:@"Chưa biết dung lượng model này."];
     }
     _requirementsLabel.stringValue = needs;
+    _requirementsLabel.toolTip = VOKTooltip(needsDetail);
 
     _verdictLabel.stringValue = a.headline;
     _verdictLabel.textColor = a.blockers.count > 0 ? [NSColor systemRedColor] : (a.fit == AIModelFitTight || a.warnings.count > 0 ? [NSColor systemOrangeColor] : [NSColor systemGreenColor]);
@@ -398,11 +411,17 @@ static NSString* Stars(NSInteger value) {
         [lines addObject:[@"⛔ " stringByAppendingString:blocker]];
     for (NSString* warning in a.warnings)
         [lines addObject:[@"⚠️ " stringByAppendingString:warning]];
-    if (a.blockers.count == 0 && a.warnings.count == 0)
-        [lines addObject:@"✓ Máy bạn đủ sức chạy model này thoải mái."];
-    _problemsLabel.stringValue = [lines componentsJoinedByString:@"\n"];
-    _notesLabel.stringValue = [self notesForModel:model];
+    _problemsLabel.stringValue = [lines componentsJoinedByString:@"\n"];     //nothing to say when the Mac copes: the verdict above says so
+    _problemsLabel.hidden = lines.count == 0;
+    [self setNotesForModel:model];
     [self reloadButtons];
+}
+
+-(void)setNotesForModel:(AILocalModel*)model {
+    BOOL installed = _setup.runtime.isInstalled;
+    _notesLabel.stringValue = installed ? @"Ollama đã có trên máy: chỉ tải model. Chạy ngay trên máy này, không gửi chữ đi đâu."
+        : @"Sẽ cài Ollama (mã nguồn mở, khoảng 207 MB) rồi tải model. Chạy ngay trên máy này, không gửi chữ đi đâu.";
+    _notesLabel.toolTip = VOKTooltip([self notesForModel:model]);
 }
 
 -(NSString*)notesForModel:(AILocalModel*)model {

@@ -106,6 +106,11 @@ static void Shot(AILocalSetupController* c, NSString* name) {
     [window setContentSize:NSMakeSize(720, 760)];
 }
 
+//a tooltip is broken into lines of about 60 characters (VOKTooltip): read it as one text
+static NSString* Flat(NSString* tooltip) {
+    return [tooltip stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+}
+
 #pragma mark - The advice
 
 static void TestAdvice(void) {
@@ -113,7 +118,7 @@ static void TestAdvice(void) {
     AILocalSetupController* c = MakeController([AIHardware appleSiliconWithMemoryGiB:16 freeDiskGiB:300], @[], NO);
     CHECK(c.window != nil && [c.window.title isEqualToString:@"Cài AI chạy trên máy"]);
     CHECK([c.machineLabel.stringValue containsString:@"16 GB RAM"] && [c.machineLabel.stringValue containsString:@"Apple M-test"]);
-    CHECK([c.overviewLabel.stringValue containsString:@"Qwen 2.5 7B"]);
+    CHECK([c.overviewText containsString:@"Qwen 2.5 7B"]);
     CHECK(c.modelPopUp.numberOfItems == 9);                                        //the eight of the list and "other"
     CHECK([SelectedTag(c) isEqualToString:@"qwen2.5:7b"]);
     CHECK([c.modelPopUp.titleOfSelectedItem containsString:@"★ Khuyên dùng"]);
@@ -122,13 +127,16 @@ static void TestAdvice(void) {
     CHECK(c.installButton.enabled && [c.installButton.title isEqualToString:@"Cài đặt"] && c.cancelButton.hidden);
     CHECK(c.removeButton.hidden);
     CHECK(c.window.tabbingMode == NSWindowTabbingModeDisallowed);
-    CHECK([c.overviewLabel.stringValue hasPrefix:@"Với 16 GB RAM"] && ![c.overviewLabel.stringValue containsString:@"Máy của bạn"]);   //the Mac is described once
+    CHECK([c.overviewText hasPrefix:@"Với 16 GB RAM"] && ![c.overviewText containsString:@"Máy của bạn"]);   //the Mac is described once
     CHECK(c.customField.superview.hidden);                                          //the field for another model is not shown
     CHECK([c.summaryLabel.stringValue containsString:@"Chất lượng ★★★☆☆"] && [c.summaryLabel.stringValue containsString:@"Tiếng Việt: Khá"]);
-    CHECK([c.requirementsLabel.stringValue containsString:@"Cần RAM từ 16 GB; máy bạn có 16 GB"]);
-    CHECK([c.requirementsLabel.stringValue containsString:@"Dung lượng tải: 4,7 GB"]);
-    CHECK([c.problemsLabel.stringValue containsString:@"✓ Máy bạn đủ sức"]);
-    NSString* notes = c.notesLabel.stringValue;
+    CHECK([c.requirementsLabel.stringValue containsString:@"RAM từ 16 GB (máy bạn 16 GB)"]);
+    CHECK([c.requirementsLabel.stringValue containsString:@"Tải 4,7 GB"]);
+    CHECK([Flat(c.requirementsLabel.toolTip) containsString:@"Cần RAM từ 16 GB; máy bạn có 16 GB"] && [Flat(c.requirementsLabel.toolTip) containsString:@"Dung lượng tải: 4,7 GB"]);
+    CHECK(c.problemsLabel.hidden && c.problemsLabel.stringValue.length == 0);       //it only speaks when there is a problem
+    CHECK(c.modelPopUp.toolTip.length > 0 && c.window.contentView != nil);          //what the model is: a tooltip
+    CHECK(c.notesLabel.stringValue.length < 130 && [c.notesLabel.stringValue containsString:@"207 MB"]);   //the line is short, the tooltip has the rest
+    NSString* notes = Flat(c.notesLabel.toolTip);
     CHECK([notes containsString:@"~/Applications"] && [notes containsString:@"macOS 14"] && [notes containsString:@"207 MB"] && [notes containsString:@"SHA-256"]);
     CHECK([notes containsString:@"127.0.0.1"] && [notes containsString:@"~/.ollama/models"] && [notes containsString:@"20 đến 40 giây"] && [notes containsString:@"tải tiếp"]);
     for (int i = 0; i < AILocalStepCount; i++) {}
@@ -160,7 +168,7 @@ static void TestAdvice(void) {
     CHECK(!c.installButton.enabled && [c.problemsLabel.stringValue containsString:@"16 GB RAM"] && [c.problemsLabel.stringValue containsString:@"8 GB"]);
     //2 GB: nothing fits
     c = MakeController([AIHardware appleSiliconWithMemoryGiB:2 freeDiskGiB:300], @[], NO);
-    CHECK([c.overviewLabel.stringValue containsString:@"trực tuyến"]);
+    CHECK([c.overviewText containsString:@"trực tuyến"]);
     for (NSInteger i = 0; i < 8; i++) {
         [c.modelPopUp selectItemAtIndex:i];
         [c.modelPopUp sendAction:c.modelPopUp.action to:c.modelPopUp.target];
@@ -174,7 +182,7 @@ static void TestAdvice(void) {
     CHECK(!c.installButton.enabled && [c.problemsLabel.stringValue containsString:@"macOS 14"] && [c.verdictLabel.stringValue isEqualToString:@"Chưa thể cài trên máy này"]);
     //... unless Ollama is already there
     c = MakeController(old, @[], YES);
-    CHECK(c.installButton.enabled && [c.notesLabel.stringValue containsString:@"đã có trên máy, không cài lại"]);
+    CHECK(c.installButton.enabled && [Flat(c.notesLabel.toolTip) containsString:@"đã có trên máy, không cài lại"] && [c.notesLabel.stringValue containsString:@"chỉ tải model"]);
 
     //no room on the disk
     c = MakeController([AIHardware appleSiliconWithMemoryGiB:32 freeDiskGiB:3], @[], NO);
@@ -192,7 +200,7 @@ static void TestAdvice(void) {
     AIHardware* intel = [AIHardware appleSiliconWithMemoryGiB:16 freeDiskGiB:300];
     intel.isAppleSilicon = NO;
     c = MakeController(intel, @[], NO);
-    CHECK(c.installButton.enabled && [c.problemsLabel.stringValue containsString:@"Intel"] && [c.overviewLabel.stringValue containsString:@"Intel"]);
+    CHECK(c.installButton.enabled && [c.problemsLabel.stringValue containsString:@"Intel"] && [c.overviewText containsString:@"Intel"]);
 
     //the Mac is looked at again when the user asks
     c = MakeController([AIHardware appleSiliconWithMemoryGiB:8 freeDiskGiB:300], @[], NO);
@@ -209,7 +217,7 @@ static void TestInstalledModel(void) {
     CHECK([c.modelPopUp.titleOfSelectedItem containsString:@"✓ Đã cài"]);
     CHECK([c.installButton.title isEqualToString:@"Dùng model này"] && c.installButton.enabled);
     CHECK(!c.removeButton.hidden && c.removeButton.enabled);
-    CHECK([c.requirementsLabel.stringValue containsString:@"đã có trong máy, không cần tải thêm"]);
+    CHECK([c.requirementsLabel.stringValue containsString:@"Đã có trong máy"] && [Flat(c.requirementsLabel.toolTip) containsString:@"không cần tải thêm"]);
     [c selectModelWithTag:@"gemma3:4b"];
     CHECK([c.installButton.title isEqualToString:@"Cài đặt"] && c.removeButton.hidden);
     Shot(c, @"06-installed");
@@ -239,7 +247,7 @@ static void TestCustomModel(void) {
     CHECK(SpinUntil(^BOOL { return c.selectedModel != nil; }, 10));
     CHECK([c.selectedModel.tag isEqualToString:@"gemma3:1b"] && c.selectedModel.isCustom && c.selectedModel.bytes == 800007400);
     CHECK(c.installButton.enabled && [c.verdictLabel.stringValue isEqualToString:@"Chạy mượt trên máy này"]);
-    CHECK([c.requirementsLabel.stringValue containsString:@"800 MB"] || [c.requirementsLabel.stringValue containsString:@"Dung lượng tải: 800 MB"]);
+    CHECK([c.requirementsLabel.stringValue containsString:@"800 MB"]);
     Shot(c, @"08-custom-found");
     //it does not exist
     Type(c, @"nothere:9b");

@@ -36,7 +36,8 @@
 @property (nonatomic, readonly) AIModelAssessment* assessment;
 
 @property (nonatomic, readonly) NSTextField* machineLabel;
-@property (nonatomic, readonly) NSTextField* overviewLabel;
+/// What the Mac can run, in a sentence: the tooltip of the line that describes the Mac.
+@property (nonatomic, readonly) NSString* overviewText;
 @property (nonatomic, readonly) NSPopUpButton* modelPopUp;
 @property (nonatomic, readonly) NSTextField* customField;
 @property (nonatomic, readonly) NSTextField* summaryLabel;

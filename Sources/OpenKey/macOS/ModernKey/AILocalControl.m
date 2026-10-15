@@ -72,6 +72,29 @@
     return [NSString stringWithFormat:@"Ollama đang chạy (%@). %@", who, loaded];
 }
 
+-(NSString*)briefStatusText {
+    if (_doing != nil)
+        return _doing;
+    if (_status == nil)
+        return @"Đang kiểm tra…";
+    if (!_status.running)
+        return _status.installed ? @"Ollama đã cài, đang tắt (không tốn RAM)." : @"Chưa cài Ollama.";
+    if (_status.loadedModels.count == 0)
+        return @"Ollama đang chạy, chưa nạp model nào.";
+    NSMutableArray* names = [NSMutableArray array];
+    for (NSDictionary* model in _status.loadedModels)
+        [names addObject:model[@"name"]];
+    return [NSString stringWithFormat:@"Ollama đang chạy · trong RAM: %@ (%@)", [names componentsJoinedByString:@", "], VOKAIFormatBytes(_status.loadedBytes)];
+}
+
+-(NSString*)briefLoadText {
+    if (_hardware == nil)
+        return @"";
+    NSString* memory = _hardware.memoryPressure == AIMemoryPressureNormal ? @"ổn" : (_hardware.memoryPressure == AIMemoryPressureWarning ? @"khá đầy" : @"quá tải");
+    return [NSString stringWithFormat:@"Máy %@ · CPU %.0f%% · bộ nhớ %@%@", [_hardware loadDescription], MIN(_hardware.cpuLoadRatio, 1.0) * 100, memory,
+            [_hardware isBusy] ? @" · nên đợi" : @""];
+}
+
 -(NSString*)loadText {
     if (_hardware == nil)
         return @"";

@@ -28,6 +28,10 @@ NSImage* VOKFlagImage(NSString* region);
 // Non-editable text that wraps at the width it is given.
 NSTextField* VOKLabel(NSString* text, CGFloat size, NSFontWeight weight, NSColor* color);
 
+// A tooltip that is read in a column: macOS stretches a long one into a single line as wide as the screen, so it is broken
+// into lines of about 60 characters (at spaces; lines the text already has are kept).
+NSString* VOKTooltip(NSString* text);
+
 // Rounded container with a hairline border, the "grouped" look of System Settings.
 NSView* VOKCard(NSView* content);
 

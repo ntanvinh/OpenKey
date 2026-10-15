@@ -33,6 +33,9 @@
 /// Two lines of words: what the AI is doing, and the state of the Mac.
 @property (nonatomic, readonly, copy) NSString* statusText;
 @property (nonatomic, readonly, copy) NSString* loadText;
+/// The same two in a few words, for the line the user reads; statusText and loadText are what the tooltip says.
+@property (nonatomic, readonly, copy) NSString* briefStatusText;
+@property (nonatomic, readonly, copy) NSString* briefLoadText;
 /// The Mac is busy: shown in a warm colour.
 @property (nonatomic, readonly) BOOL macIsBusy;
 /// The last action failed: what to tell. nil otherwise.

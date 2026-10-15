@@ -164,3 +164,25 @@ void VOKFillWidth(NSStackView* stack) {
         [view.trailingAnchor constraintEqualToAnchor:stack.trailingAnchor].active = YES;
     }
 }
+
+
+NSString* VOKTooltip(NSString* text) {
+    if (text.length == 0)
+        return nil;
+    const NSUInteger limit = 60;
+    NSMutableArray<NSString*>* out = [NSMutableArray array];
+    for (NSString* paragraph in [text componentsSeparatedByString:@"\n"]) {
+        NSMutableString* line = [NSMutableString string];
+        for (NSString* word in [paragraph componentsSeparatedByString:@" "]) {
+            if (line.length > 0 && line.length + 1 + word.length > limit) {
+                [out addObject:[line copy]];
+                [line setString:@""];
+            }
+            if (line.length > 0)
+                [line appendString:@" "];
+            [line appendString:word];
+        }
+        [out addObject:[line copy]];
+    }
+    return [out componentsJoinedByString:@"\n"];
+}
