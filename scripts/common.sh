@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="$ROOT/Sources/OpenKey/macOS/OpenKey.xcodeproj"
 SCHEME="OpenKey"
+# The app is called "VOpenKey AI" (owner's decision, 2026-10-16): DISPLAY_NAME below is its name, also of the bundle and the executable. APP_NAME is
+# only the part of the release FILE names (no spaces); never use it where a person reads the name or for the installed app. See CLAUDE.md.
 APP_NAME="VOpenKey"            # name in file names without spaces: VOpenKey-<version>.dmg, VOpenKey-<version>-Windows.zip
 DISPLAY_NAME="VOpenKey AI"   # what the user reads, also the name of the app bundle and its executable: VOpenKey AI.app
 BUNDLE_ID="vn.io.lssoft.vopenkey"

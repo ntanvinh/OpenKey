@@ -71,8 +71,9 @@ static int gQuickConverts = 0;
 -(void)refreshMenu {}
 -(void)onCodeTableChanged:(int)index {}
 @end
+static int gReenables = 0;
 @implementation OpenKeyManager
-+(void)reenableEventTap {}
++(void)reenableEventTap { gReenables++; }
 @end
 
 static int gAIToggles = 0;
@@ -84,6 +85,8 @@ static int failures = 0;
 #pragma mark - The application's text
 
 static std::u16string gText;
+static size_t gSelected = 0;            //characters at the end selected with Shift+Left
+static int gBackspaces = 0, gEmptyChars = 0, gShiftLefts = 0;   //what was posted, to see which way a replacement was made
 
 //OpenKey.mm calls this where it would call CGEventTapPostEvent: the application receives the key
 extern "C" void Posted(CGEventTapProxy proxy, CGEventRef event) {
@@ -94,11 +97,41 @@ extern "C" void Posted(CGEventTapProxy proxy, CGEventRef event) {
     UniCharCount length = 0;
     CGEventKeyboardGetUnicodeString(event, 32, &length, buffer);
     if (code == 51) { //backspace
-        if (!gText.empty())
+        gBackspaces++;
+        if (gSelected > 0) {
+            gText.resize(gText.size() - gSelected);
+            gSelected = 0;
+        } else if (!gText.empty()) {
             gText.pop_back();
+        }
+    } else if (code == 123 && (CGEventGetFlags(event) & kCGEventFlagMaskShift)) { //Shift+Left: one more character selected
+        gShiftLefts++;
+        if (gSelected < gText.size())
+            gSelected++;
     } else if (length > 0 && buffer[0] != 0) {
+        if (length == 1 && buffer[0] == 0x202F)
+            gEmptyChars++;
+        if (gSelected > 0) { //typing replaces the selection
+            gText.resize(gText.size() - gSelected);
+            gSelected = 0;
+        }
         gText.append((const char16_t*)buffer, length);
     }
+}
+
+//OpenKey.mm calls this where it would call CGWindowListCopyWindowInfo: the windows on screen, with or without one of Spotlight
+static int gWindowListCalls = 0;
+static bool gFakeSpotlight = false;
+extern "C" CFArrayRef CountedWindowList(CGWindowListOption option, CGWindowID relativeTo) {
+    gWindowListCalls++;
+    CFMutableArrayRef list = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+    for (CFStringRef owner : {CFSTR("Finder"), CFSTR("Trae"), gFakeSpotlight ? CFSTR("Spotlight") : CFSTR("Dock")}) {
+        CFMutableDictionaryRef window = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        CFDictionarySetValue(window, kCGWindowOwnerName, owner);
+        CFArrayAppendValue(list, window);
+        CFRelease(window);
+    }
+    return list;
 }
 
 static int keyCodeOf(char c) {
@@ -183,6 +216,7 @@ static void typeKeys(const char* keys) {
 //what the app does when typing was interrupted
 static void newWord() {
     gText.clear();
+    gSelected = 0;
     RequestNewSession();
 }
 
@@ -513,6 +547,102 @@ static void runShortcutTests() {
 }
 
 
+#pragma mark - Spotlight, and the tap switched off
+
+static void ResetCounters() {
+    gBackspaces = gEmptyChars = gShiftLefts = 0;
+    gWindowListCalls = 0;
+}
+
+static void runSpotlightAndTapTests() {
+    printf("-- Spotlight check and the tap switched off\n");
+    vRestoreIfWrongSpelling = 0;
+
+    // with the fix for browsers: the invisible character, one more Backspace; one question to the window server for the whole key press
+    vFixRecommendBrowser = 1;
+    gFakeSpotlight = false;
+    newWord();
+    ResetCounters();
+    typeKeys("nhan");
+    CHECK(gWindowListCalls == 0);                       // plain letters ask nothing
+    newWord();
+    typeKeys("tieen");
+    typeKeys("g");
+    ResetCounters();
+    typeKeys("s");
+    CHECK(utf8(gText) == "tiếng");
+    CHECK(gEmptyChars == 1 && gBackspaces == 5 && gShiftLefts == 0);
+    CHECK(gWindowListCalls == 1);                       // it was two before the answer was kept for the key press
+
+    // Spotlight on screen: no invisible character, the letters are selected and typed over. Noticed on the very next key
+    gFakeSpotlight = true;
+    newWord();
+    typeKeys("tieeng");
+    ResetCounters();
+    typeKeys("s");
+    CHECK(utf8(gText) == "tiếng");
+    CHECK(gEmptyChars == 0 && gBackspaces == 0 && gShiftLefts == 4);
+    CHECK(gWindowListCalls == 1);
+
+    // and gone again: the next key asks again
+    gFakeSpotlight = false;
+    newWord();
+    typeKeys("tieeng");
+    ResetCounters();
+    typeKeys("s");
+    CHECK(utf8(gText) == "tiếng");
+    CHECK(gEmptyChars == 1 && gBackspaces == 5 && gShiftLefts == 0);
+
+    // without the fix for browsers only the selection case asks
+    vFixRecommendBrowser = 0;
+    newWord();
+    typeKeys("tieeng");
+    ResetCounters();
+    typeKeys("s");
+    CHECK(utf8(gText) == "tiếng" && gEmptyChars == 0 && gBackspaces == 4 && gWindowListCalls == 1);
+    gFakeSpotlight = true;
+    newWord();
+    typeKeys("tieeng");
+    ResetCounters();
+    typeKeys("s");
+    CHECK(utf8(gText) == "tiếng" && gShiftLefts == 4 && gBackspaces == 0 && gWindowListCalls == 1);
+    gFakeSpotlight = false;
+    vFixRecommendBrowser = 1;
+
+    // The tap was switched off by macOS while "x" was typed: the screen holds a letter the engine never saw. Without the notice the next
+    // tone acts on the wrong letters...
+    vFixRecommendBrowser = 0;
+    newWord();
+    typeKeys("tieeng");
+    gText.push_back(u'x');                              // typed while the tap was off
+    typeKeys("s");
+    CHECK(utf8(gText) != "tiêngxs");                    // what the engine does when it is not told: it deletes the wrong letters
+    // ...with it, a new word starts and nothing that is already there is touched
+    for (CGEventType kind : {kCGEventTapDisabledByTimeout, kCGEventTapDisabledByUserInput}) {
+        newWord();
+        typeKeys("tieeng");
+        gText.push_back(u'x');
+        int reenables = gReenables;
+        CGEventRef event = CGEventCreate(NULL);
+        CGEventRef answer = OpenKeyCallback(NULL, kind, event, NULL);
+        CHECK(answer == event);                         // the notice goes on as it is
+        CFRelease(event);
+        CHECK(gReenables == reenables + 1);             // and the tap is switched on again
+        typeKeys("s");
+        CHECK(utf8(gText) == "tiêngxs");
+        typeKeys(" vieetj ");
+        CHECK(utf8(gText) == "tiêngxs việt ");          // typing goes on as usual
+    }
+    // a notice when no word is in progress changes nothing
+    newWord();
+    CGEventRef idle = CGEventCreate(NULL);
+    OpenKeyCallback(NULL, kCGEventTapDisabledByTimeout, idle, NULL);
+    CFRelease(idle);
+    typeKeys("vieetj ");
+    CHECK(utf8(gText) == "việt ");
+    vFixRecommendBrowser = 0;
+}
+
 #pragma mark - The diagnostics log
 
 static NSString* ReadLog(NSString* dir) {
@@ -687,6 +817,7 @@ int main() {
         runShortcutTests();
         runAITests();
         runCaseBarTests();
+        runSpotlightAndTapTests();
         runDiagnosticsTests();
 
         printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);

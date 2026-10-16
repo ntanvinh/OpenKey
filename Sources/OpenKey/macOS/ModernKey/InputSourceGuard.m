@@ -102,7 +102,7 @@ static TISInputSourceRef CopyABCSource(void) {
 }
 
 +(void)sourceChanged:(NSNotification*)notification {
-    VOKDiag(@"input", @"input source changed to %@ (VOpenKey language %d, forcing ABC: %d)", [VOKDiagnostics currentInputSourceID], vLanguage, vForceABC);
+    VOKDiag(@"input", @"input source changed to %@ (VOpenKey AI language %d, forcing ABC: %d)", [VOKDiagnostics currentInputSourceID], vLanguage, vForceABC);
     [self enforce];
 }
 

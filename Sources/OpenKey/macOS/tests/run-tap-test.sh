@@ -16,8 +16,9 @@ cd "$WORK"
 for f in Engine Vietnamese Macro SmartSwitchKey ConvertTool Suggest SuggestSession SnippetSearch; do
     clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
 done
-# the event tap itself: what it posts goes to Posted() of the test instead of the system
-clang++ -std=c++17 -fobjc-arc -g -DCGEventTapPostEvent=Posted -I"$MAC" -I"$ENGINE" -c "$MAC/OpenKey.mm" -o OpenKey.o
+# the event tap itself: what it posts goes to Posted() of the test instead of the system, and the list of windows (is Spotlight open?)
+# comes from CountedWindowList() of the test, which counts the questions
+clang++ -std=c++17 -fobjc-arc -g -DCGEventTapPostEvent=Posted -DCGWindowListCopyWindowInfo=CountedWindowList -I"$MAC" -I"$ENGINE" -c "$MAC/OpenKey.mm" -o OpenKey.o
 for f in SuggestionController SnippetStore SnippetInserter; do
     clang++ -std=c++17 -fobjc-arc -g -I"$MAC" -I"$ENGINE" -c "$MAC/$f.mm" -o $f.o
 done

@@ -9,6 +9,8 @@
 #ifndef AppInfo_h
 #define AppInfo_h
 
+//The name of the app is "VOpenKey AI", the owner's decision (confirmed 2026-10-16). Not "VOpenKey": do not shorten it in anything a person
+//reads or launches. See CLAUDE.md for what stays plain "VOpenKey" on purpose.
 #define VOK_APP_NAME            @"VOpenKey AI"
 //the folder in ~/Library/Application Support: not the display name, so renaming the app does not orphan the user's data
 #define VOK_DATA_DIR_NAME       @"VOpenKey"

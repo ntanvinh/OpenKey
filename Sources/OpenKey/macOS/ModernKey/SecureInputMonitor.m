@@ -190,7 +190,7 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     static BOOL loggedSecure = NO;
     if (secure != loggedSecure) {
         loggedSecure = secure;
-        VOKDiag(@"secure", @"secure input %@ (holder: %@, VOpenKey in Vietnamese: %d, macOS' Vietnamese source stands in: %d)",
+        VOKDiag(@"secure", @"secure input %@ (holder: %@, VOpenKey AI in Vietnamese: %d, macOS' Vietnamese source stands in: %d)",
                 secure ? @"ON" : @"released", holderName ?: @"none/unknown", vLanguage == 1, _active);
     }
     _holderName = secure ? holderName : nil;

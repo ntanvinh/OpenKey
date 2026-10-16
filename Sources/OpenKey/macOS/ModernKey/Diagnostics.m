@@ -138,7 +138,7 @@ static void CheckTap(uint64_t now) {
     if (state == 0) {
         sTapOffSince = now;
         LogOnQueue(@"ANOMALY", @"TAP DISABLED: macOS switched the event tap off (its callback or the main thread was too slow, or the "
-                   "user input of a protected field). VOpenKey converts nothing until the tap is on again", [NSDate date]);
+                   "user input of a protected field). VOpenKey AI converts nothing until the tap is on again", [NSDate date]);
     } else if (sTapState == 0) {
         LogOnQueue(@"tap", [NSString stringWithFormat:@"TAP enabled again after %.1f s", (double)(now - sTapOffSince) / 1e9], [NSDate date]);
     } else {

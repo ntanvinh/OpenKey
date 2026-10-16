@@ -172,7 +172,7 @@ extern "C" {
         [VOKDiagnostics setSnapshotProvider:^NSString*{
             NSString* source = [VOKDiagnostics currentInputSourceID];
             if (vLanguage == 1 && [source hasPrefix:@"com.apple.inputmethod.VietnameseIM"]) {
-                VOKDiag(@"ANOMALY", @"DOUBLE CONVERSION: VOpenKey is in Vietnamese mode and macOS has its own Vietnamese input source selected "
+                VOKDiag(@"ANOMALY", @"DOUBLE CONVERSION: VOpenKey AI is in Vietnamese mode and macOS has its own Vietnamese input source selected "
                         "(%@), so what is typed is converted twice", source);
             }
             CGEventFlags probeFlags = 0;
@@ -259,15 +259,25 @@ extern "C" {
         return false;
     }
 
+    //Asking the window server for the windows costs 2 ms on average and up to 40 ms on a busy Mac, and one key press asks more than once
+    //(the invisible character, the selection, a macro, a suggestion). The answer is kept for the length of one call of the callback, in which
+    //nothing can change it, and forgotten when the call ends: the next key asks again, so Spotlight is noticed as quickly as before.
+    static int _spotlightMemo = -1; //-1 not asked in this call, 0 no, 1 yes
+
     BOOL isSpotlightVisible() {
+        if (_spotlightMemo >= 0)
+            return _spotlightMemo != 0;
+        BOOL found = false;
         NSArray *windows = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
                                                                         kCGNullWindowID));
         for (NSDictionary *window in windows) {
             if ([[window objectForKey:(__bridge NSString *)kCGWindowOwnerName] isEqualToString:@"Spotlight"]) {
-                return true;
+                found = true;
+                break;
             }
         }
-        return false;
+        _spotlightMemo = found ? 1 : 0;
+        return found;
     }
 
     BOOL shouldUseRecommendWorkaround(NSString* topApp) {
@@ -886,6 +896,12 @@ extern "C" {
         if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
             VOKDiag(@"ANOMALY", @"TAP DISABLED by %@: macOS switched the event tap off, keys typed meanwhile were not converted and the engine may "
                     "no longer match the screen", type == kCGEventTapDisabledByTimeout ? @"timeout (the callback or the main thread was too slow)" : @"user input");
+            //Keys typed while the tap was off were never seen, so the word the engine holds is not the word on the screen: the next tone would
+            //delete letters that are not part of it. A new word starts, as after a mouse click; modifiers released unseen are forgotten too.
+            RequestNewSession();
+            [SuggestionController reset];
+            _lastFlag = 0;
+            _hasJustUsedHotKey = false;
             [OpenKeyManager reenableEventTap];
             return event;
         }
@@ -1202,10 +1218,15 @@ extern "C" {
     //The callback is the one place where being slow costs the user their typing: macOS switches the tap off when a key waits about a
     //second for it. With the log on, anything that takes 20 ms or more is written down.
     CGEventRef OpenKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
-        if (!vDiagnostics)
-            return OpenKeyCallbackImpl(proxy, type, event, refcon);
+        _spotlightMemo = -1;
+        if (!vDiagnostics) {
+            CGEventRef answer = OpenKeyCallbackImpl(proxy, type, event, refcon);
+            _spotlightMemo = -1;
+            return answer;
+        }
         uint64_t started = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
         CGEventRef result = OpenKeyCallbackImpl(proxy, type, event, refcon);
+        _spotlightMemo = -1;
         double milliseconds = (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - started) / 1e6;
         if (milliseconds >= 20.0) {
             VOKDiag(@"ANOMALY", @"SLOW CALLBACK: %.0f ms for a %@ event (macOS switches the tap off after about a second), the event was %@",
