@@ -9,6 +9,7 @@
 #import "AppInfo.h"
 #import "CaretLocator.h"
 #import "SuggestionPanel.h"
+#import "Diagnostics.h"
 #include <memory>
 #include "SuggestSession.h"
 
@@ -335,8 +336,24 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     if (!s->_started || slot < 0)
         return NO;
     vsuggest::Acceptance acceptance;
-    if (!s->_session->accept((size_t)slot, word.UTF8String ?: "", acceptance))
+    if (!s->_session->accept((size_t)slot, word.UTF8String ?: "", acceptance)) {
+        if (vDiagnostics) {
+            size_t count = s->_session->candidateCount();
+            if ((size_t)slot >= count) {
+                VOKDiag(@"suggest", @"slot %ld pressed but the bar holds %lu suggestions: the key goes to the application", (long)slot, (unsigned long)count);
+            } else {
+                //lengths and the place where the two words part, never the words
+                NSString* shown = ToNSString(s->_session->shownFor());
+                NSUInteger common = 0;
+                while (common < shown.length && common < word.length && [shown characterAtIndex:common] == [word characterAtIndex:common])
+                    common++;
+                VOKDiag(@"ANOMALY", @"SUGGESTION REFUSED: slot %ld pressed, the bar was made for a word of %lu characters, the word the engine "
+                        "has now is %lu characters, they are the same for the first %lu: the key goes to the application and nothing is typed",
+                        (long)slot, (unsigned long)shown.length, (unsigned long)word.length, (unsigned long)common);
+            }
+        }
         return NO;
+    }
     *text = ToNSString(acceptance.text);
     *erase = acceptance.eraseCount;
     [s scheduleRefresh];
@@ -351,6 +368,9 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 -(void)showBarWithWords:(NSArray<NSString*>*)words typed:(NSString*)typed {
     if (!_panel)
         _panel = [[SuggestionPanel alloc] init];
+    if (_lastWords == nil) {
+        VOKDiag(@"suggest", @"bar shown with %lu suggestions", (unsigned long)words.count);
+    }
     _lastWords = words;
     _lastTyped = typed;
     _panel.firstWordUsesTab = vSuggestTabAccepts != 0;
@@ -422,6 +442,9 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 }
 
 -(void)hideBar {
+    if (_lastWords != nil) {
+        VOKDiag(@"suggest", @"bar hidden");
+    }
     _generation++;
     _anchorValid = NO;
     _locateAgain = NO;

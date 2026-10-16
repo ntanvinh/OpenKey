@@ -22,6 +22,8 @@
 #import "SuggestionController.h"
 #import "ShortcutRecorder.h"
 #import "WordRestore.h"
+#import "Diagnostics.h"
+#include <sys/stat.h>
 
 //what the typing engine wants the application to define (AppDelegate.m does it in the app)
 int vLanguage = 1;
@@ -56,6 +58,7 @@ extern "C" {
 void RequestNewSession(void);
 void OpenKeyInit(void);
 CGEventRef OpenKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void* refcon);
+void CleanEventFlags(CGEventRef down, CGEventRef up, const char* what);
 }
 
 //AppDelegate: only what the event tap calls
@@ -509,6 +512,152 @@ static void runShortcutTests() {
     vSwitchKeyStatus = savedSwitch;
 }
 
+
+#pragma mark - The diagnostics log
+
+static NSString* ReadLog(NSString* dir) {
+    [VOKDiagnostics flush];
+    return [NSString stringWithContentsOfFile:[dir stringByAppendingPathComponent:@"diagnostics.log"] encoding:NSUTF8StringEncoding error:nil] ?: @"";
+}
+
+static BOOL Has(NSString* text, NSString* needle) {
+    return [text containsString:needle];
+}
+
+static NSUInteger Count(NSString* text, NSString* needle) {
+    return [text componentsSeparatedByString:needle].count - 1;
+}
+
+static void runDiagnosticsTests() {
+    printf("-- diagnostics log\n");
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSString* base = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"vok-diag-test-%d", getpid()]];
+    [fm removeItemAtPath:base error:nil];
+
+    // switched off: nothing is made, nothing is written
+    NSString* offDir = [base stringByAppendingPathComponent:@"off"];
+    [VOKDiagnostics startWithDirectory:offDir enabled:NO maxFileBytes:1 << 20 watchdogInterval:0.2 stallThreshold:1.0];
+    CHECK(![VOKDiagnostics isOn] && vDiagnostics == 0);
+    VOKDiag(@"test", @"this must not be written");
+    [VOKDiagnostics flush];
+    CHECK(![fm fileExistsAtPath:offDir]);
+    EXPECT("vieetj ", "việt ");                      // typing does not depend on it
+
+    // switched on
+    NSString* dir = [base stringByAppendingPathComponent:@"on"];
+    [VOKDiagnostics startWithDirectory:dir enabled:YES maxFileBytes:1 << 20 watchdogInterval:0.2 stallThreshold:1.0];
+    CHECK([VOKDiagnostics isOn] && vDiagnostics == 1);
+    struct stat info;
+    CHECK(stat([dir stringByAppendingPathComponent:@"diagnostics.log"].fileSystemRepresentation, &info) == 0 && (info.st_mode & 0777) == 0600);
+    CHECK(stat(dir.fileSystemRepresentation, &info) == 0 && (info.st_mode & 0777) == 0700);
+    Spin(0.3);
+
+    // typing, with the invisible character of the fix for browsers: written down, but never what was typed
+    vFixRecommendBrowser = 1;
+    EXPECT("dduowngf ", "đường ");
+    EXPECT("xin chaof ", "xin chào ");
+    EXPECT("Vieetj Nam ", "Việt Nam ");
+    vFixRecommendBrowser = 0;
+    NSString* log = ReadLog(dir);
+    CHECK(Has(log, @"[start] ---- VOpenKey AI"));
+    CHECK(Has(log, @"[state] front="));
+    CHECK(Has(log, @"[inject] engine code="));
+    CHECK(Has(log, @"emptyChar=1"));
+    for (NSString* typed in @[@"đường", @"duong", @"dduowngf", @"chào", @"chao", @"chaof", @"Việt", @"vieetj", @"Vieetj"])
+        CHECK(!Has(log, typed));
+    // typing as usual is not an anomaly. Three things depend on the machine this runs on and are left out: macOS' own Vietnamese
+    // input source being selected (then the log must say so), a callback that took 20 ms because the window list was slow, and a
+    // busy machine that kept this thread from its heartbeat for a second (the stall test below shows that one is noticed)
+    BOOL macVietnameseSelected = [[VOKDiagnostics currentInputSourceID] hasPrefix:@"com.apple.inputmethod.VietnameseIM"];
+    for (NSString* line in [log componentsSeparatedByString:@"\n"]) {
+        if ([line containsString:@"[ANOMALY]"] && ![line containsString:@"DOUBLE CONVERSION"] && ![line containsString:@"SLOW CALLBACK"] &&
+            ![line containsString:@"MAIN THREAD STALL"]) {
+            printf("FAIL: an anomaly while typing normally: %s\n", line.UTF8String);
+            failures++;
+        }
+    }
+    CHECK(Has(log, @"DOUBLE CONVERSION") == macVietnameseSelected);
+
+    // modifier flags that stuck to the events of the typing source are cleared and written down
+    CGEventRef down = CGEventCreateKeyboardEvent(NULL, 0, true), up = CGEventCreateKeyboardEvent(NULL, 0, false);
+    CGEventSetFlags(down, kCGEventFlagMaskCommand | kCGEventFlagMaskAlternate | kCGEventFlagMaskNonCoalesced);
+    CGEventSetFlags(up, kCGEventFlagMaskCommand);
+    CleanEventFlags(down, up, "text");
+    CHECK((CGEventGetFlags(down) & (kCGEventFlagMaskCommand | kCGEventFlagMaskAlternate)) == 0);
+    CHECK((CGEventGetFlags(down) & kCGEventFlagMaskNonCoalesced) != 0);
+    CHECK((CGEventGetFlags(up) & kCGEventFlagMaskCommand) == 0);
+    CFRelease(down);
+    CFRelease(up);
+    CHECK(Has(ReadLog(dir), @"[ANOMALY] FLAGS: a text event of the typing source carried modifier flags"));
+
+    // a main thread that does not answer is noticed, and so is its return
+    usleep(1700000);
+    Spin(0.6);
+    log = ReadLog(dir);
+    CHECK(Has(log, @"[ANOMALY] MAIN THREAD STALL"));
+    CHECK(Has(log, @"[stall] main thread answering again"));
+
+    // an event tap that macOS switched off is noticed, and so is its return
+    __block NSInteger tapState = 1;
+    [VOKDiagnostics setTapEnabledCheck:^NSInteger{ return tapState; }];
+    Spin(0.5);
+    tapState = 0;
+    Spin(0.6);
+    tapState = 1;
+    Spin(0.6);
+    log = ReadLog(dir);
+    CHECK(Has(log, @"[tap] TAP enabled"));
+    CHECK(Has(log, @"[ANOMALY] TAP DISABLED"));
+    CHECK(Has(log, @"[tap] TAP enabled again"));
+
+    // what was posted against what reached the end of the event chain (not while another app holds secure input: no tap sees keys then)
+    if (IsSecureEventInputEnabled()) {
+        printf("   (secure input is on: the delivery check is skipped)\n");
+    } else {
+        [VOKDiagnostics setWatchedSource:42];
+        [VOKDiagnostics resetDeliveryCounters];         // what the typing above posted has no listener here to arrive at
+        [VOKDiagnostics countPosted:VOKEventKindText pairs:4];
+        [VOKDiagnostics countPosted:VOKEventKindBackspace pairs:3];
+        [VOKDiagnostics countPosted:VOKEventKindEmptyChar pairs:2];
+        for (int i = 0; i < 4; i++) [VOKDiagnostics countArrived:VOKEventKindText down:YES];
+        for (int i = 0; i < 3; i++) [VOKDiagnostics countArrived:VOKEventKindText down:NO];
+        for (int i = 0; i < 3; i++) { [VOKDiagnostics countArrived:VOKEventKindBackspace down:YES]; [VOKDiagnostics countArrived:VOKEventKindBackspace down:NO]; }
+        for (int i = 0; i < 2; i++) [VOKDiagnostics countArrived:VOKEventKindEmptyChar down:NO];
+        Spin(2.0);
+        log = ReadLog(dir);
+        CHECK(Has(log, @"backspace down 3/3 up 3/3; empty-char down 0/2 up 2/2; text down 4/4 up 3/4;"));
+        CHECK(Has(log, @"[ANOMALY] DELIVERY"));
+        CHECK(Has(log, @"text key downs 4 of 4, key ups 3 of 4"));
+        CHECK(!Has(log, @"backspace key downs"));
+        CHECK(!Has(log, @"empty-char key downs"));      // the invisible character is not counted as a loss
+        NSUInteger anomalies = Count(log, @"[ANOMALY] DELIVERY");
+        // a later burst where only the invisible character goes missing: reported, but not as an anomaly
+        [VOKDiagnostics countPosted:VOKEventKindEmptyChar pairs:3];
+        Spin(4.0);
+        log = ReadLog(dir);
+        CHECK(Has(log, @"empty-char down 0/3 up 0/3"));
+        CHECK(Count(log, @"[ANOMALY] DELIVERY") == anomalies);
+        [VOKDiagnostics setWatchedSource:0];
+    }
+    [VOKDiagnostics stop];
+    CHECK(vDiagnostics == 0);
+
+    // the file stays small: it is replaced by a new one at the limit and the one before is kept
+    NSString* rotDir = [base stringByAppendingPathComponent:@"rotate"];
+    [VOKDiagnostics startWithDirectory:rotDir enabled:YES maxFileBytes:3000 watchdogInterval:0.5 stallThreshold:1.0];
+    for (int i = 0; i < 200; i++)
+        VOKDiag(@"test", @"line %d to fill the file up to its limit, nothing else", i);
+    [VOKDiagnostics flush];
+    struct stat now, before;
+    CHECK(stat([rotDir stringByAppendingPathComponent:@"diagnostics.log"].fileSystemRepresentation, &now) == 0 && now.st_size <= 3000);
+    CHECK(stat([rotDir stringByAppendingPathComponent:@"diagnostics.1.log"].fileSystemRepresentation, &before) == 0 && before.st_size <= 3000);
+    NSString* latest = ReadLog(rotDir);
+    CHECK(Has(latest, @"line 199 to fill"));
+    [VOKDiagnostics stop];
+
+    [fm removeItemAtPath:base error:nil];
+}
+
 int main() {
     @autoreleasepool {
         [NSApplication sharedApplication];
@@ -538,6 +687,7 @@ int main() {
         runShortcutTests();
         runAITests();
         runCaseBarTests();
+        runDiagnosticsTests();
 
         printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
     }

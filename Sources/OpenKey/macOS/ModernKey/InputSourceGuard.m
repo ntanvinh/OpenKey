@@ -5,6 +5,7 @@
 
 #import "InputSourceGuard.h"
 #import "SecureInputMonitor.h"
+#import "Diagnostics.h"
 
 extern int vLanguage;
 extern void RequestNewSession(void);
@@ -101,6 +102,7 @@ static TISInputSourceRef CopyABCSource(void) {
 }
 
 +(void)sourceChanged:(NSNotification*)notification {
+    VOKDiag(@"input", @"input source changed to %@ (VOpenKey language %d, forcing ABC: %d)", [VOKDiagnostics currentInputSourceID], vLanguage, vForceABC);
     [self enforce];
 }
 
@@ -125,6 +127,7 @@ static TISInputSourceRef CopyABCSource(void) {
         return NO;
     }
     OSStatus status = TISSelectInputSource(abc);
+    VOKDiag(@"input", @"guard: %@ -> %@ (status %d)", was, SourceID(abc), (int)status);
     if (status == noErr)
         NSLog(@"macOS input source %@ -> %@, so that Vietnamese is not typed twice", was, SourceID(abc));
     else

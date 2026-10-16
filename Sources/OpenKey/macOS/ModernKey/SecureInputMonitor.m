@@ -7,6 +7,7 @@
 
 #import "SecureInputMonitor.h"
 #import <Carbon/Carbon.h>
+#import "Diagnostics.h"
 
 extern int vLanguage;
 extern int vInputType;
@@ -186,6 +187,12 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     else if (!wantFallback && _active)
         [self disengage];
 
+    static BOOL loggedSecure = NO;
+    if (secure != loggedSecure) {
+        loggedSecure = secure;
+        VOKDiag(@"secure", @"secure input %@ (holder: %@, VOpenKey in Vietnamese: %d, macOS' Vietnamese source stands in: %d)",
+                secure ? @"ON" : @"released", holderName ?: @"none/unknown", vLanguage == 1, _active);
+    }
     _holderName = secure ? holderName : nil;
     NSString* description = nil;
     if (secure) {

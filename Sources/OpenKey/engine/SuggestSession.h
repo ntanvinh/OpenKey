@@ -96,6 +96,10 @@ public:
 
     bool isShowing() const { return showing_; }
 
+    /** For logs and tests: how many suggestions the bar holds now, and the word it was made for. */
+    size_t candidateCount() const { return candidates_.size(); }
+    const std::string& shownFor() const { return shownFor_; }
+
     /** The flow of typing is broken (mouse, other application...): forget context and hide the bar. */
     void reset();
 

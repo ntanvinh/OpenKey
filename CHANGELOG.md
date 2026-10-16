@@ -1,5 +1,12 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.6.4 (build 74): (16/10/2026)
+- fix: release v3.6.3 and correct mouse word restore
+- feat(macOS): add case bar text conversion feature
+- refactor: remove CaseBar feature and rebrand app to VOpenKey
+- feat(macOS): add case conversion bar for selected text
+- feat: release v3.5.7 build 69
+
 ##### VOpenKey 3.6.3 (build 73): (15/10/2026)
 - refactor: remove CaseBar feature and rebrand app to VOpenKey
 - feat(macOS): add case conversion bar for selected text

@@ -57,6 +57,7 @@
 		23E2E4A02314FD3A006CCC3E /* Vietnamese.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23E2E49B2314FD3A006CCC3E /* Vietnamese.cpp */; };
 		A534F32629D8B78100296F25 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23874B0F220160A500000BC8 /* Carbon.framework */; };
 		5EC0DE18202610210004 /* InputSourceGuard.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE18202610210003 /* InputSourceGuard.m */; };
+		5EC0DE1B202610160002 /* Diagnostics.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1B202610160001 /* Diagnostics.m */; };
 		5EC0DE19202610140002 /* lss-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE19202610140001 /* lss-logo.png */; };
 		5EC0DE19202610140004 /* default-snippets.json in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE19202610140003 /* default-snippets.json */; };
 		5EC0DE1A202610140004 /* SnippetStore.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1A202610140003 /* SnippetStore.mm */; };
@@ -205,6 +206,8 @@
 		23E2E49C2314FD3A006CCC3E /* SmartSwitchKey.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SmartSwitchKey.h; sourceTree = "<group>"; };
 		5EC0DE18202610210001 /* InputSourceGuard.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InputSourceGuard.h; sourceTree = "<group>"; };
 		5EC0DE18202610210003 /* InputSourceGuard.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = InputSourceGuard.m; sourceTree = "<group>"; };
+		5EC0DE1B202610160001 /* Diagnostics.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Diagnostics.m; sourceTree = "<group>"; };
+		5EC0DE1B202610160003 /* Diagnostics.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Diagnostics.h; sourceTree = "<group>"; };
 		5EC0DE19202610140001 /* lss-logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lss-logo.png; sourceTree = "<group>"; };
 		5EC0DE19202610140003 /* default-snippets.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = default-snippets.json; path = snippets/default-snippets.json; sourceTree = "<group>"; };
 		5EC0DE1A202610140001 /* SnippetStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SnippetStore.h; sourceTree = "<group>"; };
@@ -373,6 +376,8 @@
 				5EC0DE1A202610140001 /* SnippetStore.h */,
 				5EC0DE18202610210003 /* InputSourceGuard.m */,
 				5EC0DE18202610210001 /* InputSourceGuard.h */,
+				5EC0DE1B202610160001 /* Diagnostics.m */,
+				5EC0DE1B202610160003 /* Diagnostics.h */,
 				232DB1DF21FAED280049A0B5 /* Resources */,
 				232EDA5721F1B33E0085D362 /* AppDelegate.h */,
 				232EDA5821F1B33E0085D362 /* AppDelegate.m */,
@@ -641,6 +646,7 @@
 				5EC0DE1A202610140008 /* SnippetInserter.mm in Sources */,
 				5EC0DE1A202610140004 /* SnippetStore.mm in Sources */,
 				5EC0DE18202610210004 /* InputSourceGuard.m in Sources */,
+				5EC0DE1B202610160002 /* Diagnostics.m in Sources */,
 				23E2E49F2314FD3A006CCC3E /* Engine.cpp in Sources */,
 				23E2E49E2314FD3A006CCC3E /* SmartSwitchKey.cpp in Sources */,
 				5EC0DE105DE66C7F2E612A3E /* LegacyOpenKey.m in Sources */,
@@ -822,7 +828,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 73;
+				CURRENT_PROJECT_VERSION = 74;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -832,7 +838,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.6.3;
+				MARKETING_VERSION = 3.6.4;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -850,7 +856,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 73;
+				CURRENT_PROJECT_VERSION = 74;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -860,7 +866,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.6.3;
+				MARKETING_VERSION = 3.6.4;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

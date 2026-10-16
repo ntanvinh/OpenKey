@@ -10,6 +10,7 @@
 #import "SecureInputMonitor.h"
 #import "SuggestionController.h"
 #import "InputSourceGuard.h"
+#import "Diagnostics.h"
 #import "AppInfo.h"
 
 extern void OpenKeyInit(void);
@@ -20,6 +21,8 @@ extern CGEventRef OpenKeyCallback(CGEventTapProxy proxy,
                                   void *refcon);
 
 extern NSString* ConvertUtil(NSString* str);
+
+extern CGEventSourceRef myEventSource; //the source of every key event the typing makes, OpenKey.mm
 
 @interface OpenKeyManager ()
 
@@ -44,6 +47,12 @@ static CFRunLoopSourceRef runLoopSource;
     
     //init modernKey
     OpenKeyInit();
+
+    //the log first: it has to be on before the first key is handled
+    [VOKDiagnostics start];
+    [VOKDiagnostics setTapEnabledCheck:^NSInteger{
+        return eventTap == NULL ? -1 : (CGEventTapIsEnabled(eventTap) ? 1 : 0);
+    }];
     
     // Create an event tap. We are interested in key presses.
     eventMask = ((1 << kCGEventKeyDown) |
@@ -79,6 +88,10 @@ static CFRunLoopSourceRef runLoopSource;
     
     // Enable the event tap.
     CGEventTapEnable(eventTap, true);
+    VOKDiag(@"tap", @"event tap made and enabled");
+    //what the typing posts should come out at the end of the event chain, the log counts how much of it does
+    if (myEventSource != NULL)
+        [VOKDiagnostics watchDeliveryFromSource:CGEventSourceGetSourceStateID(myEventSource)];
     
     // macOS hides keys from event taps while secure input is on, see SecureInputMonitor
     [SecureInputMonitor start];
@@ -93,12 +106,14 @@ static CFRunLoopSourceRef runLoopSource;
 }
 
 +(void)reenableEventTap {
+    VOKDiag(@"tap", @"event tap switched on again (it was off: %d)", eventTap && !CGEventTapIsEnabled(eventTap));
     if (eventTap)
         CGEventTapEnable(eventTap, true);
 }
 
 +(BOOL)stopEventTap {
     if (_isInited) { //release all object
+        VOKDiag(@"tap", @"event tap stopped");
         [SecureInputMonitor stop];
 
         CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopCommonModes);

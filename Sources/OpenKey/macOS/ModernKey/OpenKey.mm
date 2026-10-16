@@ -21,6 +21,7 @@
 #import "SnippetInserter.h"
 #import "CaseBar.h"
 #import "WordRestore.h"
+#import "Diagnostics.h"
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
@@ -95,7 +96,44 @@ extern "C" {
     vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
     
     NSString* _frontMostApp = @"UnknownApp";
-    
+
+    //The key events of the typing all come from one private event source, and such a source remembers the modifier flags of what was
+    //posted with it. After a ⌘V (the snippets, the AI assistant, the case list) it went on making events that carry ⌘, until an event
+    //without modifiers was posted (measured on macOS 15). A text event with ⌘ is a shortcut, not text, and Shift+Left with ⌘ selects
+    //the whole line. So the events made here never keep the modifiers of the source.
+    static const CGEventFlags kModifierFlags = kCGEventFlagMaskShift | kCGEventFlagMaskControl | kCGEventFlagMaskAlternate |
+                                               kCGEventFlagMaskCommand | kCGEventFlagMaskSecondaryFn;
+
+    CGEventFlags WithoutModifiers(CGEventFlags flags, const char* what) {
+        if (flags & kModifierFlags) {
+            VOKDiag(@"ANOMALY", @"FLAGS: a %s event of the typing source carried modifier flags 0x%llx, cleared", what, (unsigned long long)flags);
+        }
+        return flags & ~kModifierFlags;
+    }
+
+    void CleanEventFlags(CGEventRef down, CGEventRef up, const char* what) {
+        CGEventFlags flags = CGEventGetFlags(down);
+        if (flags & kModifierFlags) {
+            CGEventSetFlags(down, WithoutModifiers(flags, what));
+        }
+        flags = CGEventGetFlags(up);
+        if (flags & kModifierFlags) {
+            CGEventSetFlags(up, flags & ~kModifierFlags);
+        }
+    }
+
+    NSString* EventTypeName(CGEventType type) {
+        switch (type) {
+            case kCGEventKeyDown: return @"key down";
+            case kCGEventKeyUp: return @"key up";
+            case kCGEventFlagsChanged: return @"modifier";
+            case kCGEventScrollWheel: return @"scroll";
+            case kCGEventLeftMouseDown: case kCGEventLeftMouseUp: case kCGEventRightMouseDown:
+            case kCGEventLeftMouseDragged: case kCGEventRightMouseDragged: return @"mouse";
+            default: return [NSString stringWithFormat:@"type %d", (int)type];
+        }
+    }
+
     void RequestNewSession();
     bool OverlayHasKeyboard();
 
@@ -129,6 +167,27 @@ extern "C" {
         
         myEventSource = CGEventSourceCreate(kCGEventSourceStatePrivate);
         pData = (vKeyHookState*)vKeyInit();
+
+        //the log: every minute it writes where the typing stands, and notes two things that break typing without any error
+        [VOKDiagnostics setSnapshotProvider:^NSString*{
+            NSString* source = [VOKDiagnostics currentInputSourceID];
+            if (vLanguage == 1 && [source hasPrefix:@"com.apple.inputmethod.VietnameseIM"]) {
+                VOKDiag(@"ANOMALY", @"DOUBLE CONVERSION: VOpenKey is in Vietnamese mode and macOS has its own Vietnamese input source selected "
+                        "(%@), so what is typed is converted twice", source);
+            }
+            CGEventFlags probeFlags = 0;
+            CGEventRef probe = myEventSource != NULL ? CGEventCreateKeyboardEvent(myEventSource, 0, true) : NULL;
+            if (probe != NULL) {
+                probeFlags = CGEventGetFlags(probe);
+                CFRelease(probe);
+            }
+            if (probeFlags & kModifierFlags) {
+                VOKDiag(@"ANOMALY", @"FLAGS: a new event of the typing source already carries modifier flags 0x%llx", (unsigned long long)probeFlags);
+            }
+            return [NSString stringWithFormat:@"language=%d table=%d type=%d suggest=%d fixRecommend=%d restore=%d spelling=%d stepByStep=%d sourceFlags=0x%llx",
+                    vLanguage, vCodeTable, vInputType, vSuggestEnabled, vFixRecommendBrowser, vRestoreIfWrongSpelling, vCheckSpelling,
+                    vSendKeyStepByStep, (unsigned long long)probeFlags];
+        }];
 
         //the ⌘V that pastes a snippet is ours: the tap leaves it alone like the keys it sends itself
         [SnippetInserter useEventSource:myEventSource];
@@ -254,6 +313,7 @@ extern "C" {
     void OnActiveAppChanged() { //use for smart switch key; improved on Sep 28th, 2019
         queryFrontMostApp();
         _languageTemp = getAppInputMethodStatus(string(_frontMostApp.UTF8String), vLanguage | (vCodeTable << 1));
+        VOKDiag(@"app", @"active app %@: remembered %d, language was %d", _frontMostApp, _languageTemp, vLanguage);
         if ((_languageTemp & 0x01) != vLanguage) { //for input method
             if (_languageTemp != -1) {
                 vLanguage = _languageTemp;
@@ -302,8 +362,10 @@ extern "C" {
         _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
         CGEventKeyboardSetUnicodeString(_newEventDown, 1, &ch);
         CGEventKeyboardSetUnicodeString(_newEventUp, 1, &ch);
+        CleanEventFlags(_newEventDown, _newEventUp, "text");
         CGEventTapPostEvent(_proxy, _newEventDown);
         CGEventTapPostEvent(_proxy, _newEventUp);
+        VOKDiagPosted(VOKEventKindText, 1);
         CFRelease(_newEventDown);
         CFRelease(_newEventUp);
         if (IS_DOUBLE_CODE(vCodeTable)) {
@@ -319,7 +381,7 @@ extern "C" {
             
             _newEventDown = CGEventCreateKeyboardEvent(myEventSource, _newChar, true);
             _newEventUp = CGEventCreateKeyboardEvent(myEventSource, _newChar, false);
-            _privateFlag = CGEventGetFlags(_newEventDown);
+            _privateFlag = WithoutModifiers(CGEventGetFlags(_newEventDown), "key");
             
             if (data & CAPS_MASK) {
                 _privateFlag |= kCGEventFlagMaskShift;
@@ -338,8 +400,10 @@ extern "C" {
                 _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
                 CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newChar);
                 CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newChar);
+                CleanEventFlags(_newEventDown, _newEventUp, "text");
                 CGEventTapPostEvent(_proxy, _newEventDown);
                 CGEventTapPostEvent(_proxy, _newEventUp);
+                VOKDiagPosted(VOKEventKindText, 1);
             } else if (vCodeTable == 1 || vCodeTable == 2 || vCodeTable == 4) { //others such as VNI Windows, TCVN3: 1 byte code
                 _newCharHi = HIBYTE(_newChar);
                 _newChar = LOBYTE(_newChar);
@@ -348,6 +412,7 @@ extern "C" {
                 _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
                 CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newChar);
                 CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newChar);
+                CleanEventFlags(_newEventDown, _newEventUp, "text");
                 CGEventTapPostEvent(_proxy, _newEventDown);
                 CGEventTapPostEvent(_proxy, _newEventUp);
                 if (_newCharHi > 32) {
@@ -359,6 +424,7 @@ extern "C" {
                     _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
                     CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newCharHi);
                     CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newCharHi);
+                    CleanEventFlags(_newEventDown, _newEventUp, "text");
                     CGEventTapPostEvent(_proxy, _newEventDown);
                     CGEventTapPostEvent(_proxy, _newEventUp);
                 } else {
@@ -375,6 +441,7 @@ extern "C" {
                 _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
                 CGEventKeyboardSetUnicodeString(_newEventDown, (_newCharHi > 0 ? 2 : 1), _uniChar);
                 CGEventKeyboardSetUnicodeString(_newEventUp, (_newCharHi > 0 ? 2 : 1), _uniChar);
+                CleanEventFlags(_newEventDown, _newEventUp, "text");
                 CGEventTapPostEvent(_proxy, _newEventDown);
                 CGEventTapPostEvent(_proxy, _newEventUp);
             }
@@ -396,8 +463,10 @@ extern "C" {
         _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
         CGEventKeyboardSetUnicodeString(_newEventDown, 1, &_newChar);
         CGEventKeyboardSetUnicodeString(_newEventUp, 1, &_newChar);
+        CleanEventFlags(_newEventDown, _newEventUp, "empty character");
         CGEventTapPostEvent(_proxy, _newEventDown);
         CGEventTapPostEvent(_proxy, _newEventUp);
+        VOKDiagPosted(VOKEventKindEmptyChar, 1);
         CFRelease(_newEventDown);
         CFRelease(_newEventUp);
     }
@@ -405,6 +474,7 @@ extern "C" {
     void SendVirtualKey(const Byte& vKey) {
         CGEventRef eventVkeyDown = CGEventCreateKeyboardEvent (myEventSource, vKey, true);
         CGEventRef eventVkeyUp = CGEventCreateKeyboardEvent (myEventSource, vKey, false);
+        CleanEventFlags(eventVkeyDown, eventVkeyUp, "key");
         
         CGEventTapPostEvent(_proxy, eventVkeyDown);
         CGEventTapPostEvent(_proxy, eventVkeyUp);
@@ -416,12 +486,14 @@ extern "C" {
     void SendBackspace() {
         CGEventTapPostEvent(_proxy, eventBackSpaceDown);
         CGEventTapPostEvent(_proxy, eventBackSpaceUp);
+        VOKDiagPosted(VOKEventKindBackspace, 1);
         
         if (IS_DOUBLE_CODE(vCodeTable)) { //VNI or Unicode Compound
             if (_syncKey.back() > 1) {
                 if (!(vCodeTable == 3 && containUnicodeCompoundApp(FRONT_APP))) {
                     CGEventTapPostEvent(_proxy, eventBackSpaceDown);
                     CGEventTapPostEvent(_proxy, eventBackSpaceUp);
+                    VOKDiagPosted(VOKEventKindBackspace, 1);
                 }
             }
             _syncKey.pop_back();
@@ -431,7 +503,7 @@ extern "C" {
     void SendShiftAndLeftArrow() {
         CGEventRef eventVkeyDown = CGEventCreateKeyboardEvent (myEventSource, KEY_LEFT, true);
         CGEventRef eventVkeyUp = CGEventCreateKeyboardEvent (myEventSource, KEY_LEFT, false);
-        _privateFlag = CGEventGetFlags(eventVkeyDown);
+        _privateFlag = WithoutModifiers(CGEventGetFlags(eventVkeyDown), "Shift+Left");
         _privateFlag |= kCGEventFlagMaskShift;
         CGEventSetFlags(eventVkeyDown, _privateFlag);
         CGEventSetFlags(eventVkeyUp, _privateFlag);
@@ -455,7 +527,7 @@ extern "C" {
     void SendCutKey() {
         CGEventRef eventVkeyDown = CGEventCreateKeyboardEvent (myEventSource, KEY_X, true);
         CGEventRef eventVkeyUp = CGEventCreateKeyboardEvent (myEventSource, KEY_X, false);
-        _privateFlag = CGEventGetFlags(eventVkeyDown);
+        _privateFlag = WithoutModifiers(CGEventGetFlags(eventVkeyDown), "Cut");
         _privateFlag |= NX_COMMANDMASK;
         CGEventSetFlags(eventVkeyDown, _privateFlag);
         CGEventSetFlags(eventVkeyUp, _privateFlag);
@@ -544,8 +616,12 @@ extern "C" {
         _newEventUp = CGEventCreateKeyboardEvent(myEventSource, 0, false);
         CGEventKeyboardSetUnicodeString(_newEventDown, _willContinuteSending ? 16 : _newCharSize - offset, _newCharString);
         CGEventKeyboardSetUnicodeString(_newEventUp, _willContinuteSending ? 16 : _newCharSize - offset, _newCharString);
+        CleanEventFlags(_newEventDown, _newEventUp, "text");
         CGEventTapPostEvent(_proxy, _newEventDown);
         CGEventTapPostEvent(_proxy, _newEventUp);
+        if ((_willContinuteSending ? 16 : _newCharSize - offset) > 0 && vCodeTable == 0) {
+            VOKDiagPosted(VOKEventKindText, 1);
+        }
         CFRelease(_newEventDown);
         CFRelease(_newEventUp);
 
@@ -587,6 +663,7 @@ extern "C" {
         [appDelegate onImputMethodChanged:YES];
         startNewSession();
         [SuggestionController reset];
+        VOKDiag(@"language", @"switched with the shortcut: language now %d, app %@", vLanguage, FRONT_APP);
     }
     
     //Opens the snippet window, or closes it when it is open. Not inside the callback: the tap must answer at once.
@@ -678,8 +755,10 @@ extern "C" {
             CGEventRef up = CGEventCreateKeyboardEvent(myEventSource, 0, false);
             CGEventKeyboardSetUnicodeString(down, count, chunk);
             CGEventKeyboardSetUnicodeString(up, count, chunk);
+            CleanEventFlags(down, up, "suggestion text");
             CGEventTapPostEvent(_proxy, down);
             CGEventTapPostEvent(_proxy, up);
+            VOKDiagPosted(VOKEventKindText, 1);
             CFRelease(down);
             CFRelease(up);
         }
@@ -713,22 +792,36 @@ extern "C" {
     //Sends what the typing engine answered when it has replaced characters (code "process", and the two restores): deletes the
     //characters that are to go and types the new ones. Uses the key of the event, _keycode, only for the restores that end a word.
     void sendEngineResult() {
+        //for the log: what the engine asked for (the numbers are changed below) and how it was carried out
+        const int engineCode = pData->code, engineBackspaces = pData->backspaceCount, engineNew = pData->newCharCount, engineExt = pData->extCode;
+        bool usedEmptyChar = false, usedShiftLeft = false, usedSelection = false;
+        if (vDiagnostics) {
+            if (engineCode == vWillProcess && engineBackspaces > 0 && engineNew == 0) {
+                VOKDiag(@"ANOMALY", @"ENGINE: asks to delete %d characters and to type none, the text on screen would only get shorter", engineBackspaces);
+            }
+            if (engineBackspaces >= MAX_BUFF || engineNew > MAX_BUFF) {
+                VOKDiag(@"ANOMALY", @"ENGINE: numbers out of range (delete %d, type %d), the engine and the screen are not the same word", engineBackspaces, engineNew);
+            }
+        }
         //fix autocomplete
         if (shouldUseRecommendWorkaround(FRONT_APP) && pData->extCode != 4) {
             if (vFixChromiumBrowser && [_unicodeCompoundApp containsObject:FRONT_APP]) {
                 if (pData->backspaceCount > 0) {
                     SendShiftAndLeftArrow();
+                    usedShiftLeft = true;
                     if (pData->backspaceCount == 1)
                         pData->backspaceCount--;
                 }
             } else {
                 SendEmptyCharacter();
+                usedEmptyChar = true;
                 pData->backspaceCount++;
             
             }
         }
 
         if (shouldUseSelectionReplacement(FRONT_APP) && pData->backspaceCount > 0) {
+            usedSelection = true;
             for (_i = 0; _i < pData->backspaceCount; _i++) {
                 SendShiftAndLeftArrow();
             }
@@ -758,13 +851,26 @@ extern "C" {
                 startNewSession();
             }
         }
+
+        if (vDiagnostics) {
+            NSString* source = [VOKDiagnostics currentInputSourceID];
+            VOKDiag(@"inject", @"engine code=%d delete=%d type=%d ext=%d word=%lu emptyChar=%d shiftLeft=%d selection=%d table=%d stepByStep=%d app=%@ source=%@",
+                    engineCode, engineBackspaces, engineNew, engineExt, (unsigned long)CurrentTypingWord().length, usedEmptyChar, usedShiftLeft,
+                    usedSelection, vCodeTable, vSendKeyStepByStep, FRONT_APP, source);
+            if ([source hasPrefix:@"com.apple.inputmethod.VietnameseIM"]) {
+                VOKDiag(@"ANOMALY", @"DOUBLE CONVERSION: the engine replaced text while macOS has its own Vietnamese input source selected (%@)", source);
+            }
+        }
     }
 
     //The restore shortcut: gives back the keys typed for the word on screen ("rétỏe" -> "restore"). NO when there is nothing to
     //give back, then the key is left for the application.
     bool restoreTypingWord() {
-        if (!vRestoreWord())
+        if (!vRestoreWord()) {
+            VOKDiag(@"restore", @"restore shortcut: nothing to restore, the key goes to the application");
             return false;
+        }
+        VOKDiag(@"restore", @"restore shortcut: word restored");
         sendEngineResult();
         [SuggestionController reset]; //the word is no longer what the suggestion bar was looking at
         return true;
@@ -774,10 +880,12 @@ extern "C" {
      * MAIN HOOK entry, very important function.
      * MAIN Callback.
      */
-    CGEventRef OpenKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+    static CGEventRef OpenKeyCallbackImpl(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
         //macOS turns an event tap off when it thinks it is stuck or after some user input, and OpenKey
         //silently stops working unless it is turned back on
         if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+            VOKDiag(@"ANOMALY", @"TAP DISABLED by %@: macOS switched the event tap off, keys typed meanwhile were not converted and the engine may "
+                    "no longer match the screen", type == kCGEventTapDisabledByTimeout ? @"timeout (the callback or the main thread was too slow)" : @"user input");
             [OpenKeyManager reenableEventTap];
             return event;
         }
@@ -1032,6 +1140,8 @@ extern "C" {
                 NSString* suggestion = nil;
                 NSUInteger eraseCount = 0;
                 if ([SuggestionController acceptSlot:slot currentWord:CurrentTypingWord() text:&suggestion erase:&eraseCount]) {
+                    VOKDiag(@"suggest", @"accepted slot %d: delete %lu, type %lu characters, app %@, source %@", slot, (unsigned long)eraseCount,
+                            (unsigned long)suggestion.length, FRONT_APP, [VOKDiagnostics currentInputSourceID]);
                     SendSuggestionText(suggestion, eraseCount);
                     RequestNewSession(); //the word on screen is no longer what the typing engine has
                     _swallowedKeyCode = (int)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
@@ -1087,5 +1197,20 @@ extern "C" {
         }
         
         return event;
+    }
+
+    //The callback is the one place where being slow costs the user their typing: macOS switches the tap off when a key waits about a
+    //second for it. With the log on, anything that takes 20 ms or more is written down.
+    CGEventRef OpenKeyCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+        if (!vDiagnostics)
+            return OpenKeyCallbackImpl(proxy, type, event, refcon);
+        uint64_t started = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+        CGEventRef result = OpenKeyCallbackImpl(proxy, type, event, refcon);
+        double milliseconds = (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - started) / 1e6;
+        if (milliseconds >= 20.0) {
+            VOKDiag(@"ANOMALY", @"SLOW CALLBACK: %.0f ms for a %@ event (macOS switches the tap off after about a second), the event was %@",
+                    milliseconds, EventTypeName(type), result == NULL ? @"taken" : @"passed on");
+        }
+        return result;
     }
 }
