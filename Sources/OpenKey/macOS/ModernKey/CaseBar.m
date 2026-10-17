@@ -26,6 +26,8 @@ static const NSTimeInterval kLocateWait = 0.5;        //an application that does
 static const NSTimeInterval kAutoLifetime = 20;       //a list nobody used goes away by itself
 static const CGFloat kDragDistance = 5;               //less than this is a click
 
+static const NSInteger kCopyStyle = -1;               //the "style" of the row that copies the selection
+
 static CaseBarPanel* sPanel;
 static NSString* sText;                               //the whole selection
 static NSArray<NSDictionary*>* sOffers;
@@ -138,7 +140,7 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
     } else {
         //the list came up by itself: the shortcut hands it the keys (arrows, ↩, Esc)
         sExplicit = YES;
-        sPanel.highlighted = 0;
+        sPanel.highlighted = 1;
     }
 }
 
@@ -232,9 +234,13 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
 }
 
 +(void)presentText:(NSString*)text application:(NSRunningApplication*)application explicit:(BOOL)isExplicit anchor:(NSRect)line {
-    NSArray<NSDictionary*>* offers = [CaseTransform offersForText:[self headOfText:text]];
-    if (offers.count == 0)
+    NSArray<NSDictionary*>* styles = [CaseTransform offersForText:[self headOfText:text]];
+    if (styles.count == 0)
         return;
+    //the first row copies the selection as it is; the styles follow
+    NSMutableArray<NSDictionary*>* offers = [NSMutableArray arrayWithObject:
+        @{@"style": @(kCopyStyle), @"name": @"Sao chép", @"separatorAfter": @YES, @"text": [self headOfText:text]}];
+    [offers addObjectsFromArray:styles];
     if (sPanel == nil) {
         sPanel = [[CaseBarPanel alloc] init];
         sPanel.onChoose = ^(NSInteger index) { [CaseBar chooseIndex:index]; };
@@ -246,7 +252,7 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
     sExplicit = isExplicit;
     NSUInteger generation = ++sGeneration;
     [sPanel setOffers:offers];
-    sPanel.highlighted = isExplicit ? 0 : -1;
+    sPanel.highlighted = isExplicit ? 1 : -1; //↩ applies the first style; the copy row is one ↓↑ away
     if (line.size.height <= 0) //the application does not say where: under the pointer
         [sPanel showNearPoint:[NSEvent mouseLocation]];
     else
@@ -266,7 +272,16 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
 +(void)chooseIndex:(NSInteger)index {
     if (index < 0 || index >= (NSInteger)sOffers.count || sText == nil)
         return;
-    VOKCaseStyle style = (VOKCaseStyle)[sOffers[index][@"style"] integerValue];
+    NSInteger styleValue = [sOffers[index][@"style"] integerValue];
+    if (styleValue == kCopyStyle) {
+        NSString* copied = sText;
+        [self hide];
+        NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
+        [pasteboard clearContents];
+        [pasteboard setString:copied forType:NSPasteboardTypeString];
+        return;
+    }
+    VOKCaseStyle style = (VOKCaseStyle)styleValue;
     NSString* result = [CaseTransform apply:style toText:sText];
     NSRunningApplication* application = sApplication;
     [self hide];

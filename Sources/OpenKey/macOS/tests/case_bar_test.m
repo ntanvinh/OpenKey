@@ -108,18 +108,26 @@ int main(int argc, const char* argv[]) {
         Present(@"xin chào thế giới", YES);
         CHECK([CaseBar isVisible], "visible after present");
         CHECK(boundaries == 1, "boundary on open: %d", boundaries);
-        CHECK(Key(18, opt), "⌥1 taken");
+        CHECK(Key(19, opt), "⌥2 taken");
         CHECK(![CaseBar isVisible], "hidden after a choice");
-        CHECK([sPasted isEqualToString:@"XIN CHÀO THẾ GIỚI"], "⌥1 pastes upper: %s", sPasted.UTF8String);
+        CHECK([sPasted isEqualToString:@"XIN CHÀO THẾ GIỚI"], "⌥2 pastes upper: %s", sPasted.UTF8String);
         CHECK(boundaries == 2, "boundary on close: %d", boundaries);
 
         Present(@"xin chào thế giới", YES);
         //rows: CHỮ HOA, Viết Hoa Từng Từ, Viết hoa đầu câu (chữ thường is the text itself: no row), camelCase...
-        CHECK(Key(19, opt), "⌥2 taken");
-        CHECK([sPasted isEqualToString:@"Xin Chào Thế Giới"], "⌥2 pastes title: %s", sPasted.UTF8String);
-        Present(@"xin chào thế giới", YES);
         CHECK(Key(20, opt), "⌥3 taken");
-        CHECK([sPasted isEqualToString:@"Xin chào thế giới"], "⌥3 pastes sentence case: %s", sPasted.UTF8String);
+        CHECK([sPasted isEqualToString:@"Xin Chào Thế Giới"], "⌥3 pastes title: %s", sPasted.UTF8String);
+        Present(@"xin chào thế giới", YES);
+        CHECK(Key(21, opt), "⌥4 taken");
+        CHECK([sPasted isEqualToString:@"Xin chào thế giới"], "⌥4 pastes sentence case: %s", sPasted.UTF8String);
+
+        //⌥1 is the copy row: the selection goes to the clipboard as it is, nothing is pasted
+        sPasted = nil;
+        [[NSPasteboard generalPasteboard] clearContents];
+        Present(@"xin chào thế giới", YES);
+        CHECK(Key(18, opt), "⌥1 taken");
+        CHECK(![CaseBar isVisible] && sPasted == nil, "copy pastes nothing");
+        CHECK([[[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString] isEqualToString:@"xin chào thế giới"], "copy fills the clipboard");
 
         //↑ ↓ ↩ Esc in the list opened by the shortcut
         sPasted = nil;
@@ -130,7 +138,8 @@ int main(int argc, const char* argv[]) {
         CHECK(sPasted != nil, "return pastes the lit row: %s", sPasted.UTF8String);
         NSString* thirdRow = sPasted;
         Present(@"xin chào thế giới", YES);
-        CHECK(Key(126, 0), "up taken");     //wraps to the last row
+        CHECK(Key(126, 0), "up taken");     //the copy row
+        CHECK(Key(126, 0), "up taken 2");   //wraps to the last row
         CHECK(Key(76, 0), "enter (keypad) taken");
         CHECK(sPasted != nil && ![sPasted isEqualToString:thirdRow], "up wraps to the last row: %s", sPasted.UTF8String);
         sPasted = nil;
@@ -183,7 +192,7 @@ int main(int argc, const char* argv[]) {
         CHECK([CaseBar isVisible], "show() found the selection");
         CHECK(sReaderAllowCopy, "the shortcut may use ⌘C");
         Park();
-        CHECK(Key(18, opt) && [sPasted isEqualToString:@"HELLO WORLD"], "pasted %s", sPasted.UTF8String);
+        CHECK(Key(19, opt) && [sPasted isEqualToString:@"HELLO WORLD"], "pasted %s", sPasted.UTF8String);
 
         //by itself: after a drag
         sSelection = @"xin chào";
@@ -270,7 +279,7 @@ int main(int argc, const char* argv[]) {
         NSMutableString* big = [NSMutableString string];
         for (int i = 0; i < 3000; i++) [big appendString:@"xin chào "];
         Present(big, YES);
-        CHECK(Key(18, opt), "choose on a long text");
+        CHECK(Key(19, opt), "choose on a long text");
         CHECK(sPasted.length == big.length && [sPasted hasPrefix:@"XIN CHÀO XIN CHÀO"] && [sPasted hasSuffix:@"CHÀO "], "the whole text is changed: %lu of %lu", (unsigned long)sPasted.length, (unsigned long)big.length);
         //too long to be a thing for this list
         NSMutableString* huge = [NSMutableString stringWithString:@"a"];

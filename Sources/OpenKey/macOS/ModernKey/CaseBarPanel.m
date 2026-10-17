@@ -12,6 +12,7 @@ static const CGFloat kPadding = 5;
 static const CGFloat kBarRadius = kItemRadius + kPadding;
 static const CGFloat kItemHeight = 26;
 static const CGFloat kItemPadding = 10;
+static const CGFloat kSeparatorHeight = 9;      //room for the line under a row whose offer says "separatorAfter"
 static const CGFloat kHintWidth = 26;
 static const CGFloat kColumnGap = 12;
 static const CGFloat kPreviewWidth = 230;
@@ -88,11 +89,21 @@ static const NSTimeInterval kFadeIn = 0.12;
 
 -(NSSize)contentSize {
     CGFloat width = kPadding + kItemPadding + kHintWidth + _nameWidth + kColumnGap + kPreviewWidth + kItemPadding + kPadding;
-    return NSMakeSize(width, kPadding * 2 + kItemHeight * self.offers.count);
+    return NSMakeSize(width, kPadding * 2 + kItemHeight * self.offers.count + [self separatorSpaceBeforeItem:self.offers.count]);
+}
+
+//the height of the separators above row `index`
+-(CGFloat)separatorSpaceBeforeItem:(NSInteger)index {
+    CGFloat space = 0;
+    for (NSInteger i = 0; i < index && i < (NSInteger)self.offers.count; i++) {
+        if ([self.offers[i][@"separatorAfter"] boolValue])
+            space += kSeparatorHeight;
+    }
+    return space;
 }
 
 -(NSRect)rectOfItem:(NSInteger)index {
-    return NSMakeRect(kPadding, kPadding + index * kItemHeight, NSWidth(self.bounds) - 2 * kPadding, kItemHeight);
+    return NSMakeRect(kPadding, kPadding + index * kItemHeight + [self separatorSpaceBeforeItem:index], NSWidth(self.bounds) - 2 * kPadding, kItemHeight);
 }
 
 -(NSInteger)itemAtPoint:(NSPoint)point {
@@ -119,6 +130,11 @@ static const NSTimeInterval kFadeIn = 0.12;
         }
         NSDictionary* offer = self.offers[i];
         CGFloat left = NSMinX(item) + kItemPadding;
+        if ([offer[@"separatorAfter"] boolValue]) {
+            NSRect line = NSMakeRect(NSMinX(item) + kItemPadding, NSMaxY(item) + kSeparatorHeight / 2 - 0.25, NSWidth(item) - 2 * kItemPadding, 0.5);
+            [[NSColor separatorColor] setFill];
+            NSRectFill(line);
+        }
 
         NSString* hint = [CaseBarPanel hintForIndex:i];
         NSDictionary* hintAttributes = [self hintAttributes:lit];

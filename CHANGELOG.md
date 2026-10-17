@@ -1,5 +1,14 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.6.7 (build 77): (18/10/2026)
+- refactor: complete VOpenKey AI rebrand, bump to 3.6.6
+- feat: add diagnostic logging for typing issues
+- fix: release v3.6.3 and correct mouse word restore
+- feat(macOS): add case bar text conversion feature
+- refactor: remove CaseBar feature and rebrand app to VOpenKey
+- feat(macOS): add case conversion bar for selected text
+- feat: release v3.5.7 build 69
+
 ##### VOpenKey 3.6.6 (build 76): (16/10/2026)
 - feat: add diagnostic logging for typing issues
 - fix: release v3.6.3 and correct mouse word restore
