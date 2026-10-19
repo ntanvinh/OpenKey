@@ -17,7 +17,7 @@ cleanup() {
 trap cleanup EXIT
 cd "$WORK"
 
-for f in AIProvider AIKeychain AISettings AIClient; do
+for f in AIProvider AIKeychain AISettings AIClient AIAgentCLI AIAgentProcess AIAgentRunner; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/ai_test.m" -o ai_test.o

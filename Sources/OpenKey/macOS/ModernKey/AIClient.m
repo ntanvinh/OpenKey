@@ -4,6 +4,8 @@
 //
 
 #import "AIClient.h"
+#import "AIAgentCLI.h"
+#import "AIAgentRunner.h"
 #import "AppInfo.h"
 
 static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
@@ -208,6 +210,7 @@ static NSString* const kThinkClose = @"</think>";
         case AIProtocolOpenAI: return [self openAIText:json];
         case AIProtocolGemini: return [self geminiText:json error:error];
         case AIProtocolAnthropic: return [self anthropicText:json error:error];
+        case AIProtocolAgentCLI: return nil;        //a program prints its text, it does not answer in JSON
     }
     return nil;
 }
@@ -303,6 +306,8 @@ static NSString* const kThinkClose = @"</think>";
                     [text appendString:block[@"text"]];
             return text.length > 0 ? text : nil;
         }
+        case AIProtocolAgentCLI:
+            return nil;
     }
     return nil;
 }
@@ -342,6 +347,8 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
             [request setValue:c.key forHTTPHeaderField:@"x-api-key"];
             [request setValue:@"2023-06-01" forHTTPHeaderField:@"anthropic-version"];
             break;
+        case AIProtocolAgentCLI:
+            break;      //a program that is signed in by itself: there is no request and no key
     }
 }
 
@@ -354,6 +361,7 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
     NSURLSessionDataTask* _task;
     NSOperationQueue* _queue;
     AIStreamParser* _parser;
+    AIAgentRunner* _runner;         //for an agent program, which is run instead of a request being sent
 
     void (^_onText)(NSString*);
     void (^_completion)(NSError*);
@@ -405,6 +413,10 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
             body = b;
             break;
         }
+        case AIProtocolAgentCLI:
+            if (error != NULL)
+                *error = MakeError(VOKAIErrorServer, @"Chương trình AI trên máy không nhận yêu cầu qua mạng.");
+            return nil;
     }
     NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:address]];
     request.HTTPMethod = @"POST";
@@ -429,6 +441,11 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
 }
 
 -(void)generateWithPrompt:(NSString*)prompt onText:(void (^)(NSString*))onText completion:(void (^)(NSError*))completion {
+    if (_configuration.provider.isAgentCLI) {
+        _runner = [[AIAgentRunner alloc] initWithConfiguration:_configuration];
+        [_runner generateWithPrompt:prompt onText:onText completion:completion];
+        return;
+    }
     _onText = [onText copy];
     _completion = [completion copy];
     NSError* error = nil;
@@ -447,6 +464,7 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
     _cancelled = YES;
     _onText = nil;
     _completion = nil;
+    [_runner cancel];
     [_task cancel];
     [_session invalidateAndCancel];
 }
@@ -600,6 +618,16 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
 #pragma mark List of models
 
 +(void)listModelsForConfiguration:(AIConfiguration*)c completion:(void (^)(NSArray<NSString*>*, NSError*))completion {
+    AIAgentCLI* cli = [AIAgentCLI forProvider:c.provider];
+    if (cli != nil) {
+        [cli loadModelsFromExecutable:c.executablePath completion:^(NSArray<AIAgentModel*>* models, NSError* error) {
+            NSMutableArray<NSString*>* names = [NSMutableArray array];
+            for (AIAgentModel* model in models)
+                [names addObject:model.identifier];
+            completion(error == nil ? names : nil, error);
+        }];
+        return;
+    }
     NSString* reason = nil;
     NSString* base = VOKAICleanBaseURL(c.baseURL, &reason);
     if (base == nil) {

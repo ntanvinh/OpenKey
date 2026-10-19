@@ -27,7 +27,7 @@ cd "$WORK"
 
 python3 -I "$ENGINE/tests/validate_local_models.py" "$ENGINE/ai/local-models.json"
 
-for f in AIHardware AILocalModels AIModelAdvisor AIOllama AIOllamaInstaller AIOllamaRuntime AILocalSetup AIClient AIProvider AISettings AIKeychain VOKUI AILocalSetupController AILocalControl; do
+for f in AIHardware AILocalModels AIModelAdvisor AIOllama AIOllamaInstaller AIOllamaRuntime AILocalSetup AIClient AIProvider AISettings AIKeychain AIAgentCLI AIAgentProcess AIAgentRunner VOKUI AILocalSetupController AILocalControl; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 for t in ai_local_advisor_test ai_ollama_test ai_local_install_test ai_local_runtime_test ai_local_setup_test ai_local_ui_test ai_local_control_test; do
@@ -38,10 +38,10 @@ clang -framework Cocoa AIOllama.o ai_ollama_test.o -o ai_ollama_test
 clang -framework Cocoa -framework Security AIOllama.o AIOllamaInstaller.o ai_local_install_test.o -o ai_local_install_test
 clang -framework Cocoa -framework Security AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o ai_local_runtime_test.o -o ai_local_runtime_test
 clang -framework Cocoa -framework Security -framework IOKit AIHardware.o AILocalModels.o AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o AILocalSetup.o \
-    AIClient.o AIProvider.o AISettings.o AIKeychain.o ai_local_setup_test.o -o ai_local_setup_test
+    AIClient.o AIAgentCLI.o AIAgentProcess.o AIAgentRunner.o AIProvider.o AISettings.o AIKeychain.o ai_local_setup_test.o -o ai_local_setup_test
 clang -framework Cocoa -framework Security -framework IOKit AIHardware.o AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o AILocalControl.o ai_local_control_test.o -o ai_local_control_test
 clang -framework Cocoa -framework Security -framework IOKit AIHardware.o AILocalModels.o AIModelAdvisor.o AIOllama.o AIOllamaInstaller.o AIOllamaRuntime.o AILocalSetup.o \
-    AILocalSetupController.o VOKUI.o AIClient.o AIProvider.o AISettings.o AIKeychain.o ai_local_ui_test.o -o ai_local_ui_test
+    AILocalSetupController.o VOKUI.o AIClient.o AIAgentCLI.o AIAgentProcess.o AIAgentRunner.o AIProvider.o AISettings.o AIKeychain.o ai_local_ui_test.o -o ai_local_ui_test
 cp "$ENGINE/ai/local-models.json" fixtures/local-models.json 2>/dev/null || { mkdir -p fixtures && cp "$ENGINE/ai/local-models.json" fixtures/local-models.json; }
 
 # The fixtures of the installation tests. The "fake" Ollama has the right name and the right layout, and is signed, but only ad hoc:

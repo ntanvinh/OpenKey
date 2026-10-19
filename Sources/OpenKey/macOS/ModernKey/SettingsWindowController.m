@@ -5,6 +5,7 @@
 
 #import "SettingsWindowController.h"
 #import "AppDelegate.h"
+#import "AIAgentCLI.h"
 #import "AIClient.h"
 #import "AIKeychain.h"
 #import "AILocalControl.h"
@@ -166,6 +167,14 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     ShortcutRecorder* _aiRecorder;
     ShortcutRecorder* _caseRecorder;
     NSPopUpButton* _aiProvider;
+    NSView* _aiProgramRow, *_aiKeyRow, *_aiURLRow, *_aiEffortRow;     //the rows that are there for some services only
+    NSTextField* _aiProgramPath;
+    NSTextField* _aiProgramStatus;
+    NSButton* _aiProgramChoose;
+    NSButton* _aiProgramReset;
+    NSPopUpButton* _aiEffort;
+    NSTextField* _aiEffortStatus;
+    NSMutableSet<NSString*>* _aiModelsRequested;                       //the programs whose list of models was asked since the application started
     NSSecureTextField* _aiKey;
     NSTextField* _aiKeyStatus;
     NSButton* _aiSaveKey;
@@ -886,9 +895,22 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(NSView*)sectionAIConnection {
     const CGFloat width = 300;
 
+    //the services with an address first, then the programs that are signed in by themselves
     _aiProvider = [[NSPopUpButton alloc] init];
-    for (AIProvider* provider in [AIProvider allProviders])
-        [_aiProvider addItemWithTitle:provider.name];
+    _aiProvider.autoenablesItems = NO;
+    BOOL programsStarted = NO;
+    for (AIProvider* provider in [AIProvider allProviders]) {
+        if (provider.isAgentCLI && !programsStarted) {
+            programsStarted = YES;
+            [_aiProvider.menu addItem:[NSMenuItem separatorItem]];
+            NSMenuItem* heading = [[NSMenuItem alloc] initWithTitle:@"Chương trình đã đăng nhập sẵn trên máy" action:nil keyEquivalent:@""];
+            heading.enabled = NO;
+            [_aiProvider.menu addItem:heading];
+        }
+        NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:provider.name action:nil keyEquivalent:@""];
+        item.representedObject = provider.identifier;
+        [_aiProvider.menu addItem:item];
+    }
     _aiProvider.target = self;
     _aiProvider.action = @selector(aiProviderChanged:);
     _aiProvider.translatesAutoresizingMaskIntoConstraints = NO;
@@ -897,6 +919,28 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _aiKeyPage.bezelStyle = NSBezelStyleInline;
     _aiKeyPage.controlSize = NSControlSizeSmall;
     NSStackView* providerControl = [self aiStack:@[_aiProvider, _aiKeyPage] vertical:YES spacing:4];
+
+    //a program (Codex, Claude Code, Antigravity): where it is, and the thinking level
+    _aiProgramPath = [self aiStatusLabelWithWidth:width];
+    _aiProgramPath.lineBreakMode = NSLineBreakByTruncatingMiddle;
+    _aiProgramPath.maximumNumberOfLines = 1;
+    _aiProgramPath.textColor = [NSColor labelColor];
+    _aiProgramPath.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];
+    _aiProgramChoose = [NSButton buttonWithTitle:@"Chọn…" target:self action:@selector(aiChooseProgram:)];
+    _aiProgramReset = [NSButton buttonWithTitle:@"Tìm lại" target:self action:@selector(aiResetProgram:)];
+    for (NSButton* button in @[_aiProgramChoose, _aiProgramReset])
+        button.bezelStyle = NSBezelStyleRounded;
+    _aiProgramReset.toolTip = VOKTooltip(@"Bỏ đường dẫn đã chọn, để VOpenKey AI tự tìm chương trình ở những nơi thường cài.");
+    _aiProgramStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* programControl = [self aiStack:@[_aiProgramPath, [self aiStack:@[_aiProgramChoose, _aiProgramReset] vertical:NO spacing:6], _aiProgramStatus]
+                                       vertical:YES spacing:4];
+    _aiEffort = [[NSPopUpButton alloc] init];
+    _aiEffort.target = self;
+    _aiEffort.action = @selector(aiEffortChanged:);
+    _aiEffort.translatesAutoresizingMaskIntoConstraints = NO;
+    [_aiEffort.widthAnchor constraintEqualToConstant:width].active = YES;
+    _aiEffortStatus = [self aiStatusLabelWithWidth:width];
+    NSStackView* effortControl = [self aiStack:@[_aiEffort, _aiEffortStatus] vertical:YES spacing:4];
 
     //the key: typed once, then it only lives in the keychain
     _aiKey = (NSSecureTextField*)[self aiFieldWithWidth:width - 150 placeholder:@"Dán API key vào đây" secure:YES];
@@ -941,21 +985,33 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     resetPrompt.controlSize = NSControlSizeSmall;
     NSStackView* promptControl = [self aiStack:@[_aiPrompt, resetPrompt] vertical:YES spacing:4];
 
+    _aiProgramRow = [self rowWithTitle:@"Chương trình" detail:nil
+                                  hint:@"Dùng chương trình AI đã cài và đăng nhập sẵn trên máy này, không cần API key. VOpenKey AI không đọc tài khoản hay token của chương trình: "
+                                       @"mỗi yêu cầu chỉ chạy nó một lần, trong một thư mục tạm trống, không cho nó dùng công cụ, chạy lệnh hay đọc, sửa tệp của bạn."
+                               control:programControl indent:0];
+    _aiKeyRow = [self rowWithTitle:@"API key" detail:nil
+                              hint:@"Chỉ lưu trong Keychain của tài khoản macOS đang dùng, không ghi ra file, không đồng bộ iCloud. Tài khoản macOS khác trên máy này phải nhập key riêng."
+                           control:keyControl indent:0];
+    _aiURLRow = [self rowWithTitle:@"Địa chỉ máy chủ" detail:nil control:urlControl indent:0];
+    _aiEffortRow = [self rowWithTitle:@"Mức suy nghĩ" detail:nil
+                                 hint:@"Mức càng cao thì AI càng suy nghĩ lâu: chậm hơn và tốn hạn mức hơn, hiếm khi cần cho viết, dịch hay sửa chữ. “Tự động” dùng mức thấp nhất mà model nhận."
+                              control:effortControl indent:0];
     NSView* section = [self sectionWithTitle:@"Dịch vụ AI" rows:@[
         [self rowWithTitle:@"Dịch vụ" detail:nil
                       hint:@"Nội dung bạn nhập và chữ đang chọn được gửi tới dịch vụ bạn chọn; AI chạy trên máy (Ollama, LM Studio) thì không rời khỏi máy."
                    control:providerControl indent:0],
-        [self rowWithTitle:@"API key" detail:nil
-                      hint:@"Chỉ lưu trong Keychain của tài khoản macOS đang dùng, không ghi ra file, không đồng bộ iCloud. Tài khoản macOS khác trên máy này phải nhập key riêng."
-                   control:keyControl indent:0],
-        [self rowWithTitle:@"Địa chỉ máy chủ" detail:nil control:urlControl indent:0],
+        _aiProgramRow,
+        _aiKeyRow,
+        _aiURLRow,
         [self rowWithTitle:@"Model" detail:nil control:modelControl indent:0],
+        _aiEffortRow,
         [self rowWithTitle:@"Kết nối" detail:nil control:testControl indent:0],
         [self rowWithTitle:@"Lời nhắc hệ thống" detail:nil
                       hint:@"Dặn AI cách trả lời, gửi kèm mọi yêu cầu."
                    control:promptControl indent:0],
     ]];
 
+    _aiModelsRequested = [NSMutableSet set];
     [self reloadAI];
     return section;
 }
@@ -969,9 +1025,16 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     if (_aiProvider == nil)
         return;
     AIProvider* provider = [self aiProviderInUse];
-    [_aiProvider selectItemAtIndex:(NSInteger)[[AIProvider allProviders] indexOfObject:provider]];
+    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
+    [_aiProvider selectItemAtIndex:[_aiProvider indexOfItemWithRepresentedObject:provider.identifier]];
     _aiProvider.toolTip = VOKTooltip(provider.note);     //what is special about this service: a tooltip, not a paragraph
     _aiKeyPage.hidden = provider.keyPageURL.length == 0;
+
+    //a program has no key and no address; a service has no program and no thinking level
+    [self aiSetRow:_aiProgramRow hidden:cli == nil];
+    [self aiSetRow:_aiEffortRow hidden:cli == nil];
+    [self aiSetRow:_aiKeyRow hidden:cli != nil];
+    [self aiSetRow:_aiURLRow hidden:cli != nil];
 
     BOOL hasKey = [AIKeychain hasKeyForProvider:provider.identifier];
     _aiKey.stringValue = @"";
@@ -985,11 +1048,146 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [self aiShow:@"" in:_aiURLStatus error:NO];
     _aiModel.stringValue = [AISettings modelForProvider:provider];
     [_aiModel removeAllItems];
+    _aiModel.placeholderString = cli == nil ? @"Tên model" : (cli.kind == AIAgentKindClaude ? @"haiku" : @"Tự chọn model nhẹ");
     [self aiShow:@"" in:_aiModelStatus error:NO];
     [self aiShow:@"" in:_aiTestStatus error:NO];
     _aiPrompt.stringValue = AISettings.systemPrompt;
+    if (cli != nil)
+        [self reloadAIProgram];
     [self reloadAILocalStatus];
     [self refitPageOf:_aiProvider];                         //the note and the link to the keys appear and hide with the service
+}
+
+//hides or shows a row of the card together with the line above it
+-(void)aiSetRow:(NSView*)row hidden:(BOOL)hidden {
+    NSStackView* list = [row.superview isKindOfClass:[NSStackView class]] ? (NSStackView*)row.superview : nil;
+    NSUInteger index = [list.arrangedSubviews indexOfObject:row];
+    row.hidden = hidden;
+    if (index != NSNotFound && index > 0)
+        list.arrangedSubviews[index - 1].hidden = hidden;
+}
+
+#pragma mark A program on this Mac
+
+//where the program is, what the user chose, and the models and levels it offers
+-(void)reloadAIProgram {
+    AIProvider* provider = [self aiProviderInUse];
+    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
+    if (cli == nil)
+        return;
+    NSString* found = [AISettings executablePathForProvider:provider];
+    NSString* chosen = [AISettings programForProvider:provider];
+    _aiProgramReset.hidden = chosen == nil;
+    _aiProgramPath.stringValue = found ?: [NSString stringWithFormat:@"Không tìm thấy `%@`", cli.command];
+    _aiProgramPath.toolTip = found;
+    _aiProgramPath.textColor = found != nil ? [NSColor labelColor] : [NSColor systemRedColor];
+    if (found != nil) {
+        NSMutableArray<NSString*>* lines = [NSMutableArray arrayWithObject:[NSString stringWithFormat:@"%@. Chưa đăng nhập? Mở Terminal và chạy: %@",
+                                                                            chosen != nil && [chosen isEqualToString:found] ? @"Đường dẫn do bạn chọn" : @"Tự tìm thấy", cli.loginHint]];
+        if (cli.storageNote.length > 0)
+            [lines addObject:cli.storageNote];
+        [self aiShow:[lines componentsJoinedByString:@"\n"] in:_aiProgramStatus error:NO];
+    } else {
+        NSString* install = cli.installHint.length > 0 ? [NSString stringWithFormat:@" Cài bằng: %@, rồi bấm “Tìm lại”.", cli.installHint] : @" Cài nó rồi bấm “Tìm lại”.";
+        [self aiShow:[NSString stringWithFormat:@"Chưa có `%@` trong những nơi thường cài.%@ Hoặc bấm “Chọn…” để chỉ đường dẫn.", cli.command, install] in:_aiProgramStatus error:YES];
+    }
+    [self aiReloadModelList];
+    [self aiReloadEfforts];
+    //the models of Codex and Antigravity come from the program itself: asked once
+    if (found != nil && [cli knownModels].count == 0 && cli.kind != AIAgentKindClaude && ![_aiModelsRequested containsObject:provider.identifier]) {
+        [_aiModelsRequested addObject:provider.identifier];
+        [cli loadModelsFromExecutable:found completion:^(NSArray<AIAgentModel*>* models, NSError* error) {
+            if (models.count > 0 && provider == [self aiProviderInUse]) {
+                [self aiReloadModelList];
+                [self aiReloadEfforts];
+            }
+        }];
+    }
+}
+
+//the names in the box of models are those the program has
+-(void)aiReloadModelList {
+    AIAgentCLI* cli = [AIAgentCLI forProvider:[self aiProviderInUse]];
+    if (cli == nil)
+        return;
+    NSString* typed = _aiModel.stringValue;
+    [_aiModel removeAllItems];
+    NSMutableArray<NSString*>* names = [NSMutableArray array];
+    for (AIAgentModel* model in [cli knownModels])
+        [names addObject:model.identifier];
+    [_aiModel addItemsWithObjectValues:names];
+    _aiModel.stringValue = typed;
+    [self aiShow:names.count > 0 ? [NSString stringWithFormat:@"%lu model. Để trống để VOpenKey AI tự chọn model nhẹ.", (unsigned long)names.count]
+                                 : @"Bấm “Tải danh sách” để xem model của chương trình."
+              in:_aiModelStatus error:NO];
+}
+
+//the levels of the model that will be used, with "automatic" and "what the program does by itself" around them
+-(void)aiReloadEfforts {
+    AIProvider* provider = [self aiProviderInUse];
+    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
+    if (cli == nil)
+        return;
+    NSArray<AIAgentModel*>* models = [cli knownModels];
+    NSString* used = [cli modelToPassForSaved:[AISettings modelForProvider:provider] models:models];
+    AIAgentModel* known = used.length > 0 ? [AIAgentCLI modelWithIdentifier:used among:models] : nil;
+    NSArray<NSString*>* levels = known.efforts ?: [AIAgentCLI commonEfforts];
+    [_aiEffort removeAllItems];
+    NSMenuItem* automatic = [[NSMenuItem alloc] initWithTitle:@"Tự động (khuyên dùng: nhanh nhất)" action:nil keyEquivalent:@""];
+    automatic.representedObject = @"";
+    [_aiEffort.menu addItem:automatic];
+    for (NSString* level in levels) {
+        NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[AIAgentCLI nameOfEffort:level] action:nil keyEquivalent:@""];
+        item.representedObject = level;
+        [_aiEffort.menu addItem:item];
+    }
+    NSMenuItem* own = [[NSMenuItem alloc] initWithTitle:@"Mặc định của CLI" action:nil keyEquivalent:@""];
+    own.representedObject = AIAgentEffortProgramDefault;
+    [_aiEffort.menu addItem:own];
+    NSString* saved = [AISettings effortForProvider:provider];
+    NSInteger index = saved.length > 0 ? [_aiEffort indexOfItemWithRepresentedObject:saved] : 0;
+    [_aiEffort selectItemAtIndex:MAX(index, 0)];
+    NSString* summary = [cli summaryForSavedModel:[AISettings modelForProvider:provider] effort:saved models:models];
+    [self aiShow:[NSString stringWithFormat:@"Sẽ dùng: %@", summary] in:_aiEffortStatus error:NO];
+}
+
+-(void)aiEffortChanged:(NSPopUpButton*)sender {
+    NSString* level = sender.selectedItem.representedObject;
+    if (level != nil)
+        [AISettings setEffort:level forProvider:[self aiProviderInUse]];
+    [self aiReloadEfforts];
+}
+
+-(void)aiChooseProgram:(id)sender {
+    AIProvider* provider = [self aiProviderInUse];
+    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
+    if (cli == nil)
+        return;
+    NSOpenPanel* panel = [NSOpenPanel openPanel];
+    panel.message = [NSString stringWithFormat:@"Chọn chương trình `%@`", cli.command];
+    panel.prompt = @"Chọn";
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = NO;
+    panel.showsHiddenFiles = YES;                           //~/.local, ~/.nvm: where these programs usually are
+    NSString* current = [AISettings executablePathForProvider:provider];
+    panel.directoryURL = [NSURL fileURLWithPath:current.length > 0 ? [current stringByDeletingLastPathComponent] : NSHomeDirectory()];
+    [panel beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
+        if (result != NSModalResponseOK || panel.URL == nil)
+            return;
+        NSString* path = panel.URL.path;
+        if (![AIAgentCLI isRunnableFile:path]) {
+            [self aiShow:@"Tệp này không chạy được (không có quyền thực thi). Hãy chọn chính chương trình." in:self->_aiProgramStatus error:YES];
+            return;
+        }
+        [AISettings setProgram:path forProvider:provider];
+        [self reloadAI];
+    }];
+}
+
+-(void)aiResetProgram:(id)sender {
+    [AISettings setProgram:nil forProvider:[self aiProviderInUse]];
+    [self reloadAI];
 }
 
 -(void)aiShow:(NSString*)message in:(NSTextField*)label error:(BOOL)error {
@@ -999,10 +1197,9 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 }
 
 -(void)aiProviderChanged:(NSPopUpButton*)sender {
-    NSInteger index = sender.indexOfSelectedItem;
-    NSArray<AIProvider*>* all = [AIProvider allProviders];
-    if (index >= 0 && index < (NSInteger)all.count)
-        AISettings.providerIdentifier = all[index].identifier;
+    NSString* identifier = sender.selectedItem.representedObject;
+    if (identifier.length > 0)
+        AISettings.providerIdentifier = identifier;
     [self reloadAI];
 }
 
@@ -1069,6 +1266,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 -(void)aiCommitModel {
     [AISettings setModel:_aiModel.stringValue forProvider:[self aiProviderInUse]];
+    if ([AIAgentCLI forProvider:[self aiProviderInUse]] != nil)
+        [self aiReloadEfforts];                             //another model has other levels
 }
 
 -(void)aiSaveKey:(id)sender {
@@ -1111,7 +1310,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 -(void)aiListModels:(id)sender {
     AIProvider* provider = [self aiProviderInUse];
-    if (![self aiCommitURL])
+    if (!provider.isAgentCLI && ![self aiCommitURL])
         return;
     NSError* error = nil;
     AIConfiguration* configuration = [AISettings configurationForListingModelsOfProvider:provider error:&error];
@@ -1130,13 +1329,15 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self->_aiModel removeAllItems];
         [self->_aiModel addItemsWithObjectValues:models];
         [self aiShow:[NSString stringWithFormat:@"Tìm thấy %lu model. Bấm vào mũi tên ở ô model để chọn.", (unsigned long)models.count] in:self->_aiModelStatus error:NO];
+        if (provider.isAgentCLI)
+            [self aiReloadEfforts];                         //the levels come with the models
     }];
 }
 
 //a real request, the smallest one: it tells at once whether the address, the key and the model work together
 -(void)aiTest:(id)sender {
     AIProvider* provider = [self aiProviderInUse];
-    if (![self aiCommitURL])
+    if (!provider.isAgentCLI && ![self aiCommitURL])
         return;
     [self aiCommitModel];
     NSError* error = nil;

@@ -4,6 +4,7 @@
 //
 
 #import "AISettings.h"
+#import "AIAgentCLI.h"
 #import "AIKeychain.h"
 #import "ShortcutRecorder.h"
 
@@ -111,7 +112,38 @@ static AIConfiguration* Failure(NSError** error, VOKAIErrorCode code, NSString* 
         [[NSUserDefaults standardUserDefaults] setObject:trimmed forKey:PerProviderKey(provider, @"model")];
 }
 
++(NSString*)effortForProvider:(AIProvider*)provider {
+    NSString* saved = [[NSUserDefaults standardUserDefaults] stringForKey:PerProviderKey(provider, @"effort")];
+    return saved.length > 0 ? saved : nil;
+}
+
++(void)setEffort:(NSString*)effort forProvider:(AIProvider*)provider {
+    NSString* trimmed = [effort stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (trimmed.length == 0)
+        [[NSUserDefaults standardUserDefaults] removeObjectForKey:PerProviderKey(provider, @"effort")];
+    else
+        [[NSUserDefaults standardUserDefaults] setObject:trimmed forKey:PerProviderKey(provider, @"effort")];
+}
+
++(NSString*)programForProvider:(AIProvider*)provider {
+    NSString* saved = [[NSUserDefaults standardUserDefaults] stringForKey:PerProviderKey(provider, @"program")];
+    return saved.length > 0 ? saved : nil;
+}
+
++(void)setProgram:(NSString*)path forProvider:(AIProvider*)provider {
+    if (path.length == 0)
+        [[NSUserDefaults standardUserDefaults] removeObjectForKey:PerProviderKey(provider, @"program")];
+    else
+        [[NSUserDefaults standardUserDefaults] setObject:path forKey:PerProviderKey(provider, @"program")];
+}
+
++(NSString*)executablePathForProvider:(AIProvider*)provider {
+    return [[AIAgentCLI forProvider:provider] locateExecutableWithOverride:[self programForProvider:provider]];
+}
+
 +(BOOL)isProviderReady:(AIProvider*)provider {
+    if (provider.isAgentCLI)
+        return [self executablePathForProvider:provider] != nil;
     if (provider.needsKey && ![AIKeychain hasKeyForProvider:provider.identifier])
         return NO;
     return VOKAICleanBaseURL([self baseURLForProvider:provider], NULL) != nil && [self modelForProvider:provider].length > 0;
@@ -126,6 +158,21 @@ static AIConfiguration* Failure(NSError** error, VOKAIErrorCode code, NSString* 
 }
 
 +(AIConfiguration*)configurationForProvider:(AIProvider*)provider requireModel:(BOOL)requireModel error:(NSError**)error {
+    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
+    if (cli != nil) {
+        //an agent program has no address and no key; an empty model is allowed, it means "choose a light one for me"
+        NSString* program = [self executablePathForProvider:provider];
+        if (program == nil)
+            return Failure(error, VOKAIErrorNoProgram, [cli errorForLaunchFailure:@"không tìm thấy trên máy này"].localizedDescription);
+        AIConfiguration* configuration = [[AIConfiguration alloc] init];
+        configuration.provider = provider;
+        configuration.baseURL = @"";
+        configuration.model = [self modelForProvider:provider] ?: @"";
+        configuration.effort = [self effortForProvider:provider];
+        configuration.executablePath = program;
+        configuration.systemPrompt = [self systemPrompt];
+        return configuration;
+    }
     NSString* reason = nil;
     NSString* address = VOKAICleanBaseURL([self baseURLForProvider:provider], &reason);
     if (address == nil)
@@ -152,6 +199,8 @@ static AIConfiguration* Failure(NSError** error, VOKAIErrorCode code, NSString* 
     for (AIProvider* provider in [AIProvider allProviders]) {
         [defaults removeObjectForKey:PerProviderKey(provider, @"baseURL")];
         [defaults removeObjectForKey:PerProviderKey(provider, @"model")];
+        [defaults removeObjectForKey:PerProviderKey(provider, @"effort")];
+        [defaults removeObjectForKey:PerProviderKey(provider, @"program")];
     }
     [self start];
 }

@@ -4,6 +4,7 @@
 //
 
 #import "AIAssistant.h"
+#import "AIAgentCLI.h"
 #import "AIKeychain.h"
 #import "AIOllamaRuntime.h"
 #import "AISelection.h"
@@ -88,6 +89,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
     NSImageView* _icon;
     NSPopUpButton* _providerPopUp;
+    NSPopUpButton* _modelPopUp;
+    NSPopUpButton* _effortPopUp;
     NSTextField* _contextLabel;
     NSTextView* _input;
     NSTextField* _inputPlaceholder;
@@ -108,6 +111,9 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     BOOL _opening;                      //the selection is being read: a second press of the shortcut does nothing
     AIClient* _client;
     NSUInteger _askSerial;                  //changes whenever a request is cancelled, so that a start of the local server that ends later does nothing
+    NSTimer* _progressTimer;                //for a program on this Mac, which can take a while before the first word: the seconds are shown
+    NSDate* _askStarted;
+    NSMutableSet<NSString*>* _modelsRequested;   //the programs whose list of models was asked this time the application runs (once is enough)
     AIAssistantState _state;
     NSMutableString* _result;
     AIProvider* _provider;
@@ -157,6 +163,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     if (self) {
         _inserter = inserter;
         _result = [NSMutableString string];
+        _modelsRequested = [NSMutableSet set];
     }
     return self;
 }
@@ -171,6 +178,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 -(NSTextField*)contextLabel { [self buildIfNeeded]; return _contextLabel; }
 -(NSTextField*)infoLabel { [self buildIfNeeded]; return _infoLabel; }
 -(NSPopUpButton*)providerPopUp { [self buildIfNeeded]; return _providerPopUp; }
+-(NSPopUpButton*)modelPopUp { [self buildIfNeeded]; return _modelPopUp; }
+-(NSPopUpButton*)effortPopUp { [self buildIfNeeded]; return _effortPopUp; }
 -(NSButton*)settingsButton { [self buildIfNeeded]; return _settingsButton; }
 -(AIAssistantState)state { return _state; }
 -(NSString*)resultText { return [_result copy]; }
@@ -231,9 +240,26 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _providerPopUp.action = @selector(providerChosen:);
     _providerPopUp.translatesAutoresizingMaskIntoConstraints = NO;
     [_providerPopUp setAccessibilityLabel:@"Nhà cung cấp AI"];
+    //for a program on this Mac: which model, and how long it thinks; hidden for the services that have an address
+    _modelPopUp = [[NSPopUpButton alloc] init];
+    _modelPopUp.controlSize = NSControlSizeSmall;
+    _modelPopUp.font = [NSFont systemFontOfSize:11];
+    _modelPopUp.target = self;
+    _modelPopUp.action = @selector(modelChosen:);
+    _modelPopUp.translatesAutoresizingMaskIntoConstraints = NO;
+    _modelPopUp.hidden = YES;
+    [_modelPopUp setAccessibilityLabel:@"Model"];
+    _effortPopUp = [[NSPopUpButton alloc] init];
+    _effortPopUp.controlSize = NSControlSizeSmall;
+    _effortPopUp.font = [NSFont systemFontOfSize:11];
+    _effortPopUp.target = self;
+    _effortPopUp.action = @selector(effortChosen:);
+    _effortPopUp.translatesAutoresizingMaskIntoConstraints = NO;
+    _effortPopUp.hidden = YES;
+    [_effortPopUp setAccessibilityLabel:@"Mức suy nghĩ"];
     NSView* spacer1 = [[NSView alloc] init];
     [spacer1 setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView* header = [NSStackView stackViewWithViews:@[_icon, title, spacer1, _providerPopUp]];
+    NSStackView* header = [NSStackView stackViewWithViews:@[_icon, title, spacer1, _providerPopUp, _modelPopUp, _effortPopUp]];
     header.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     header.spacing = 6;
     header.alignment = NSLayoutAttributeCenterY;
@@ -261,6 +287,9 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_input setAccessibilityLabel:@"Yêu cầu"];
 
     _infoLabel = [self labelWithSize:11 color:[NSColor secondaryLabelColor]];
+    _infoLabel.lineBreakMode = NSLineBreakByTruncatingTail;       //a long line (the name of a program, its model, its level) is cut, the button stays
+    _infoLabel.maximumNumberOfLines = 1;
+    [_infoLabel setContentCompressionResistancePriority:250 forOrientation:NSLayoutConstraintOrientationHorizontal];
     _actionButton = [self buttonWithTitle:@"Tạo" action:@selector(actionPressed:)];
     NSView* spacer2 = [[NSView alloc] init];
     [spacer2 setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
@@ -401,6 +430,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self updateInterface];
     if (_provider == nil)
         [self showSetupNeeded];
+    else
+        [self showStorageNote];
     [self resizeToFit];
 
     NSRect visible = [self screenOfMouse].visibleFrame;
@@ -422,6 +453,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
 -(void)hideAssistant {
     [self cancelRequest];
+    [self stopProgressTimer];
     //what was typed and what came back is not kept: not even in the undo history, where ⌘Z would bring it back
     [self forgetText];
     [_result setString:@""];
@@ -498,6 +530,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     }
     _provider = chosen;
     [_providerPopUp sizeToFit];
+    [self reloadAgentControls];
     [self updateInfoLabel];
 }
 
@@ -511,8 +544,140 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     if (identifier != nil) {
         AISettings.providerIdentifier = identifier;
         _provider = [AIProvider providerWithIdentifier:identifier];
+        [self reloadAgentControls];
         [self updateInfoLabel];
+        if (_state == AIAssistantStateIdle) {
+            _statusLabel.stringValue = @"";
+            [self showStorageNote];
+        }
+        [self resizeToFit];
     }
+}
+
+#pragma mark A program on this Mac
+
+//what Antigravity keeps of every request, said where it can be read before asking
+-(void)showStorageNote {
+    NSString* note = [AIAgentCLI forProvider:_provider].storageNote;
+    if (note.length == 0 || _state != AIAssistantStateIdle)
+        return;
+    _statusLabel.stringValue = note;
+    _statusLabel.textColor = [NSColor secondaryLabelColor];
+    _settingsButton.hidden = YES;
+}
+
+//the model and the thinking level of a program: the menus follow what is chosen in the settings and are the same choice
+-(void)reloadAgentControls {
+    AIAgentCLI* cli = [AIAgentCLI forProvider:_provider];
+    _modelPopUp.hidden = cli == nil;
+    _effortPopUp.hidden = cli == nil;
+    if (cli == nil)
+        return;
+    NSArray<AIAgentModel*>* models = [cli knownModels];
+    NSString* saved = [AISettings modelForProvider:_provider];
+    NSString* effortSaved = [AISettings effortForProvider:_provider];
+
+    [_modelPopUp removeAllItems];
+    if (cli.kind != AIAgentKindClaude) {                    //Claude Code always has a model to start with: Haiku
+        NSMenuItem* automatic = [[NSMenuItem alloc] initWithTitle:@"Tự chọn (model nhẹ)" action:nil keyEquivalent:@""];
+        automatic.representedObject = @"";
+        automatic.toolTip = @"Một model nhanh và rẻ, đủ để viết, dịch, sửa chữ. Chọn model khác nếu cần.";
+        [_modelPopUp.menu addItem:automatic];
+    }
+    BOOL found = saved.length == 0;
+    for (AIAgentModel* model in models) {
+        NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:model.name action:nil keyEquivalent:@""];
+        item.representedObject = model.identifier;
+        item.toolTip = model.summary;
+        [_modelPopUp.menu addItem:item];
+        found |= [model.identifier isEqualToString:saved];
+    }
+    if (!found) {                                           //a name typed in the settings that the program did not list
+        NSMenuItem* typed = [[NSMenuItem alloc] initWithTitle:saved action:nil keyEquivalent:@""];
+        typed.representedObject = saved;
+        [_modelPopUp.menu addItem:typed];
+    }
+    NSInteger index = saved.length > 0 ? [_modelPopUp indexOfItemWithRepresentedObject:saved] : 0;
+    [_modelPopUp selectItemAtIndex:MAX(index, 0)];
+    [_modelPopUp sizeToFit];
+
+    //the levels of the model that will be used
+    NSString* used = [cli modelToPassForSaved:saved models:models];
+    AIAgentModel* known = used.length > 0 ? [AIAgentCLI modelWithIdentifier:used among:models] : nil;
+    NSArray<NSString*>* levels = known.efforts ?: [AIAgentCLI commonEfforts];
+    [_effortPopUp removeAllItems];
+    NSMenuItem* fast = [[NSMenuItem alloc] initWithTitle:@"Tự động (nhanh)" action:nil keyEquivalent:@""];
+    fast.representedObject = @"";
+    fast.toolTip = @"Mức thấp nhất mà model nhận: trả lời nhanh, đủ cho viết, dịch, sửa chữ.";
+    [_effortPopUp.menu addItem:fast];
+    for (NSString* level in levels) {
+        NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[AIAgentCLI nameOfEffort:level] action:nil keyEquivalent:@""];
+        item.representedObject = level;
+        [_effortPopUp.menu addItem:item];
+    }
+    NSMenuItem* own = [[NSMenuItem alloc] initWithTitle:@"Mặc định của CLI" action:nil keyEquivalent:@""];
+    own.representedObject = AIAgentEffortProgramDefault;
+    [_effortPopUp.menu addItem:own];
+    NSInteger levelIndex = effortSaved.length > 0 ? [_effortPopUp indexOfItemWithRepresentedObject:effortSaved] : 0;
+    [_effortPopUp selectItemAtIndex:MAX(levelIndex, 0)];
+    [_effortPopUp sizeToFit];
+
+    //the list of models of Codex and Antigravity comes from the program: asked once, then the menus are filled
+    BOOL needsList = models.count == 0 && cli.kind != AIAgentKindClaude && ![_modelsRequested containsObject:_provider.identifier];
+    NSString* executable = needsList ? [AISettings executablePathForProvider:_provider] : nil;
+    if (executable != nil) {
+        [_modelsRequested addObject:_provider.identifier];
+        AIProvider* asked = _provider;
+        __weak AIAssistant* weakSelf = self;
+        [cli loadModelsFromExecutable:executable completion:^(NSArray<AIAgentModel*>* loaded, NSError* error) {
+            AIAssistant* strong = weakSelf;
+            if (strong != nil && strong->_provider == asked && loaded.count > 0) {
+                [strong reloadAgentControls];
+                [strong updateInfoLabel];
+            }
+        }];
+    }
+}
+
+-(void)modelChosen:(NSPopUpButton*)sender {
+    NSString* identifier = sender.selectedItem.representedObject;
+    if (identifier == nil || _provider == nil)
+        return;
+    [AISettings setModel:identifier forProvider:_provider];
+    [self reloadAgentControls];                              //another model has other levels
+    [self updateInfoLabel];
+}
+
+-(void)effortChosen:(NSPopUpButton*)sender {
+    NSString* level = sender.selectedItem.representedObject;
+    if (level == nil || _provider == nil)
+        return;
+    [AISettings setEffort:level forProvider:_provider];
+    [self updateInfoLabel];
+}
+
+-(void)startProgressTimerFor:(AIAgentCLI*)cli {
+    [self stopProgressTimer];
+    _askStarted = [NSDate date];
+    __weak AIAssistant* weakSelf = self;
+    NSString* name = cli.displayName;
+    _progressTimer = [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer* timer) {
+        AIAssistant* strong = weakSelf;
+        if (strong == nil || strong->_state != AIAssistantStateGenerating) {
+            [timer invalidate];
+            return;
+        }
+        int seconds = (int)(-[strong->_askStarted timeIntervalSinceNow]);
+        if (seconds < 2)
+            return;
+        [strong showMessage:strong->_result.length > 0 ? [NSString stringWithFormat:@"Đang viết… %d giây", seconds]
+                                                       : [NSString stringWithFormat:@"Đang chờ %@… %d giây", name, seconds] error:NO];
+    }];
+}
+
+-(void)stopProgressTimer {
+    [_progressTimer invalidate];
+    _progressTimer = nil;
 }
 
 //who gets what is typed here: said every time, on the window itself
@@ -521,6 +686,14 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         _infoLabel.stringValue = @"";
         return;
     }
+    AIAgentCLI* cli = [AIAgentCLI forProvider:_provider];
+    if (cli != nil) {
+        NSString* summary = [cli summaryForSavedModel:[AISettings modelForProvider:_provider] effort:[AISettings effortForProvider:_provider] models:[cli knownModels]];
+        _infoLabel.stringValue = [NSString stringWithFormat:@"Nội dung gửi tới %@ · %@", _provider.name, summary];
+        _infoLabel.toolTip = [NSString stringWithFormat:@"Nội dung gửi tới %@ qua tài khoản đã đăng nhập sẵn trong chương trình này · %@", _provider.name, summary];
+        return;
+    }
+    _infoLabel.toolTip = nil;
     NSString* model = [AISettings modelForProvider:_provider];
     _infoLabel.stringValue = _provider.isLocal
         ? [NSString stringWithFormat:@"Chạy trên máy này hoặc trong mạng nội bộ · %@", model]
@@ -570,6 +743,9 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_result setString:@""];
     _output.string = @"";
     _state = AIAssistantStateGenerating;
+    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
+    if (cli != nil)
+        [self startProgressTimerFor:cli];
     //a model that runs on this Mac is heavy: when the Mac is already busy it will be slow, and that is said at once
     NSString* working = @"Đang tạo…";
     if (provider.isLocal && [(self.hardwareProvider ? self.hardwareProvider() : [AIHardware current]) isBusy])
@@ -622,6 +798,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         if (strong == nil || strong->_client != client)
             return;
         strong->_client = nil;
+        [strong stopProgressTimer];
         if (error != nil) {
             [strong showFailure:error];
         } else {
@@ -636,6 +813,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     if (_state != AIAssistantStateGenerating)
         return;
     [self cancelRequest];
+    [self stopProgressTimer];
     _state = _result.length > 0 ? AIAssistantStateDone : AIAssistantStateIdle;
     [self showMessage:@"Đã dừng." error:NO];
     [self updateInterface];
@@ -655,7 +833,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self showMessage:error.localizedDescription error:YES];
     //what to do about it is in the settings
     BOOL settingsCanHelp = error.code == VOKAIErrorNoKey || error.code == VOKAIErrorAuthentication || error.code == VOKAIErrorBadAddress ||
-                           error.code == VOKAIErrorModel || error.code == VOKAIErrorBadKey;
+                           error.code == VOKAIErrorModel || error.code == VOKAIErrorBadKey || error.code == VOKAIErrorNoProgram;
     _settingsButton.hidden = !settingsCanHelp;
     [self resizeToFit];
     [self updateInterface];

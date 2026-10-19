@@ -9,6 +9,8 @@
 //    it to write the instruction ("Dịch sang tiếng Anh"). The answer then replaces the selection.
 //  - Type the request, ⌘↩ to ask. The answer is written in the window as the service produces it; ⎋ stops it.
 //  - ⇧⌘↩ puts the answer into the application (it replaces the selection, or goes where the cursor was), ⇧⌘C copies it.
+//  - When the AI is a program on this Mac that is signed in by itself (Codex, Claude Code, Antigravity), the model and the thinking
+//    level can be chosen here too, in the header. They start as a light model at the fast level, which is enough to write.
 //  - Like the window of the snippets it does not make VOpenKey the frontmost application, and typing Vietnamese in it works like
 //    anywhere else. Nothing typed or received is kept: the text is gone when the window closes.
 //
@@ -61,6 +63,9 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 @property (nonatomic, readonly) NSTextField* contextLabel;
 @property (nonatomic, readonly) NSTextField* infoLabel;
 @property (nonatomic, readonly) NSPopUpButton* providerPopUp;
+/// Model and thinking level, for an AI that is a program on this Mac (Codex, Claude Code, Antigravity); hidden for the others.
+@property (nonatomic, readonly) NSPopUpButton* modelPopUp;
+@property (nonatomic, readonly) NSPopUpButton* effortPopUp;
 @property (nonatomic, readonly) NSButton* settingsButton;
 @property (nonatomic, readonly) AIAssistantState state;
 /// What the service has written so far.

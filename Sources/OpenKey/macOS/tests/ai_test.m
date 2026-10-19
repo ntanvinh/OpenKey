@@ -89,7 +89,7 @@ static void TestProviders(void) {
             CHECK(!p.needsKey);
         if (p.needsKey)
             CHECK(!p.isLocal);
-        if (![p.identifier isEqualToString:@"custom"])
+        if (![p.identifier isEqualToString:@"custom"] && !p.isAgentCLI)         //a program picks its own model when none is named
             CHECK(p.defaultModel.length > 0);
         hasOpenAI |= [p.identifier isEqualToString:@"openai"];
         hasGemini |= [p.identifier isEqualToString:@"gemini"] && p.protocol == AIProtocolGemini;

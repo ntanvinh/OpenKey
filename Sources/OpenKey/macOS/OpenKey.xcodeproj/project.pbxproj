@@ -78,6 +78,9 @@
 		5EC0DE1C202610150018 /* AIAssistant.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1C202610150017 /* AIAssistant.m */; };
 		5EC0DE1D20261015000A0002 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE1D20261015000A0001 /* Security.framework */; };
 		5EC0DE30202610160004 /* AIHardware.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160003 /* AIHardware.m */; };
+		5EC0DE40202610190004 /* AIAgentCLI.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190003 /* AIAgentCLI.m */; };
+		5EC0DE40202610190008 /* AIAgentProcess.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190007 /* AIAgentProcess.m */; };
+		5EC0DE4020261019000C /* AIAgentRunner.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE4020261019000B /* AIAgentRunner.m */; };
 		5EC0DE30202610160008 /* AILocalModels.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160007 /* AILocalModels.m */; };
 		5EC0DE3020261016000C /* AIModelAdvisor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016000B /* AIModelAdvisor.m */; };
 		5EC0DE30202610160010 /* AIOllama.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016000F /* AIOllama.m */; };
@@ -245,6 +248,12 @@
 		5EC0DE1D20261015000A0001 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		5EC0DE30202610160001 /* AIHardware.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIHardware.h; sourceTree = "<group>"; };
 		5EC0DE30202610160003 /* AIHardware.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIHardware.m; sourceTree = "<group>"; };
+		5EC0DE40202610190001 /* AIAgentCLI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIAgentCLI.h; sourceTree = "<group>"; };
+		5EC0DE40202610190003 /* AIAgentCLI.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIAgentCLI.m; sourceTree = "<group>"; };
+		5EC0DE40202610190005 /* AIAgentProcess.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIAgentProcess.h; sourceTree = "<group>"; };
+		5EC0DE40202610190007 /* AIAgentProcess.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIAgentProcess.m; sourceTree = "<group>"; };
+		5EC0DE40202610190009 /* AIAgentRunner.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIAgentRunner.h; sourceTree = "<group>"; };
+		5EC0DE4020261019000B /* AIAgentRunner.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIAgentRunner.m; sourceTree = "<group>"; };
 		5EC0DE30202610160005 /* AILocalModels.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILocalModels.h; sourceTree = "<group>"; };
 		5EC0DE30202610160007 /* AILocalModels.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILocalModels.m; sourceTree = "<group>"; };
 		5EC0DE30202610160009 /* AIModelAdvisor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIModelAdvisor.h; sourceTree = "<group>"; };
@@ -344,6 +353,12 @@
 				5EC0DE30202610160005 /* AILocalModels.h */,
 				5EC0DE30202610160003 /* AIHardware.m */,
 				5EC0DE30202610160001 /* AIHardware.h */,
+				5EC0DE40202610190003 /* AIAgentCLI.m */,
+				5EC0DE40202610190001 /* AIAgentCLI.h */,
+				5EC0DE40202610190007 /* AIAgentProcess.m */,
+				5EC0DE40202610190005 /* AIAgentProcess.h */,
+				5EC0DE4020261019000B /* AIAgentRunner.m */,
+				5EC0DE40202610190009 /* AIAgentRunner.h */,
 				5EC0DE1C202610150017 /* AIAssistant.m */,
 				5EC0DE1C202610150015 /* AIAssistant.h */,
 				5EC0DE1C202610150013 /* AISelection.m */,
@@ -629,6 +644,9 @@
 				5EC0DE3020261016000C /* AIModelAdvisor.m in Sources */,
 				5EC0DE30202610160008 /* AILocalModels.m in Sources */,
 				5EC0DE30202610160004 /* AIHardware.m in Sources */,
+				5EC0DE40202610190004 /* AIAgentCLI.m in Sources */,
+				5EC0DE40202610190008 /* AIAgentProcess.m in Sources */,
+				5EC0DE4020261019000C /* AIAgentRunner.m in Sources */,
 				5EC0DE1C202610150018 /* AIAssistant.m in Sources */,
 				5EC0DE1C202610150014 /* AISelection.m in Sources */,
 				5EC0DE1C202610150010 /* AIClient.m in Sources */,

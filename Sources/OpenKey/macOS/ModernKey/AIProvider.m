@@ -27,6 +27,10 @@ NSString* const VOKAIErrorDomain = @"vn.io.lssoft.vopenkey.ai";
     return self;
 }
 
+-(BOOL)isAgentCLI {
+    return _protocol == AIProtocolAgentCLI;
+}
+
 +(NSArray<AIProvider*>*)allProviders {
     static NSArray<AIProvider*>* all;
     static dispatch_once_t once;
@@ -61,6 +65,16 @@ NSString* const VOKAIErrorDomain = @"vn.io.lssoft.vopenkey.ai";
             [[AIProvider alloc] initWithIdentifier:@"custom" name:@"Khác (tương thích OpenAI)" protocol:AIProtocolOpenAI
                                            baseURL:@"" model:@"" local:NO needsKey:NO keyPage:nil
                                               note:@"Cho llama.cpp, vLLM, LocalAI hoặc dịch vụ khác. Địa chỉ dạng https://máy-chủ/v1. Key để trống nếu máy chủ không đòi."],
+            //agents that are already signed in on this Mac: no key, VOpenKey AI only runs the program
+            [[AIProvider alloc] initWithIdentifier:@"codex-cli" name:@"Codex CLI (ChatGPT)" protocol:AIProtocolAgentCLI
+                                           baseURL:@"" model:@"" local:NO needsKey:NO keyPage:nil
+                                              note:@"Dùng chương trình codex đã đăng nhập sẵn trên máy này (codex login): không cần API key."],
+            [[AIProvider alloc] initWithIdentifier:@"claude-cli" name:@"Claude Code CLI (Claude)" protocol:AIProtocolAgentCLI
+                                           baseURL:@"" model:@"haiku" local:NO needsKey:NO keyPage:nil
+                                              note:@"Dùng chương trình claude đã đăng nhập sẵn trên máy này (tài khoản Claude hoặc API của chính CLI): không cần API key."],
+            [[AIProvider alloc] initWithIdentifier:@"agy-cli" name:@"Antigravity CLI (Gemini)" protocol:AIProtocolAgentCLI
+                                           baseURL:@"" model:@"" local:NO needsKey:NO keyPage:nil
+                                              note:@"Dùng chương trình agy (Antigravity) đã đăng nhập sẵn trên máy này: không cần API key."],
         ];
     });
     return all;

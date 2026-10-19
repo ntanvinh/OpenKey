@@ -13,7 +13,7 @@ PORT=${2:-11555}
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"; rm -f "$HOME/Library/Preferences/ai_local_e2e.plist"' EXIT
 cd "$WORK"
-for f in AIHardware AILocalModels AIModelAdvisor AIOllama AIOllamaInstaller AIOllamaRuntime AILocalSetup AIClient AIProvider AISettings AIKeychain; do
+for f in AIHardware AILocalModels AIModelAdvisor AIOllama AIOllamaInstaller AIOllamaRuntime AILocalSetup AIClient AIProvider AISettings AIKeychain AIAgentCLI AIAgentProcess AIAgentRunner; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/ai_local_e2e.m" -o ai_local_e2e.o

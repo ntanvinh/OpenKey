@@ -9,6 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Carbon/Carbon.h>
 #import "AIAssistant.h"
+#import "AIAgentCLI.h"
 #import "AIKeychain.h"
 #import "AISettings.h"
 #import "AIOllamaRuntime.h"
@@ -55,7 +56,7 @@ static BOOL ScreenIsLocked(void) {
     return [session[@"CGSSessionScreenIsLocked"] boolValue];
 }
 
-static NSString *gFakeOllama, *gFakePort, *gWorkFolder;
+static NSString *gFakeOllama, *gFakePort, *gWorkFolder, *gFakeAgent;
 static NSString* gPasted;
 static int gPastes;
 
@@ -444,6 +445,184 @@ static void TestLocalServer(AIAssistant* assistant) {
     [assistant hideAssistant];
 }
 
+#pragma mark - Programs on this Mac
+
+static NSString* gAgentLog;
+
+static NSDictionary* AgentLog(void) {
+    SpinUntil(^BOOL { return [[NSFileManager defaultManager] fileExistsAtPath:gAgentLog]; }, 3);
+    NSData* data = [NSData dataWithContentsOfFile:gAgentLog];
+    return data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+}
+
+static void AgentMode(NSString* mode) {
+    setenv("FAKE_AGENT_MODE", mode.UTF8String, 1);
+    [[NSFileManager defaultManager] removeItemAtPath:gAgentLog error:nil];
+}
+
+static NSString* ValueAfterFlag(NSArray* args, NSString* flag) {
+    NSUInteger index = [args indexOfObject:flag];
+    return index != NSNotFound && index + 1 < args.count ? args[index + 1] : nil;
+}
+
+//selects an item of a menu of the window by its title, the way a click does
+static void Choose(NSPopUpButton* popUp, NSString* title) {
+    [popUp selectItemWithTitle:title];
+    [popUp sendAction:popUp.action to:popUp.target];
+}
+
+static void TestAgentPrograms(AIAssistant* assistant) {
+    if (gFakeAgent == nil || gWorkFolder == nil) {
+        printf("-- programs on this Mac: SKIPPED (no fake program given)\n");
+        return;
+    }
+    printf("-- programs on this Mac (Codex, Claude Code, Antigravity)\n");
+    NSString* bin = [gWorkFolder stringByAppendingPathComponent:@"agent-bin"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:bin withIntermediateDirectories:YES attributes:nil error:nil];
+    for (NSString* command in @[@"codex", @"claude", @"agy"])
+        [[NSFileManager defaultManager] createSymbolicLinkAtPath:[bin stringByAppendingPathComponent:command] withDestinationPath:gFakeAgent error:nil];
+    gAgentLog = [gWorkFolder stringByAppendingPathComponent:@"agent-log.json"];
+    setenv("FAKE_AGENT_LOG", gAgentLog.UTF8String, 1);
+    AgentMode(@"ok");
+    [AISettings resetToDefaults];
+    __block int settingsOpened = 0;
+    [AIAssistant setSettingsHandler:^{ settingsOpened++; }];
+
+    //found programs are offered like any other service; the menus of model and level are only for them
+    [AIAgentCLI setSearchDirectoriesForTesting:@[bin]];
+    UseServer(@"normal");
+    [assistant presentWithSelection:nil application:nil];
+    NSArray* titles = assistant.providerPopUp.itemTitles;
+    CHECK([titles containsObject:@"Codex CLI (ChatGPT)"] && [titles containsObject:@"Claude Code CLI (Claude)"] && [titles containsObject:@"Antigravity CLI (Gemini)"]);
+    CHECK(assistant.modelPopUp.hidden && assistant.effortPopUp.hidden);                    //an ordinary service has no such menus
+    [assistant hideAssistant];
+
+    //Codex: the models come from the program, the first choice is a light model at the fast level
+    AISettings.providerIdentifier = @"codex-cli";
+    [assistant presentWithSelection:@"Xin chào" application:nil];
+    CHECK(!assistant.modelPopUp.hidden && !assistant.effortPopUp.hidden);
+    SpinUntil(^BOOL { return assistant.modelPopUp.numberOfItems > 1; }, 10);
+    CHECK(([assistant.modelPopUp.itemTitles isEqualToArray:@[@"Tự chọn (model nhẹ)", @"Fake-Workhorse", @"Fake-Frontier", @"Fake-Mini", @"Fake-Old-Mini"]]));
+    CHECK([assistant.modelPopUp.selectedItem.title isEqualToString:@"Tự chọn (model nhẹ)"]);
+    CHECK([assistant.effortPopUp.itemTitles.firstObject isEqualToString:@"Tự động (nhanh)"] && [assistant.effortPopUp.itemTitles.lastObject isEqualToString:@"Mặc định của CLI"]);
+    CHECK([assistant.effortPopUp.selectedItem.title isEqualToString:@"Tự động (nhanh)"]);
+    CHECK([assistant.infoLabel.stringValue containsString:@"Codex CLI (ChatGPT)"] && [assistant.infoLabel.stringValue containsString:@"Fake-Mini"] && [assistant.infoLabel.stringValue containsString:@"Thấp"]);
+    CHECK([assistant.infoLabel.stringValue containsString:@"Nội dung gửi tới"] && [assistant.infoLabel.toolTip containsString:@"đã đăng nhập"]);   //where the text goes, and with whose account
+
+    //another model: its own levels, and what was chosen is saved for the settings too
+    AIProvider* codex = [AIProvider providerWithIdentifier:@"codex-cli"];
+    Choose(assistant.modelPopUp, @"Fake-Frontier");
+    CHECK([[AISettings modelForProvider:codex] isEqualToString:@"fake-frontier"]);
+    CHECK([assistant.effortPopUp.itemTitles containsObject:@"Siêu cao"] && [assistant.modelPopUp.selectedItem.title isEqualToString:@"Fake-Frontier"]);
+    CHECK([assistant.infoLabel.stringValue containsString:@"Fake-Frontier"]);
+    Choose(assistant.effortPopUp, @"Cao");
+    CHECK([[AISettings effortForProvider:codex] isEqualToString:@"high"] && [assistant.infoLabel.stringValue containsString:@"Cao"]);
+    assistant.inputView.string = @"Dịch sang tiếng Anh:\n\nXin chào";
+    [assistant ask];
+    CHECK(assistant.state == AIAssistantStateGenerating);
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([assistant.resultText isEqualToString:@"Xin chào, đây là câu trả lời."] && [assistant.statusLabel.stringValue containsString:@"Xong"]);
+    NSDictionary* log = AgentLog();
+    CHECK([ValueAfterFlag(log[@"args"], @"-m") isEqualToString:@"fake-frontier"] && [ValueAfterFlag(log[@"args"], @"-c") isEqualToString:@"model_reasoning_effort=\"high\""]);
+    CHECK([log[@"stdin_head"] containsString:@"Dịch sang tiếng Anh:"]);                     //the request, on the input of the program
+    //back to "choose for me": the choices are forgotten, not kept as an empty name
+    Choose(assistant.modelPopUp, @"Tự chọn (model nhẹ)");
+    Choose(assistant.effortPopUp, @"Tự động (nhanh)");
+    CHECK([AISettings effortForProvider:codex] == nil && [[AISettings modelForProvider:codex] isEqualToString:@""]);
+    CHECK([assistant.infoLabel.stringValue containsString:@"Fake-Mini"]);
+    [assistant hideAssistant];
+
+    //a program that takes a while: the seconds are shown, and stopping works
+    AgentMode(@"delayed");
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"Viết thư";
+    [assistant ask];
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đang tạo"]);
+    SpinUntil(^BOOL { return [assistant.statusLabel.stringValue containsString:@"giây"]; }, 5);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Codex CLI"] && [assistant.statusLabel.stringValue containsString:@"giây"]);
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Xong"] && ![assistant.statusLabel.stringValue containsString:@"giây"]);
+    [assistant ask];                                                                       //asked again, and stopped
+    Spin(0.3);
+    [assistant stop];
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đã dừng"]);
+    Spin(2.5);                                                                              //the timer is gone: the message stays
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đã dừng"]);
+    [assistant hideAssistant];
+    AgentMode(@"ok");
+
+    //Claude Code: Haiku is the start, there is no "automatic" model; the answer comes in pieces
+    AISettings.providerIdentifier = @"claude-cli";
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(([assistant.modelPopUp.itemTitles isEqualToArray:@[@"Haiku", @"Sonnet", @"Opus", @"Fable"]]) && [assistant.modelPopUp.selectedItem.title isEqualToString:@"Haiku"]);
+    CHECK([assistant.infoLabel.stringValue containsString:@"Claude Code CLI"] && [assistant.infoLabel.stringValue containsString:@"Haiku"]);
+    assistant.inputView.string = @"Viết thư";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    log = AgentLog();
+    CHECK([assistant.resultText isEqualToString:@"Xin chào, đây là câu trả lời."]);
+    CHECK([ValueAfterFlag(log[@"args"], @"--model") isEqualToString:@"haiku"] && [ValueAfterFlag(log[@"args"], @"--effort") isEqualToString:@"low"]);
+    Choose(assistant.modelPopUp, @"Opus");
+    Choose(assistant.effortPopUp, @"Mặc định của CLI");
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    log = AgentLog();
+    CHECK([ValueAfterFlag(log[@"args"], @"--model") isEqualToString:@"opus"] && ![log[@"args"] containsObject:@"--effort"]);
+    [assistant hideAssistant];
+
+    //Antigravity: it keeps what is asked, and the window says so before anything is asked; a model with levels is one entry
+    AISettings.providerIdentifier = @"agy-cli";
+    AgentMode(@"ok");
+    [assistant presentWithSelection:nil application:nil];
+    CHECK([assistant.statusLabel.stringValue containsString:@"Antigravity CLI tự lưu"]);
+    SpinUntil(^BOOL { return assistant.modelPopUp.numberOfItems > 1; }, 10);
+    CHECK(([assistant.modelPopUp.itemTitles isEqualToArray:@[@"Tự chọn (model nhẹ)", @"Gemini 4 Argon", @"Gemini 3.8 Flash", @"Claude Opus 5.5", @"Claude Sonnet 5.5", @"GPT-OSS 120B", @"A Model Without Levels"]]));
+    CHECK([assistant.infoLabel.stringValue containsString:@"Gemini 3.8 Flash"] && [assistant.infoLabel.stringValue containsString:@"Thấp"]);
+    assistant.inputView.string = @"Viết thư";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    log = AgentLog();
+    CHECK([ValueAfterFlag(log[@"args"], @"--model") isEqualToString:@"gemini-3.8-flash-low"] && ![log[@"args"] containsObject:@"--effort"]);
+    Choose(assistant.modelPopUp, @"Claude Sonnet 5.5");
+    CHECK(([assistant.effortPopUp.itemTitles containsObject:@"Cao"]));
+    Choose(assistant.effortPopUp, @"Cao");
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([ValueAfterFlag(AgentLog()[@"args"], @"--model") isEqualToString:@"claude-sonnet-5-5-high"]);
+    //changing the service in the window shows or hides what is only for programs, and the note
+    Choose(assistant.providerPopUp, @"Ollama (chạy trên máy)");
+    CHECK(assistant.modelPopUp.hidden && assistant.effortPopUp.hidden);
+    [assistant hideAssistant];
+
+    //what goes wrong: not signed in (the settings cannot help, the Terminal can), the program gone (the settings can)
+    AISettings.providerIdentifier = @"codex-cli";
+    AgentMode(@"login");
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"hi";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateFailed);
+    CHECK([assistant.statusLabel.stringValue containsString:@"codex login"] && assistant.settingsButton.hidden);
+    AgentMode(@"ok");
+    NSString* link = [bin stringByAppendingPathComponent:@"codex"];
+    NSString* moved = [bin stringByAppendingPathComponent:@"codex-away"];
+    [[NSFileManager defaultManager] moveItemAtPath:link toPath:moved error:nil];
+    [assistant ask];                                                                        //the window was open when the program went away
+    WaitForState(assistant, AIAssistantStateFailed);
+    CHECK([assistant.statusLabel.stringValue containsString:@"codex"] && !assistant.settingsButton.hidden);
+    CHECK([assistant.statusLabel.stringValue containsString:@"npm install -g @openai/codex"]);
+    [assistant.settingsButton performClick:nil];
+    CHECK(settingsOpened == 1 && !assistant.panel.visible);
+    [[NSFileManager defaultManager] moveItemAtPath:moved toPath:link error:nil];
+
+    //a program that is not installed is not offered
+    [AIAgentCLI setSearchDirectoriesForTesting:@[]];
+    UseServer(@"normal");
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(![assistant.providerPopUp.itemTitles containsObject:@"Codex CLI (ChatGPT)"] && assistant.modelPopUp.hidden);
+    [assistant hideAssistant];
+    [AISettings resetToDefaults];
+}
+
 static void TestEscape(AIAssistant* assistant) {
     printf("-- escape\n");
     UseServer(@"slow");
@@ -476,6 +655,9 @@ int main(int argc, char** argv) {
             gFakePort = @(argv[3]);
             gWorkFolder = @(argv[4]);
         }
+        if (argc >= 6)
+            gFakeAgent = @(argv[5]);                                        //the stand-in for Codex, Claude Code and Antigravity
+        [AIAgentCLI setSearchDirectoriesForTesting:@[]];                     //the programs of the Mac that runs the test are not used
         NSPasteboard* board = [NSPasteboard pasteboardWithUniqueName];
         AIAssistant* assistant = MakeAssistant(board);
         __block int boundaries = 0;
@@ -490,6 +672,7 @@ int main(int argc, char** argv) {
         TestProviders(assistant);
         TestBusyMac(assistant);
         TestLocalServer(assistant);
+        TestAgentPrograms(assistant);
         TestEscape(assistant);
 
         [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:[NSProcessInfo processInfo].processName];

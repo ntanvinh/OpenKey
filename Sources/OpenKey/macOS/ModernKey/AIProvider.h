@@ -11,13 +11,18 @@
 //  - Gemini: Google's own interface;
 //  - Anthropic: the interface of Claude.
 //
+//  A fourth way needs no key and no address: an AI agent that is already installed and signed in on this Mac (Codex, Claude Code,
+//  Antigravity) is run as a program for each request (AIAgentCLI, AIAgentRunner). The agent keeps its own account: VOpenKey AI
+//  never sees its login.
+//
 
 #import <Foundation/Foundation.h>
 
 typedef NS_ENUM(NSInteger, AIProtocol) {
     AIProtocolOpenAI,
     AIProtocolGemini,
-    AIProtocolAnthropic
+    AIProtocolAnthropic,
+    AIProtocolAgentCLI      //a command line program that is signed in by itself: no address, no key
 };
 
 @interface AIProvider : NSObject
@@ -29,8 +34,11 @@ typedef NS_ENUM(NSInteger, AIProtocol) {
 @property (nonatomic, readonly) AIProtocol protocol;
 /// Where the server is, without the final slash. Empty for a provider the user has to fill in.
 @property (nonatomic, readonly, copy) NSString* defaultBaseURL;
-/// The model used until the user chooses another one. Model names change often, so it is always editable.
+/// The model used until the user chooses another one. Model names change often, so it is always editable. Empty for an agent
+/// program that picks its own (see AIAgentCLI).
 @property (nonatomic, readonly, copy) NSString* defaultModel;
+/// A program on this Mac (AIProtocolAgentCLI): what the user sees as the address and the key does not exist for it.
+@property (nonatomic, readonly) BOOL isAgentCLI;
 /// Runs on this Mac or in the local network: nothing leaves it, a key is not needed.
 @property (nonatomic, readonly) BOOL isLocal;
 /// A request without key is refused by the service. For local servers and the custom one a key is optional.
@@ -65,7 +73,9 @@ typedef NS_ENUM(NSInteger, VOKAIErrorCode) {
     VOKAIErrorNetwork,          //no connection, no answer in time
     VOKAIErrorCancelled,
     VOKAIErrorEmpty,            //the answer had no text
-    VOKAIErrorRejected          //the service refused the content (safety filters)
+    VOKAIErrorRejected,         //the service refused the content (safety filters)
+    VOKAIErrorNoProgram,        //the agent program is not on this Mac, or cannot be started
+    VOKAIErrorLogin             //the agent program is not signed in: it has to be done in the Terminal, not in these settings
 };
 
 /// Checks and cleans the address of a server: https, or http only for this Mac and the local network, so that a key is never
