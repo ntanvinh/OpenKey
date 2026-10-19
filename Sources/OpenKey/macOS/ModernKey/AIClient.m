@@ -460,6 +460,16 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
     [_task resume];
 }
 
+-(void)generateImageWithPrompt:(NSString*)prompt onNote:(void (^)(NSString*))onNote completion:(void (^)(NSURL*, NSError*))completion {
+    if (!_configuration.provider.isAgentCLI || ![AIAgentCLI forProvider:_configuration.provider].canMakeImages) {
+        NSError* error = MakeError(VOKAIErrorServer, @"Dịch vụ này không tạo được ảnh. Chọn Codex CLI trong Cài đặt > AI.");
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
+        return;
+    }
+    _runner = [[AIAgentRunner alloc] initWithConfiguration:_configuration];
+    [_runner generateImageWithPrompt:prompt onNote:onNote completion:completion];
+}
+
 -(void)cancel {
     _cancelled = YES;
     _onText = nil;

@@ -140,7 +140,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.start_stream()
         chunk = lambda delta, finish=None: "data: " + json.dumps({"choices": [{"delta": delta, "finish_reason": finish}]}, ensure_ascii=False) + "\n\n"
         try:
-            if model == "empty":
+            if model == "wait":
+                # nothing for a few seconds (a model that thinks, a program that starts), then the usual answer in a piece
+                time.sleep(3.6)
+                text = ""
+                for piece in PIECES:
+                    text += chunk({"content": piece})
+                self.write_cut(text + chunk({}, "stop") + "data: [DONE]\n\n")
+            elif model == "empty":
                 self.write_cut(chunk({"role": "assistant", "content": ""}) + "data: [DONE]\n\n")
             elif model == "midstream":
                 self.write_cut(chunk({"content": "Một"}) + chunk({"content": " hai"}) + 'data: {"error":{"message":"The server is overloaded","type":"overloaded_error"}}\n\n')

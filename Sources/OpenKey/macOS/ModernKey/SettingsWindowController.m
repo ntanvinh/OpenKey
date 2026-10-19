@@ -167,7 +167,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     ShortcutRecorder* _aiRecorder;
     ShortcutRecorder* _caseRecorder;
     NSPopUpButton* _aiProvider;
-    NSView* _aiProgramRow, *_aiKeyRow, *_aiURLRow, *_aiEffortRow;     //the rows that are there for some services only
+    NSView* _aiProgramRow, *_aiKeyRow, *_aiURLRow, *_aiEffortRow, *_aiImagePromptRow;     //the rows that are there for some services only
+    NSTextField* _aiImagePrompt;
     NSTextField* _aiProgramPath;
     NSTextField* _aiProgramStatus;
     NSButton* _aiProgramChoose;
@@ -985,6 +986,25 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     resetPrompt.controlSize = NSControlSizeSmall;
     NSStackView* promptControl = [self aiStack:@[_aiPrompt, resetPrompt] vertical:YES spacing:4];
 
+    //what is said to Codex to make a picture
+    _aiImagePrompt = [self aiFieldWithWidth:width placeholder:[AISettings defaultImagePrompt] secure:NO];
+    _aiImagePrompt.usesSingleLineMode = NO;
+    _aiImagePrompt.lineBreakMode = NSLineBreakByWordWrapping;
+    _aiImagePrompt.cell.wraps = YES;
+    _aiImagePrompt.cell.scrollable = NO;
+    _aiImagePrompt.maximumNumberOfLines = 4;
+    [_aiImagePrompt.heightAnchor constraintEqualToConstant:60].active = YES;
+    _aiImagePrompt.stringValue = AISettings.imagePrompt;
+    NSButton* resetImagePrompt = [NSButton buttonWithTitle:@"Dùng lệnh mặc định" target:self action:@selector(aiResetImagePrompt:)];
+    resetImagePrompt.bezelStyle = NSBezelStyleInline;
+    resetImagePrompt.controlSize = NSControlSizeSmall;
+    NSStackView* imagePromptControl = [self aiStack:@[_aiImagePrompt, resetImagePrompt] vertical:YES spacing:4];
+
+    _aiImagePromptRow = [self rowWithTitle:@"Lệnh tạo ảnh" detail:nil
+                                      hint:@"Gửi cho Codex khi bấm “Tạo ảnh” trong hộp thoại trợ lý; {prompt} là mô tả của bạn. Phải nhắc tên kỹ năng $imagegen thì Codex mới tạo ảnh đẹp. "
+                                           @"“our design system” chỉ là lời nhắc: Codex chạy trong một thư mục trống nên không thấy hệ thống thiết kế nào, hãy thay bằng mô tả phong cách của bạn hoặc bỏ đi. "
+                                           @"Tạo ảnh dùng model và mức suy nghĩ đang chọn, thường mất 20 đến 40 giây."
+                                   control:imagePromptControl indent:0];
     _aiProgramRow = [self rowWithTitle:@"Chương trình" detail:nil
                                   hint:@"Dùng chương trình AI đã cài và đăng nhập sẵn trên máy này, không cần API key. VOpenKey AI không đọc tài khoản hay token của chương trình: "
                                        @"mỗi yêu cầu chỉ chạy nó một lần, trong một thư mục tạm trống, không cho nó dùng công cụ, chạy lệnh hay đọc, sửa tệp của bạn."
@@ -994,7 +1014,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
                            control:keyControl indent:0];
     _aiURLRow = [self rowWithTitle:@"Địa chỉ máy chủ" detail:nil control:urlControl indent:0];
     _aiEffortRow = [self rowWithTitle:@"Mức suy nghĩ" detail:nil
-                                 hint:@"Mức càng cao thì AI càng suy nghĩ lâu: chậm hơn và tốn hạn mức hơn, hiếm khi cần cho viết, dịch hay sửa chữ. “Tự động” dùng mức thấp nhất mà model nhận."
+                                 hint:@"Mức càng cao thì AI càng suy nghĩ lâu: chậm hơn và tốn hạn mức hơn, hiếm khi cần cho viết, dịch hay sửa chữ. Đo thực tế: mức Thấp thường vài giây, mức Vừa có thể 15 đến 40 giây, mức Cao có thể cả phút. “Tự động” dùng mức thấp nhất mà model nhận."
                               control:effortControl indent:0];
     NSView* section = [self sectionWithTitle:@"Dịch vụ AI" rows:@[
         [self rowWithTitle:@"Dịch vụ" detail:nil
@@ -1005,6 +1025,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         _aiURLRow,
         [self rowWithTitle:@"Model" detail:nil control:modelControl indent:0],
         _aiEffortRow,
+        _aiImagePromptRow,
         [self rowWithTitle:@"Kết nối" detail:nil control:testControl indent:0],
         [self rowWithTitle:@"Lời nhắc hệ thống" detail:nil
                       hint:@"Dặn AI cách trả lời, gửi kèm mọi yêu cầu."
@@ -1033,6 +1054,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     //a program has no key and no address; a service has no program and no thinking level
     [self aiSetRow:_aiProgramRow hidden:cli == nil];
     [self aiSetRow:_aiEffortRow hidden:cli == nil];
+    [self aiSetRow:_aiImagePromptRow hidden:!cli.canMakeImages];
     [self aiSetRow:_aiKeyRow hidden:cli != nil];
     [self aiSetRow:_aiURLRow hidden:cli != nil];
 
@@ -1052,6 +1074,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [self aiShow:@"" in:_aiModelStatus error:NO];
     [self aiShow:@"" in:_aiTestStatus error:NO];
     _aiPrompt.stringValue = AISettings.systemPrompt;
+    _aiImagePrompt.stringValue = AISettings.imagePrompt;
     if (cli != nil)
         [self reloadAIProgram];
     [self reloadAILocalStatus];
@@ -1139,16 +1162,19 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     for (NSString* level in levels) {
         NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[AIAgentCLI nameOfEffort:level] action:nil keyEquivalent:@""];
         item.representedObject = level;
+        item.toolTip = [AIAgentCLI speedNoteForEffort:level];
         [_aiEffort.menu addItem:item];
     }
     NSMenuItem* own = [[NSMenuItem alloc] initWithTitle:@"Mặc định của CLI" action:nil keyEquivalent:@""];
     own.representedObject = AIAgentEffortProgramDefault;
+    own.toolTip = [AIAgentCLI speedNoteForEffort:nil];
     [_aiEffort.menu addItem:own];
     NSString* saved = [AISettings effortForProvider:provider];
     NSInteger index = saved.length > 0 ? [_aiEffort indexOfItemWithRepresentedObject:saved] : 0;
     [_aiEffort selectItemAtIndex:MAX(index, 0)];
     NSString* summary = [cli summaryForSavedModel:[AISettings modelForProvider:provider] effort:saved models:models];
-    [self aiShow:[NSString stringWithFormat:@"Sẽ dùng: %@", summary] in:_aiEffortStatus error:NO];
+    NSString* effective = [cli effectiveEffortForSavedModel:[AISettings modelForProvider:provider] effort:saved models:models];
+    [self aiShow:[NSString stringWithFormat:@"Sẽ dùng: %@. %@.", summary, [AIAgentCLI speedNoteForEffort:effective]] in:_aiEffortStatus error:NO];
 }
 
 -(void)aiEffortChanged:(NSPopUpButton*)sender {
@@ -1224,6 +1250,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self aiCommitModel];
     else if (field == _aiPrompt)
         AISettings.systemPrompt = _aiPrompt.stringValue;
+    else if (field == _aiImagePrompt)
+        AISettings.imagePrompt = _aiImagePrompt.stringValue;
     else if (field == _aiKey && _aiKey.stringValue.length > 0 && [notification.userInfo[@"NSTextMovement"] integerValue] == NSReturnTextMovement)
         [self aiSaveKey:nil];
 }
@@ -1301,6 +1329,11 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self reloadAI];
         [self aiShow:@"Đã xóa key." in:self->_aiKeyStatus error:NO];
     }];
+}
+
+-(void)aiResetImagePrompt:(id)sender {
+    AISettings.imagePrompt = nil;
+    _aiImagePrompt.stringValue = AISettings.imagePrompt;
 }
 
 -(void)aiResetPrompt:(id)sender {

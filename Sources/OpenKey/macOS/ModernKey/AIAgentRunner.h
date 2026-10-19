@@ -21,6 +21,13 @@
                    onText:(void (^)(NSString* piece))onText
                completion:(void (^)(NSError* error))completion;
 
+/// Makes a picture (Codex only), with `prompt` as the whole of what is said to it (see +[AIAgentCLI imagePromptForRequest:template:]). `onNote`
+/// gets what the agent says while it works. `completion` gets the file of the picture, which Codex keeps in its own folder, or the error. Both are
+/// called on the main thread, and not at all after -cancel.
+-(void)generateImageWithPrompt:(NSString*)prompt
+                        onNote:(void (^)(NSString* note))onNote
+                    completion:(void (^)(NSURL* image, NSError* error))completion;
+
 /// Stops the program, and what it started. Whatever came is kept by the caller, nothing more is delivered.
 -(void)cancel;
 

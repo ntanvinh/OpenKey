@@ -27,6 +27,11 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
     BOOL _timedOut;
     BOOL _tooMuch;
     BOOL _hasText;
+    BOOL _imageMode;                //a picture is asked for, not a text
+    NSURL* _imageURL;
+    NSDate* _startedAt;
+    NSString* _codexHome;
+    NSMutableString* _spoken;       //what the agent said while it made the picture
 }
 
 -(instancetype)initWithConfiguration:(AIConfiguration*)configuration {
@@ -34,6 +39,19 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
     if (self)
         _configuration = configuration;
     return self;
+}
+
+-(void)generateImageWithPrompt:(NSString*)prompt onNote:(void (^)(NSString*))onNote completion:(void (^)(NSURL*, NSError*))completion {
+    _imageMode = YES;
+    _spoken = [NSMutableString string];
+    __weak AIAgentRunner* weakSelf = self;
+    [self generateWithPrompt:prompt onText:onNote completion:^(NSError* error) {
+        completion(error == nil ? [weakSelf imageURLForCompletion] : nil, error);
+    }];
+}
+
+-(NSURL*)imageURLForCompletion {
+    return _imageURL;
 }
 
 -(void)generateWithPrompt:(NSString*)prompt onText:(void (^)(NSString*))onText completion:(void (^)(NSError*))completion {
@@ -44,6 +62,10 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
     NSString* executable = _configuration.executablePath;
     if (_cli == nil) {
         [self completeWithError:MakeError(VOKAIErrorServer, @"Dịch vụ này không phải là chương trình AI trên máy.")];
+        return;
+    }
+    if (_imageMode && !_cli.canMakeImages) {
+        [self completeWithError:MakeError(VOKAIErrorServer, [NSString stringWithFormat:@"%@ không tạo được ảnh. Chỉ Codex CLI làm được việc này.", _cli.displayName])];
         return;
     }
     if (![AIAgentCLI isRunnableFile:executable]) {
@@ -86,11 +108,22 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
         return;
     }
     NSString* system = _configuration.systemPrompt;
-    NSArray<NSString*>* arguments = [_cli argumentsWithModel:_model effort:_effort systemPrompt:system prompt:_prompt workDirectory:directory];
-    NSData* input = [_cli standardInputForPrompt:_prompt systemPrompt:system];
+    NSDictionary<NSString*, NSString*>* environment = [_cli environmentForExecutable:executable];
+    NSArray<NSString*>* arguments;
+    NSData* input;
+    if (_imageMode) {
+        //the request is said as it is: the rule of the texts ("nothing but text, no tools") would forbid the picture
+        arguments = [_cli imageArgumentsWithModel:_model effort:_effort workDirectory:directory];
+        input = [_cli standardInputForImagePrompt:_prompt];
+        _codexHome = [AIAgentCLI codexHomeForEnvironment:environment];
+    } else {
+        arguments = [_cli argumentsWithModel:_model effort:_effort systemPrompt:system prompt:_prompt workDirectory:directory];
+        input = [_cli standardInputForPrompt:_prompt systemPrompt:system];
+    }
+    _startedAt = [NSDate date];
 
     AIAgentProcess* process = [[AIAgentProcess alloc] init];
-    AIAgentOutputParser* parser = [[AIAgentOutputParser alloc] initWithFormat:_cli.output];
+    AIAgentOutputParser* parser = [[AIAgentOutputParser alloc] initWithFormat:_imageMode ? AIAgentOutputCodexJSON : _cli.output];
     _parser = parser;
     __weak AIAgentRunner* weakSelf = self;
     __block NSUInteger bytes = 0;                       //touched on the queue of the process only
@@ -117,7 +150,7 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
         dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf processEndedWithStatus:status signaled:signaled errorOutput:errorOutput]; });
     };
     NSError* launchError = nil;
-    if (![process launchExecutable:executable arguments:arguments environment:[_cli environmentForExecutable:executable]
+    if (![process launchExecutable:executable arguments:arguments environment:environment
                          directory:directory input:input error:&launchError]) {
         [[NSFileManager defaultManager] removeItemAtPath:directory error:nil];
         [self completeWithError:[_cli errorForLaunchFailure:launchError.localizedDescription]];
@@ -149,6 +182,7 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
             return;
         if ([piece stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length > 0)
             self->_hasText = YES;
+        [self->_spoken appendString:piece];
         self->_onText(piece);
     });
 }
@@ -179,6 +213,16 @@ static NSError* MakeError(VOKAIErrorCode code, NSString* message) {
         error = [_cli errorForMessage:_parser.errorMessage exitStatus:status model:_model effort:_effort];
     } else if (status != 0 || signaled) {
         error = [_cli errorForMessage:errorOutput.length > 0 ? errorOutput : _parser.leftover exitStatus:status model:_model effort:_effort];
+    } else if (_imageMode) {
+        //the picture is a file that Codex saved in its folder: the one of the thread it ran in
+        _imageURL = [AIAgentCLI generatedImageForThread:_parser.threadIdentifier codexHome:_codexHome since:_startedAt];
+        if (_imageURL == nil) {
+            NSString* said = [_spoken stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            if (said.length > 260)
+                said = [said substringFromIndex:said.length - 260];        //what it said last is what says why
+            error = MakeError(VOKAIErrorEmpty, [NSString stringWithFormat:@"%@ không tạo ra ảnh nào. Thử mô tả khác, hoặc chọn model khác.%@", name,
+                                                said.length > 0 ? [NSString stringWithFormat:@" (%@ nói: “%@”)", name, VOKAIRedact(said, nil)] : @""]);
+        }
     } else if (!_hasText) {
         NSString* gist = [AIAgentCLI gistOfErrorOutput:errorOutput ?: @""];
         error = MakeError(VOKAIErrorEmpty, [NSString stringWithFormat:@"%@ không trả về nội dung nào. Thử lại, hoặc đổi model.%@", name,

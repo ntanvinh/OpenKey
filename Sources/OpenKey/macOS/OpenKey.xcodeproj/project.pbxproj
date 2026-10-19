@@ -81,6 +81,8 @@
 		5EC0DE40202610190004 /* AIAgentCLI.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190003 /* AIAgentCLI.m */; };
 		5EC0DE40202610190008 /* AIAgentProcess.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190007 /* AIAgentProcess.m */; };
 		5EC0DE4020261019000C /* AIAgentRunner.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE4020261019000B /* AIAgentRunner.m */; };
+		5EC0DE40202610190010 /* AIProgress.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE4020261019000F /* AIProgress.m */; };
+		5EC0DE40202610190015 /* AILightbox.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190014 /* AILightbox.m */; };
 		5EC0DE30202610160008 /* AILocalModels.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160007 /* AILocalModels.m */; };
 		5EC0DE3020261016000C /* AIModelAdvisor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016000B /* AIModelAdvisor.m */; };
 		5EC0DE30202610160010 /* AIOllama.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016000F /* AIOllama.m */; };
@@ -90,6 +92,7 @@
 		5EC0DE30202610160020 /* AILocalSetupController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016001F /* AILocalSetupController.m */; };
 		5EC0DE30202610160022 /* local-models.json in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160021 /* local-models.json */; };
 		5EC0DE30202610170001 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23A984BE220ED07E000914A2 /* IOKit.framework */; };
+		5EC0DE40202610190012 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190011 /* QuartzCore.framework */; };
 		5EC0DE31202610180004 /* AILocalControl.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE31202610180003 /* AILocalControl.m */; };
 /* End PBXBuildFile section */
 
@@ -196,6 +199,7 @@
 		2397059C23143267002DDEA7 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		2397059E23143267002DDEA7 /* OpenKeyUpdate.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenKeyUpdate.entitlements; sourceTree = "<group>"; };
 		23A984BE220ED07E000914A2 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		5EC0DE40202610190011 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		23CA6D1522F0439100804D6E /* MyTextField.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MyTextField.h; sourceTree = "<group>"; };
 		23CA6D1622F0439100804D6E /* MyTextField.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MyTextField.m; sourceTree = "<group>"; };
 		23E2E4942314FD3A006CCC3E /* Engine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Engine.h; sourceTree = "<group>"; };
@@ -254,6 +258,10 @@
 		5EC0DE40202610190007 /* AIAgentProcess.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIAgentProcess.m; sourceTree = "<group>"; };
 		5EC0DE40202610190009 /* AIAgentRunner.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIAgentRunner.h; sourceTree = "<group>"; };
 		5EC0DE4020261019000B /* AIAgentRunner.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIAgentRunner.m; sourceTree = "<group>"; };
+		5EC0DE4020261019000D /* AIProgress.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIProgress.h; sourceTree = "<group>"; };
+		5EC0DE4020261019000F /* AIProgress.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIProgress.m; sourceTree = "<group>"; };
+		5EC0DE40202610190013 /* AILightbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILightbox.h; sourceTree = "<group>"; };
+		5EC0DE40202610190014 /* AILightbox.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILightbox.m; sourceTree = "<group>"; };
 		5EC0DE30202610160005 /* AILocalModels.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILocalModels.h; sourceTree = "<group>"; };
 		5EC0DE30202610160007 /* AILocalModels.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILocalModels.m; sourceTree = "<group>"; };
 		5EC0DE30202610160009 /* AIModelAdvisor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIModelAdvisor.h; sourceTree = "<group>"; };
@@ -281,6 +289,7 @@
 				A534F32629D8B78100296F25 /* Carbon.framework in Frameworks */,
 				233C4A6E231F923D00DD7052 /* AppKit.framework in Frameworks */,
 				5EC0DE30202610170001 /* IOKit.framework in Frameworks */,
+				5EC0DE40202610190012 /* QuartzCore.framework in Frameworks */,
 				23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */,
 				5EC0DE1D20261015000A0002 /* Security.framework in Frameworks */,
 				5EC0DE1520261018000A0002 /* UniformTypeIdentifiers.framework in Frameworks */,
@@ -359,6 +368,10 @@
 				5EC0DE40202610190005 /* AIAgentProcess.h */,
 				5EC0DE4020261019000B /* AIAgentRunner.m */,
 				5EC0DE40202610190009 /* AIAgentRunner.h */,
+				5EC0DE4020261019000F /* AIProgress.m */,
+				5EC0DE4020261019000D /* AIProgress.h */,
+				5EC0DE40202610190014 /* AILightbox.m */,
+				5EC0DE40202610190013 /* AILightbox.h */,
 				5EC0DE1C202610150017 /* AIAssistant.m */,
 				5EC0DE1C202610150015 /* AIAssistant.h */,
 				5EC0DE1C202610150013 /* AISelection.m */,
@@ -488,6 +501,7 @@
 			children = (
 				233C4A6D231F923D00DD7052 /* AppKit.framework */,
 				23A984BE220ED07E000914A2 /* IOKit.framework */,
+				5EC0DE40202610190011 /* QuartzCore.framework */,
 				23963B4F22040C720097189E /* ServiceManagement.framework */,
 				5EC0DE1D20261015000A0001 /* Security.framework */,
 				5EC0DE1520261018000A0001 /* UniformTypeIdentifiers.framework */,
@@ -647,6 +661,8 @@
 				5EC0DE40202610190004 /* AIAgentCLI.m in Sources */,
 				5EC0DE40202610190008 /* AIAgentProcess.m in Sources */,
 				5EC0DE4020261019000C /* AIAgentRunner.m in Sources */,
+				5EC0DE40202610190010 /* AIProgress.m in Sources */,
+				5EC0DE40202610190015 /* AILightbox.m in Sources */,
 				5EC0DE1C202610150018 /* AIAssistant.m in Sources */,
 				5EC0DE1C202610150014 /* AISelection.m in Sources */,
 				5EC0DE1C202610150010 /* AIClient.m in Sources */,
@@ -846,7 +862,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -856,7 +872,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.6.7;
+				MARKETING_VERSION = 3.7.4;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -874,7 +890,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -884,7 +900,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.6.7;
+				MARKETING_VERSION = 3.7.4;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

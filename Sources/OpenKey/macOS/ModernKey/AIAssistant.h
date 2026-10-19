@@ -11,6 +11,13 @@
 //  - ⇧⌘↩ puts the answer into the application (it replaces the selection, or goes where the cursor was), ⇧⌘C copies it.
 //  - When the AI is a program on this Mac that is signed in by itself (Codex, Claude Code, Antigravity), the model and the thinking
 //    level can be chosen here too, in the header. They start as a light model at the fast level, which is enough to write.
+//  - While the AI works the window moves and talks (AIProgress): a light runs round the place of the answer and sentences change as the
+//    time goes on, so that a long wait does not look like a hang. After a while at a high thinking level it offers to ask again at the
+//    lowest one, which is what makes the answer fast.
+//  - The gear in the header opens the settings of the AI at any time.
+//  - "Tạo ảnh" (Codex CLI only) asks Codex for a picture of what is in the box, with its imagegen skill named in the request, as it makes
+//    poor pictures otherwise. The picture is shown in the place of the answer; it can be copied, put into the application, or shown in the
+//    Finder. Codex keeps the file in its own folder (~/.codex/generated_images), which the window says.
 //  - Like the window of the snippets it does not make VOpenKey the frontmost application, and typing Vietnamese in it works like
 //    anywhere else. Nothing typed or received is kept: the text is gone when the window closes.
 //
@@ -50,6 +57,10 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 
 -(instancetype)initWithInserter:(SnippetInserter*)inserter;
 
+/// The window opens far outside the screen and never takes the keyboard (the keyboard checks are skipped). Tests turn it on so that they
+/// can run while somebody works on the same Mac.
+@property (nonatomic) BOOL offscreenForTesting;
+
 /// How the Mac is described when a request goes to an AI that runs on it (to say that the Mac is busy). A test gives its own.
 @property (nonatomic, copy) AIHardware* (^hardwareProvider)(void);
 
@@ -67,6 +78,25 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 @property (nonatomic, readonly) NSPopUpButton* modelPopUp;
 @property (nonatomic, readonly) NSPopUpButton* effortPopUp;
 @property (nonatomic, readonly) NSButton* settingsButton;
+/// The gear in the header: always there, opens the settings of the AI.
+@property (nonatomic, readonly) NSButton* openSettingsButton;
+/// What is shown in the place of the answer while it is awaited, and the light that runs round that place.
+@property (nonatomic, readonly) NSTextField* progressLabel;
+@property (nonatomic, readonly) BOOL glowing;
+/// "Tạo ảnh": asks Codex for a picture of what is described in the box. Enabled only when the AI in use is Codex CLI.
+@property (nonatomic, readonly) NSButton* imageButton;
+/// The picture that was made, shown in the place of the answer; "Hiện ảnh" shows its file in the Finder.
+@property (nonatomic, readonly) NSImageView* imageView;
+@property (nonatomic, readonly) NSButton* revealButton;
+@property (nonatomic, readonly) NSURL* resultImageURL;
+/// "Lưu": saves the picture in the Downloads folder.
+@property (nonatomic, readonly) NSButton* saveImageButton;
+/// The copy button shows a green check for a moment after something was copied.
+@property (nonatomic, readonly) BOOL copyConfirmed;
+/// "Hỏi lại ở mức Thấp": appears when the wait gets long at a thinking level above the lowest.
+@property (nonatomic, readonly) NSButton* speedButton;
+/// After how many seconds of waiting the window suggests a lower thinking level. 8 unless a test says otherwise.
+@property (nonatomic) NSTimeInterval slowHintDelay;
 @property (nonatomic, readonly) AIAssistantState state;
 /// What the service has written so far.
 @property (nonatomic, readonly) NSString* resultText;
@@ -76,6 +106,9 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 -(void)hideAssistant;
 
 -(void)ask;             //the button "Tạo", ⌘↩
+-(void)openImage;       //clicking the picture: it is shown large in the lightbox of the application (AILightbox)
+-(void)saveImage;       //the button "Lưu"
+-(void)askForImage;     //the button "Tạo ảnh", ⌥⌘↩
 -(void)stop;            //the button "Dừng", ⎋ while generating
 -(void)insertResult;    //⇧⌘↩
 -(void)copyResult;      //⇧⌘C

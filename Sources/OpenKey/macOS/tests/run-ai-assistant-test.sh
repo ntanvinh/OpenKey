@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Builds the AI window and runs ai_assistant_test.m against the fake server mock_ai_server.py, which it starts and stops.
-# Needs the Xcode command line tools and python3. No real AI service is contacted, no real key is used. The window opens for a
-# moment on the screen, without taking the keyboard from the application in front.
+# Needs the Xcode command line tools and python3. No real AI service is contacted, no real key is used. The window stays far outside
+# the screen and never takes the keyboard, so it can run while somebody works on the Mac. Run it in the background all the same.
+# VOK_UI_VISIBLE=1 shows the window for a moment on the screen and checks that it takes the keys (do not type meanwhile).
 #
 #   Sources/OpenKey/macOS/tests/run-ai-assistant-test.sh
 set -e
@@ -22,11 +23,11 @@ clang++ -std=c++17 -fobjc-arc -Wall -g -I"$MAC" -I"$ENGINE" -c "$MAC/SnippetInse
 for f in SnippetSearch Suggest; do
     clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
 done
-for f in AIProvider AIKeychain AISettings AIClient AIAgentCLI AIAgentProcess AIAgentRunner AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant VOKUI; do
+for f in AIProvider AIKeychain AISettings AIClient AIAgentCLI AIAgentProcess AIAgentRunner AIProgress AILightbox AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant VOKUI; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/ai_assistant_test.m" -o ai_assistant_test.o
-clang++ -framework Cocoa -framework Carbon -framework Security -framework IOKit -framework ApplicationServices *.o -o ai_assistant_test
+clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework Security -framework IOKit -framework ApplicationServices *.o -o ai_assistant_test
 
 python3 -I "$HERE/mock_ai_server.py" > port.txt &
 SERVER=$!

@@ -6,6 +6,8 @@
 #import "AIAssistant.h"
 #import "AIAgentCLI.h"
 #import "AIKeychain.h"
+#import "AILightbox.h"
+#import "AIProgress.h"
 #import "AIOllamaRuntime.h"
 #import "AISelection.h"
 #import "AISettings.h"
@@ -15,6 +17,7 @@ static const CGFloat kWidth = 620;
 static const CGFloat kInset = 16;
 static const CGFloat kCornerRadius = 14;
 static const NSUInteger kMaxSelection = 30000;     //a whole document is not something to send by accident
+static NSString* const kOutputPlaceholder = @"Câu trả lời của AI sẽ hiện ở đây.";
 
 static void (^sBoundary)(void);
 static void (^sOpenSettings)(void);
@@ -98,7 +101,22 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     NSTextField* _infoLabel;
     NSButton* _actionButton;
     NSTextView* _output;
-    NSTextField* _outputPlaceholder;
+    AIShimmerLabel* _outputPlaceholder;
+    AIGlowView* _glow;
+    NSButton* _gearButton;
+    NSButton* _speedButton;
+    NSButton* _imageButton;
+    NSButton* _revealButton;
+    NSButton* _saveImageButton;
+    NSUInteger _copyFeedback;
+    BOOL _copyConfirmed;
+    NSImageView* _imageView;
+    NSURL* _resultImageURL;                 //the picture that was made (a file in the folder of Codex), and its data as a PNG for the clipboard
+    NSData* _resultImagePNG;
+    BOOL _imageRequest;                     //the request that is going on, or the last one, was for a picture
+    BOOL _canMakeImages;                    //the AI in use makes pictures (cached: it is asked at every piece of an answer)
+    NSString* _progressNote;                //a message that stays while waiting (the Mac is busy, the local server starts)
+    NSString* _slowLevelName;               //the thinking level of this request when it is above the lowest, nil otherwise
     NSView* _outputScroll;
     NSTextField* _statusLabel;
     NSButton* _settingsButton;
@@ -164,6 +182,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         _inserter = inserter;
         _result = [NSMutableString string];
         _modelsRequested = [NSMutableSet set];
+        _slowHintDelay = 8;
     }
     return self;
 }
@@ -181,6 +200,16 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 -(NSPopUpButton*)modelPopUp { [self buildIfNeeded]; return _modelPopUp; }
 -(NSPopUpButton*)effortPopUp { [self buildIfNeeded]; return _effortPopUp; }
 -(NSButton*)settingsButton { [self buildIfNeeded]; return _settingsButton; }
+-(NSButton*)openSettingsButton { [self buildIfNeeded]; return _gearButton; }
+-(NSTextField*)progressLabel { [self buildIfNeeded]; return _outputPlaceholder; }
+-(BOOL)glowing { return _glow.animating; }
+-(NSButton*)speedButton { [self buildIfNeeded]; return _speedButton; }
+-(NSButton*)imageButton { [self buildIfNeeded]; return _imageButton; }
+-(NSButton*)revealButton { [self buildIfNeeded]; return _revealButton; }
+-(NSButton*)saveImageButton { [self buildIfNeeded]; return _saveImageButton; }
+-(BOOL)copyConfirmed { return _copyConfirmed; }
+-(NSImageView*)imageView { [self buildIfNeeded]; return _imageView; }
+-(NSURL*)resultImageURL { return _resultImageURL; }
 -(AIAssistantState)state { return _state; }
 -(NSString*)resultText { return [_result copy]; }
 
@@ -259,7 +288,13 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_effortPopUp setAccessibilityLabel:@"Mức suy nghĩ"];
     NSView* spacer1 = [[NSView alloc] init];
     [spacer1 setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView* header = [NSStackView stackViewWithViews:@[_icon, title, spacer1, _providerPopUp, _modelPopUp, _effortPopUp]];
+    _gearButton = [NSButton buttonWithImage:VOKSymbol(@"gearshape", 13, NSFontWeightRegular) target:self action:@selector(openSettings:)];
+    _gearButton.bordered = NO;
+    _gearButton.contentTintColor = [NSColor secondaryLabelColor];
+    _gearButton.toolTip = @"Mở Cài đặt AI";
+    _gearButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [_gearButton setAccessibilityLabel:@"Mở Cài đặt AI"];
+    NSStackView* header = [NSStackView stackViewWithViews:@[_icon, title, spacer1, _providerPopUp, _modelPopUp, _effortPopUp, _gearButton]];
     header.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     header.spacing = 6;
     header.alignment = NSLayoutAttributeCenterY;
@@ -293,16 +328,50 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _actionButton = [self buttonWithTitle:@"Tạo" action:@selector(actionPressed:)];
     NSView* spacer2 = [[NSView alloc] init];
     [spacer2 setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView* askRow = [NSStackView stackViewWithViews:@[_infoLabel, spacer2, _actionButton]];
+    _imageButton = [self buttonWithTitle:@"Tạo ảnh" action:@selector(imagePressed:)];
+    VOKSetButtonSymbol(_imageButton, @"photo.badge.plus", 12);
+    _imageButton.enabled = NO;
+    [self setKeyEquivalent:@"\r" mask:NSEventModifierFlagCommand | NSEventModifierFlagOption forButton:_imageButton];
+    NSStackView* askRow = [NSStackView stackViewWithViews:@[_infoLabel, spacer2, _imageButton, _actionButton]];
     askRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     askRow.alignment = NSLayoutAttributeCenterY;
     askRow.spacing = 8;
 
     //the answer
-    _outputPlaceholder = VOKLabel(@"Câu trả lời của AI sẽ hiện ở đây.", 13, NSFontWeightRegular, [NSColor placeholderTextColor]);
+    _outputPlaceholder = [AIShimmerLabel wrappingLabelWithString:kOutputPlaceholder];
+    _outputPlaceholder.font = [NSFont systemFontOfSize:13];
+    _outputPlaceholder.textColor = [NSColor placeholderTextColor];
+    _outputPlaceholder.selectable = NO;
+    _outputPlaceholder.translatesAutoresizingMaskIntoConstraints = NO;
     _outputPlaceholder.preferredMaxLayoutWidth = kWidth - 2 * kInset - 22;
     NSTextView* outputView = nil;
     _outputScroll = TextArea(190, _outputPlaceholder, &outputView);
+    //the picture, when a picture was asked for: it takes the place of the answer
+    _imageView = [[NSImageView alloc] init];
+    _imageView.imageScaling = NSImageScaleProportionallyUpOrDown;
+    _imageView.imageAlignment = NSImageAlignCenter;
+    _imageView.translatesAutoresizingMaskIntoConstraints = NO;
+    _imageView.hidden = YES;
+    _imageView.toolTip = @"Bấm để xem ảnh lớn";
+    [_imageView setAccessibilityLabel:@"Ảnh đã tạo"];
+    [_imageView addGestureRecognizer:[[NSClickGestureRecognizer alloc] initWithTarget:self action:@selector(imageClicked:)]];
+    [_outputScroll addSubview:_imageView];
+    [NSLayoutConstraint activateConstraints:@[
+        [_imageView.topAnchor constraintEqualToAnchor:_outputScroll.topAnchor constant:8],
+        [_imageView.leadingAnchor constraintEqualToAnchor:_outputScroll.leadingAnchor constant:8],
+        [_imageView.trailingAnchor constraintEqualToAnchor:_outputScroll.trailingAnchor constant:-8],
+        [_imageView.bottomAnchor constraintEqualToAnchor:_outputScroll.bottomAnchor constant:-8],
+    ]];
+    //a light runs round the edge of the answer while it is awaited
+    _glow = [[AIGlowView alloc] init];
+    _glow.translatesAutoresizingMaskIntoConstraints = NO;
+    [_outputScroll addSubview:_glow];
+    [NSLayoutConstraint activateConstraints:@[
+        [_glow.topAnchor constraintEqualToAnchor:_outputScroll.topAnchor],
+        [_glow.leadingAnchor constraintEqualToAnchor:_outputScroll.leadingAnchor],
+        [_glow.trailingAnchor constraintEqualToAnchor:_outputScroll.trailingAnchor],
+        [_glow.bottomAnchor constraintEqualToAnchor:_outputScroll.bottomAnchor],
+    ]];
     _output = outputView;
     _output.editable = NO;
     _output.selectable = YES;
@@ -312,9 +381,22 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _settingsButton = [self buttonWithTitle:@"Mở Cài đặt AI…" action:@selector(openSettings:)];
     _settingsButton.controlSize = NSControlSizeSmall;
     _settingsButton.hidden = YES;
+    _speedButton = [self buttonWithTitle:@"Hỏi lại ở mức Thấp" action:@selector(askAgainFaster:)];
+    _speedButton.controlSize = NSControlSizeSmall;
+    _speedButton.toolTip = @"Dừng câu hỏi này và hỏi lại ở mức suy nghĩ thấp nhất của model, thường nhanh hơn nhiều.";
+    _speedButton.hidden = YES;
     NSView* spacer3 = [[NSView alloc] init];
     [spacer3 setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView* statusRow = [NSStackView stackViewWithViews:@[_statusLabel, spacer3, _settingsButton]];
+    _revealButton = [self buttonWithTitle:@"Hiện ảnh" action:@selector(revealImage:)];
+    _revealButton.controlSize = NSControlSizeSmall;
+    _revealButton.toolTip = @"Hiện file ảnh trong Finder";
+    _revealButton.hidden = YES;
+    _saveImageButton = [self buttonWithTitle:@"Lưu" action:@selector(saveImagePressed:)];
+    _saveImageButton.controlSize = NSControlSizeSmall;
+    VOKSetButtonSymbol(_saveImageButton, @"square.and.arrow.down", 11);
+    _saveImageButton.toolTip = @"Lưu ảnh vào thư mục Downloads";
+    _saveImageButton.hidden = YES;
+    NSStackView* statusRow = [NSStackView stackViewWithViews:@[_statusLabel, spacer3, _speedButton, _saveImageButton, _revealButton, _settingsButton]];
     statusRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     statusRow.alignment = NSLayoutAttributeCenterY;
     statusRow.spacing = 8;
@@ -323,7 +405,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
     //what to do with it
     _hintLabel = [self labelWithSize:10 color:[NSColor tertiaryLabelColor]];
-    _hintLabel.stringValue = @"⌘↩ Tạo   ⇧⌘↩ Chèn   ⇧⌘C Sao chép   esc Đóng";
+    _hintLabel.stringValue = @"⌘↩ Tạo   ⌥⌘↩ Tạo ảnh   ⇧⌘↩ Chèn   ⇧⌘C Sao chép   esc Đóng";
     _copyButton = [self buttonWithTitle:@"Sao chép" action:@selector(copyPressed:)];
     _insertButton = [self buttonWithTitle:@"Chèn" action:@selector(insertPressed:)];
     NSView* spacer4 = [[NSView alloc] init];
@@ -438,6 +520,14 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     NSSize size = _panel.frame.size;
     NSPoint origin = NSMakePoint(NSMidX(visible) - size.width / 2, NSMaxY(visible) - visible.size.height * 0.16 - size.height);
     origin.y = MAX(origin.y, visible.origin.y + 20);
+    if (self.offscreenForTesting) {
+        //a test must not show a window to, nor take the keyboard from, whoever is working on this Mac
+        [_panel setFrameOrigin:NSMakePoint(-30000, -30000)];
+        [_panel orderFront:nil];
+        [_panel makeFirstResponder:_input];
+        sHasKeyboard = NO;
+        return;
+    }
     [_panel setFrameOrigin:origin];
 
     [_panel makeKeyAndOrderFront:nil];
@@ -453,7 +543,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
 -(void)hideAssistant {
     [self cancelRequest];
-    [self stopProgressTimer];
     //what was typed and what came back is not kept: not even in the undo history, where ⌘Z would bring it back
     [self forgetText];
     [_result setString:@""];
@@ -467,6 +556,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 }
 
 -(void)forgetText {
+    [self resetCopyButton];
+    [self forgetImage];
     _input.string = @"";
     _output.string = @"";
     [_input.undoManager removeAllActions];
@@ -532,6 +623,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_providerPopUp sizeToFit];
     [self reloadAgentControls];
     [self updateInfoLabel];
+    [self updateInterface];
 }
 
 -(void)providerChosen:(NSPopUpButton*)sender {
@@ -546,6 +638,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         _provider = [AIProvider providerWithIdentifier:identifier];
         [self reloadAgentControls];
         [self updateInfoLabel];
+        [self updateInterface];
         if (_state == AIAssistantStateIdle) {
             _statusLabel.stringValue = @"";
             [self showStorageNote];
@@ -613,10 +706,12 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     for (NSString* level in levels) {
         NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[AIAgentCLI nameOfEffort:level] action:nil keyEquivalent:@""];
         item.representedObject = level;
+        item.toolTip = [AIAgentCLI speedNoteForEffort:level];            //what the level costs in time
         [_effortPopUp.menu addItem:item];
     }
     NSMenuItem* own = [[NSMenuItem alloc] initWithTitle:@"Mặc định của CLI" action:nil keyEquivalent:@""];
     own.representedObject = AIAgentEffortProgramDefault;
+    own.toolTip = [AIAgentCLI speedNoteForEffort:nil];
     [_effortPopUp.menu addItem:own];
     NSInteger levelIndex = effortSaved.length > 0 ? [_effortPopUp indexOfItemWithRepresentedObject:effortSaved] : 0;
     [_effortPopUp selectItemAtIndex:MAX(levelIndex, 0)];
@@ -656,28 +751,82 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self updateInfoLabel];
 }
 
--(void)startProgressTimerFor:(AIAgentCLI*)cli {
-    [self stopProgressTimer];
+#pragma mark Waiting
+
+//The wait starts: the light runs, the sparkles breathe, the words shimmer and say what is going on, and every second the seconds count.
+-(void)beginProgress {
+    [self endProgress];
     _askStarted = [NSDate date];
+    AIAgentCLI* cli = [AIAgentCLI forProvider:_provider];
+    _slowLevelName = nil;
+    if (cli != nil && !_imageRequest) {           //how long a picture takes does not depend on the level
+        NSString* level = [cli effectiveEffortForSavedModel:[AISettings modelForProvider:_provider] effort:[AISettings effortForProvider:_provider] models:[cli knownModels]];
+        if (![AIAgentCLI isFastEffort:level])
+            _slowLevelName = [AIAgentCLI nameOfEffort:level];
+    }
+    [_glow start];
+    AIPulseView(_icon, YES);
+    _outputPlaceholder.textColor = [NSColor secondaryLabelColor];
+    _outputPlaceholder.shimmering = YES;
+    [_outputPlaceholder fadeToMessage:[AIProgressText messageAfterSeconds:0 provider:_provider.name image:_imageRequest]];
     __weak AIAssistant* weakSelf = self;
-    NSString* name = cli.displayName;
-    _progressTimer = [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer* timer) {
+    _progressTimer = [NSTimer timerWithTimeInterval:1 repeats:YES block:^(NSTimer* timer) {
         AIAssistant* strong = weakSelf;
         if (strong == nil || strong->_state != AIAssistantStateGenerating) {
             [timer invalidate];
             return;
         }
-        int seconds = (int)(-[strong->_askStarted timeIntervalSinceNow]);
-        if (seconds < 2)
-            return;
-        [strong showMessage:strong->_result.length > 0 ? [NSString stringWithFormat:@"Đang viết… %d giây", seconds]
-                                                       : [NSString stringWithFormat:@"Đang chờ %@… %d giây", name, seconds] error:NO];
+        [strong updateProgress];
     }];
+    [[NSRunLoop currentRunLoop] addTimer:_progressTimer forMode:NSRunLoopCommonModes];     //it goes on while a menu of the window is open
 }
 
--(void)stopProgressTimer {
+-(void)updateProgress {
+    NSInteger seconds = (NSInteger)(-[_askStarted timeIntervalSinceNow]);
+    if (_result.length == 0)
+        [_outputPlaceholder fadeToMessage:[AIProgressText messageAfterSeconds:seconds provider:_provider.name image:_imageRequest]];
+    BOOL slow = _slowLevelName != nil && seconds >= (NSInteger)self.slowHintDelay;
+    //the first seconds keep what the request said ("Đang tạo…"); then the seconds, and the cause of the wait when it is known
+    if (seconds >= 2 || slow) {
+        NSString* elapsed = [AIProgressText elapsedAfterSeconds:seconds];
+        NSString* text = _progressNote != nil ? [NSString stringWithFormat:@"%@ (%@)", _progressNote, elapsed]
+                                              : (_result.length > 0 ? [NSString stringWithFormat:@"Đang viết · %@", elapsed] : elapsed);
+        if (slow && _progressNote == nil)
+            text = [text stringByAppendingFormat:@" · Mức “%@” suy nghĩ kỹ nên chậm hơn; mức Thấp thường nhanh hơn nhiều.", _slowLevelName];
+        _statusLabel.stringValue = text;
+        _statusLabel.textColor = [NSColor secondaryLabelColor];
+    }
+    _speedButton.hidden = !slow;
+    [self resizeToFit];
+}
+
+//The wait is over (answer, error, stop, closing): everything that moved is still, and the place of the answer is itself again.
+-(void)endProgress {
     [_progressTimer invalidate];
     _progressTimer = nil;
+    _progressNote = nil;
+    _slowLevelName = nil;
+    [_glow stop];
+    AIPulseView(_icon, NO);
+    _outputPlaceholder.shimmering = NO;
+    _outputPlaceholder.textColor = [NSColor placeholderTextColor];
+    if (![_outputPlaceholder.stringValue isEqualToString:kOutputPlaceholder])
+        _outputPlaceholder.stringValue = kOutputPlaceholder;
+    _speedButton.hidden = YES;
+}
+
+-(void)askAgainFaster:(id)sender {
+    if (_provider == nil)
+        return;
+    [AISettings setEffort:nil forProvider:_provider];          //"automatic" is the lowest level the model accepts
+    [self cancelRequest];
+    _state = _result.length > 0 ? AIAssistantStateDone : AIAssistantStateIdle;
+    [self reloadAgentControls];
+    [self updateInfoLabel];
+    if (_imageRequest)
+        [self askForImage];
+    else
+        [self ask];
 }
 
 //who gets what is typed here: said every time, on the window itself
@@ -713,6 +862,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _askSerial++;
     [_client cancel];
     _client = nil;
+    [self endProgress];
 }
 
 /// The AI on this Mac that VOpenKey installed (or that was installed by hand) is not running until something needs it: its server is
@@ -742,14 +892,17 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self cancelRequest];
     [_result setString:@""];
     _output.string = @"";
+    [self forgetImage];
+    [self resetCopyButton];
+    _imageRequest = NO;
     _state = AIAssistantStateGenerating;
-    AIAgentCLI* cli = [AIAgentCLI forProvider:provider];
-    if (cli != nil)
-        [self startProgressTimerFor:cli];
+    [self beginProgress];
     //a model that runs on this Mac is heavy: when the Mac is already busy it will be slow, and that is said at once
     NSString* working = @"Đang tạo…";
-    if (provider.isLocal && [(self.hardwareProvider ? self.hardwareProvider() : [AIHardware current]) isBusy])
+    if (provider.isLocal && [(self.hardwareProvider ? self.hardwareProvider() : [AIHardware current]) isBusy]) {
         working = @"Đang tạo… Máy đang bận nên AI chạy trên máy sẽ chậm. Nếu cần nhanh, chọn dịch vụ trực tuyến trong Cài đặt > AI.";
+        _progressNote = working;
+    }
     [self showMessage:working error:NO];
     [self updateInterface];
 
@@ -759,8 +912,10 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         __weak AIAssistant* weakSelf = self;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             AIAssistant* strong = weakSelf;
-            if (strong != nil && !answered && serial == strong->_askSerial)         //only when it really takes time
-                [strong showMessage:@"Đang khởi động AI trên máy (lần đầu 20 đến 40 giây)…" error:NO];
+            if (strong != nil && !answered && serial == strong->_askSerial) {       //only when it really takes time
+                strong->_progressNote = @"Đang khởi động AI trên máy (lần đầu 20 đến 40 giây)…";
+                [strong showMessage:strong->_progressNote error:NO];
+            }
         });
         [[AIOllamaRuntime shared] ensureRunning:^(NSError* error) {
             answered = YES;
@@ -777,6 +932,154 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         return;
     }
     [self sendPrompt:prompt configuration:configuration];
+}
+
+#pragma mark A picture
+
+-(void)forgetImage {
+    if ([AILightbox shared].visible)
+        [[AILightbox shared] close];
+    _saveImageButton.hidden = YES;
+    _resultImageURL = nil;
+    _resultImagePNG = nil;
+    _imageView.image = nil;
+    _imageView.hidden = YES;
+    _revealButton.hidden = YES;
+}
+
+-(void)imagePressed:(id)sender {
+    [self askForImage];
+}
+
+//Codex makes it with its imagegen skill, which has to be named in the request or the picture is a poor one; the file is kept by Codex.
+-(void)askForImage {
+    NSString* request = [_input.string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (request.length == 0) {
+        [self showMessage:@"Hãy mô tả bức ảnh bạn muốn trước." error:NO];
+        return;
+    }
+    AIProvider* provider = _provider ?: AISettings.provider;
+    if (![AISettings canMakeImagesWithProvider:provider]) {
+        [self showMessage:@"Chỉ tạo được ảnh khi dùng Codex CLI. Chọn Codex CLI ở góc trên của cửa sổ." error:YES];
+        return;
+    }
+    NSError* problem = nil;
+    AIConfiguration* configuration = [AISettings configurationForProvider:provider error:&problem];
+    if (configuration == nil) {
+        [self showFailure:problem];
+        return;
+    }
+    [self cancelRequest];
+    [_result setString:@""];
+    _output.string = @"";
+    [self forgetImage];
+    [self resetCopyButton];
+    _imageRequest = YES;
+    _state = AIAssistantStateGenerating;
+    [self beginProgress];
+    [self showMessage:@"Đang tạo ảnh…" error:NO];
+    [self updateInterface];
+
+    AIClient* client = [[AIClient alloc] initWithConfiguration:configuration];
+    _client = client;
+    __weak AIAssistant* weakSelf = self;
+    [client generateImageWithPrompt:[AIAgentCLI imagePromptForRequest:request template:AISettings.imagePrompt]
+                             onNote:^(NSString* note) {}                //what the agent says on the way is not shown: the words of the wait are
+                         completion:^(NSURL* image, NSError* error) {
+        AIAssistant* strong = weakSelf;
+        if (strong == nil || strong->_client != client)
+            return;
+        strong->_client = nil;
+        [strong endProgress];
+        if (error != nil) {
+            [strong showFailure:error];
+        } else {
+            [strong showImageAtURL:image];
+        }
+        [strong updateInterface];
+    }];
+}
+
+-(void)showImageAtURL:(NSURL*)url {
+    NSData* data = [NSData dataWithContentsOfURL:url];
+    NSImage* image = data.length > 0 ? [[NSImage alloc] initWithData:data] : nil;
+    if (image == nil) {
+        [self showFailure:[NSError errorWithDomain:VOKAIErrorDomain code:VOKAIErrorEmpty userInfo:@{
+            NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Không đọc được ảnh mà Codex đã tạo (%@).", url.lastPathComponent]}]];
+        return;
+    }
+    //the clipboard takes a PNG: whatever Codex wrote (it could be a JPEG or a WebP) is turned into one
+    NSData* png = data;
+    if (![[url.pathExtension lowercaseString] isEqualToString:@"png"]) {
+        NSBitmapImageRep* rep = [NSBitmapImageRep imageRepWithData:data];
+        png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] ?: data;
+    }
+    _resultImageURL = url;
+    _resultImagePNG = png;
+    _imageView.image = image;
+    _imageView.hidden = NO;
+    _state = AIAssistantStateDone;
+    NSString* shown = [url.path stringByAbbreviatingWithTildeInPath];
+    [self showMessage:[NSString stringWithFormat:@"Xong. ⇧⌘↩ để chèn ảnh. Codex lưu ảnh ở %@", shown] error:NO];
+    _revealButton.hidden = NO;
+    _saveImageButton.hidden = NO;
+    [self updatePlaceholders];
+}
+
+-(void)imageClicked:(id)sender { [self openImage]; }
+
+-(void)openImage {
+    if (_resultImagePNG == nil || _imageView.image == nil)
+        return;
+    AILightbox* box = [AILightbox shared];
+    box.offscreenForTesting = self.offscreenForTesting;
+    box.pasteboard = _inserter.pasteboard;
+    [box showImage:_imageView.image png:_resultImagePNG name:_resultImageURL.lastPathComponent over:_panel];
+}
+
+-(void)saveImagePressed:(id)sender { [self saveImage]; }
+
+//Downloads, with a name of its own, without asking
+-(void)saveImage {
+    if (_resultImagePNG == nil)
+        return;
+    NSError* error = nil;
+    NSURL* url = [AILightbox savePNG:_resultImagePNG toFolder:[AILightbox downloadsFolder] error:&error];
+    if (url == nil) {
+        [self showMessage:[NSString stringWithFormat:@"Không lưu được ảnh: %@", error.localizedDescription] error:YES];
+        return;
+    }
+    [self showMessage:[NSString stringWithFormat:@"Đã lưu vào Downloads: %@", url.lastPathComponent] error:NO];
+    _statusLabel.textColor = [NSColor systemGreenColor];
+}
+
+//the green check on the copy button, for a moment
+-(void)flashCopyButton {
+    NSUInteger mine = ++_copyFeedback;
+    _copyConfirmed = YES;
+    NSImage* check = VOKSymbol(@"checkmark.circle.fill", 12, NSFontWeightSemibold);
+    _copyButton.image = check;
+    _copyButton.imagePosition = NSImageLeading;
+    _copyButton.contentTintColor = [NSColor systemGreenColor];
+    _copyButton.title = @"Đã sao chép";
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (mine != self->_copyFeedback)
+            return;
+        [self resetCopyButton];
+    });
+}
+
+-(void)resetCopyButton {
+    _copyFeedback++;
+    _copyConfirmed = NO;
+    _copyButton.image = nil;
+    _copyButton.contentTintColor = nil;
+    _copyButton.title = @"Sao chép";
+}
+
+-(void)revealImage:(id)sender {
+    if (_resultImageURL != nil)
+        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[_resultImageURL]];
 }
 
 -(void)sendPrompt:(NSString*)prompt configuration:(AIConfiguration*)configuration {
@@ -798,7 +1101,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         if (strong == nil || strong->_client != client)
             return;
         strong->_client = nil;
-        [strong stopProgressTimer];
+        [strong endProgress];
         if (error != nil) {
             [strong showFailure:error];
         } else {
@@ -813,7 +1116,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     if (_state != AIAssistantStateGenerating)
         return;
     [self cancelRequest];
-    [self stopProgressTimer];
     _state = _result.length > 0 ? AIAssistantStateDone : AIAssistantStateIdle;
     [self showMessage:@"Đã dừng." error:NO];
     [self updateInterface];
@@ -823,6 +1125,10 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _statusLabel.stringValue = message;
     _statusLabel.textColor = error ? [NSColor systemRedColor] : [NSColor secondaryLabelColor];
     _settingsButton.hidden = YES;
+    if (_progressTimer == nil)
+        _speedButton.hidden = YES;                      //while waiting, the clock decides when it is there
+    _revealButton.hidden = _resultImageURL == nil || _state == AIAssistantStateGenerating;
+    _saveImageButton.hidden = _revealButton.hidden;
     [self resizeToFit];
 }
 
@@ -830,6 +1136,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     if (error.code == VOKAIErrorCancelled)
         return;
     _state = AIAssistantStateFailed;
+    [self endProgress];
     [self showMessage:error.localizedDescription error:YES];
     //what to do about it is in the settings
     BOOL settingsCanHelp = error.code == VOKAIErrorNoKey || error.code == VOKAIErrorAuthentication || error.code == VOKAIErrorBadAddress ||
@@ -846,8 +1153,17 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 }
 
 -(void)insertResult {
+    if (_state == AIAssistantStateGenerating)
+        return;
+    if (_resultImagePNG != nil) {
+        NSData* png = _resultImagePNG;
+        NSRunningApplication* target = _target;
+        [self hideAssistant];
+        [_inserter insertImageData:png application:target];
+        return;
+    }
     NSString* text = [self answerToUse];
-    if (text.length == 0 || _state == AIAssistantStateGenerating)
+    if (text.length == 0)
         return;
     NSRunningApplication* target = _target;
     [self hideAssistant];
@@ -855,13 +1171,29 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 }
 
 -(void)copyResult {
+    NSPasteboard* board = _inserter.pasteboard;
+    if (_resultImagePNG != nil) {
+        [board clearContents];
+        NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
+        [item setData:_resultImagePNG forType:NSPasteboardTypePNG];
+        NSData* tiff = [[[NSImage alloc] initWithData:_resultImagePNG] TIFFRepresentation];
+        if (tiff != nil)
+            [item setData:tiff forType:NSPasteboardTypeTIFF];
+        [board writeObjects:@[item]];
+        [self showMessage:@"Đã sao chép ảnh." error:NO];
+        _statusLabel.textColor = [NSColor systemGreenColor];
+        _revealButton.hidden = NO;
+        [self flashCopyButton];
+        return;
+    }
     NSString* text = [self answerToUse];
     if (text.length == 0)
         return;
-    NSPasteboard* board = _inserter.pasteboard;
     [board clearContents];
     [board setString:text forType:NSPasteboardTypeString];
     [self showMessage:@"Đã sao chép." error:NO];
+    _statusLabel.textColor = [NSColor systemGreenColor];
+    [self flashCopyButton];
 }
 
 -(void)openSettings:(id)sender {
@@ -889,7 +1221,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
 -(void)updatePlaceholders {
     _inputPlaceholder.hidden = _input.string.length > 0;
-    _outputPlaceholder.hidden = _output.string.length > 0;
+    _outputPlaceholder.hidden = _output.string.length > 0 || !_imageView.hidden;
 }
 
 -(void)textDidChange:(NSNotification*)notification {
@@ -899,15 +1231,21 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 -(void)updateInterface {
     [self updatePlaceholders];
     BOOL generating = _state == AIAssistantStateGenerating;
-    BOOL hasResult = _result.length > 0;
-    _actionButton.title = generating ? @"Dừng" : (hasResult ? @"Tạo lại" : @"Tạo");
+    BOOL hasText = _result.length > 0;
+    BOOL hasResult = hasText || _resultImagePNG != nil;
+    _canMakeImages = _provider != nil && [AISettings canMakeImagesWithProvider:_provider];
+    _actionButton.title = generating ? @"Dừng" : (hasText ? @"Tạo lại" : @"Tạo");
+    //pictures are for Codex only: for the other AIs the button is there, off, and says why
+    _imageButton.enabled = _canMakeImages && !generating;
+    _imageButton.toolTip = _canMakeImages ? @"Tạo ảnh bằng Codex (kỹ năng imagegen) từ mô tả ở ô trên. ⌥⌘↩"
+                                          : @"Chỉ dùng được khi chọn Codex CLI ở góc trên của cửa sổ.";
     //⌘↩ asks; while an answer is on its way the same place is ⌘. as everywhere in macOS
     if (generating)
         [self setKeyEquivalent:@"." mask:NSEventModifierFlagCommand forButton:_actionButton];
     else
         [self setKeyEquivalent:@"\r" mask:NSEventModifierFlagCommand forButton:_actionButton];
     _copyButton.enabled = hasResult;
-    _insertButton.title = _hadSelection ? @"Thay thế vùng chọn" : @"Chèn";
+    _insertButton.title = _resultImagePNG != nil ? @"Chèn ảnh" : (_hadSelection ? @"Thay thế vùng chọn" : @"Chèn");
     _insertButton.enabled = hasResult && !generating;
     [self setKeyEquivalent:@"\r" mask:NSEventModifierFlagCommand | NSEventModifierFlagShift forButton:_insertButton];
     [self setKeyEquivalent:@"c" mask:NSEventModifierFlagCommand | NSEventModifierFlagShift forButton:_copyButton];

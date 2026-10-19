@@ -205,15 +205,31 @@ static void PostCommand(unichar letter) {
     [self pasteText:text application:application];
 }
 
+-(void)insertImageData:(NSData*)png application:(NSRunningApplication*)application {
+    if (png.length == 0)
+        return;
+    [self restoreIfUntouched];
+    NSData* tiff = [[[NSImage alloc] initWithData:png] TIFFRepresentation];
+    [self pasteWithContents:^(NSPasteboardItem* item) {
+        [item setData:png forType:NSPasteboardTypePNG];
+        if (tiff != nil)
+            [item setData:tiff forType:NSPasteboardTypeTIFF];
+    } application:application];
+}
+
 //Puts the text on the clipboard, presses ⌘V in the application and gives the clipboard back
 -(void)pasteText:(NSString*)text application:(NSRunningApplication*)application {
     if (text.length == 0)
         return;
+    [self pasteWithContents:^(NSPasteboardItem* item) { [item setString:text forType:NSPasteboardTypeString]; } application:application];
+}
 
+//The same for whatever `fill` puts on the item that goes on the clipboard
+-(void)pasteWithContents:(void (^)(NSPasteboardItem* item))fill application:(NSRunningApplication*)application {
     _saved = [VOKPasteboardSnapshot snapshotOfPasteboard:_pasteboard];
     [_pasteboard clearContents];
     NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
-    [item setString:text forType:NSPasteboardTypeString];
+    fill(item);
     [item setData:[NSData data] forType:kTransientType];
     [_pasteboard writeObjects:@[item]];
     _changeCountAfterWrite = _pasteboard.changeCount;

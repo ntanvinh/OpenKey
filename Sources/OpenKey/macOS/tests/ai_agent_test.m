@@ -9,6 +9,7 @@
 // No real AI program is run and nothing is sent anywhere. The second argument, when there is one, is only read: it is checked that
 // the catalog of the real Codex can be understood.
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 #import <signal.h>
 #import "AIProvider.h"
 #import "AISettings.h"
@@ -352,6 +353,19 @@ static void TestChoosing(void) {
     CHECK([model isEqualToString:@"mini"] && [effort isEqualToString:@"low"]);
     resolve(codex, @"big", @"high", models);
     CHECK([model isEqualToString:@"big"] && [effort isEqualToString:@"high"]);
+    //the level that a request really has, and what it costs in time
+    CHECK([[agy effectiveEffortForSavedModel:nil effort:nil models:list] isEqualToString:@"low"]);
+    CHECK([[agy effectiveEffortForSavedModel:@"claude-opus-5-5" effort:@"high" models:list] isEqualToString:@"high"]);
+    CHECK([[agy effectiveEffortForSavedModel:@"claude-sonnet-5-5" effort:AIAgentEffortProgramDefault models:list] isEqualToString:@"medium"]);   //a level it has to be
+    CHECK([agy effectiveEffortForSavedModel:@"typed-by-hand" effort:nil models:list] == nil);
+    CHECK([[codex effectiveEffortForSavedModel:nil effort:nil models:models] isEqualToString:@"low"]);
+    CHECK([codex effectiveEffortForSavedModel:@"big" effort:AIAgentEffortProgramDefault models:models] == nil);
+    CHECK([AIAgentCLI isFastEffort:nil] && [AIAgentCLI isFastEffort:@"low"] && [AIAgentCLI isFastEffort:@"minimal"]);
+    CHECK(![AIAgentCLI isFastEffort:@"medium"] && ![AIAgentCLI isFastEffort:@"high"] && ![AIAgentCLI isFastEffort:@"max"]);
+    for (NSString* level in @[@"low", @"medium", @"high", @"xhigh", @"max", @"ultra"])
+        CHECK([AIAgentCLI speedNoteForEffort:level].length > 0);
+    CHECK(![[AIAgentCLI speedNoteForEffort:@"low"] isEqualToString:[AIAgentCLI speedNoteForEffort:@"medium"]] && [[AIAgentCLI speedNoteForEffort:@"medium"] containsString:@"40 giây"]);
+    CHECK([AIAgentCLI speedNoteForEffort:nil].length > 0);
     resolve(claude, nil, nil, @[]);
     CHECK([model isEqualToString:@"haiku"] && [effort isEqualToString:@"low"]);
     resolve(claude, @"opus", AIAgentEffortProgramDefault, @[]);
@@ -958,6 +972,194 @@ static void TestStopping(void) {
     CHECK(!completed);
 }
 
+#pragma mark - Pictures
+
+static void TestImagePrompt(void) {
+    printf("-- the request for a picture\n");
+    NSString* template = [AIAgentCLI defaultImagePromptTemplate];
+    CHECK([template containsString:@"$imagegen"] && [template containsString:@"{prompt}"]);                //the skill is named: without it the pictures are poor
+    CHECK([[AIAgentCLI imagePromptForRequest:@"một con mèo" template:template] isEqualToString:@"Use $imagegen skill to create picture một con mèo, follow our design system."]);
+    CHECK([[AIAgentCLI imagePromptForRequest:@"  một con mèo \n\n" template:template] isEqualToString:@"Use $imagegen skill to create picture một con mèo, follow our design system."]);
+    CHECK([[AIAgentCLI imagePromptForRequest:@"a {prompt} b" template:@"X {prompt} Y {prompt}"] isEqualToString:@"X a {prompt} b Y a {prompt} b"]);   //what is asked is not read again as a template
+    CHECK([[AIAgentCLI imagePromptForRequest:@"cat" template:@"Use $imagegen skill, picture:"] isEqualToString:@"Use $imagegen skill, picture: cat"]);   //no {prompt}: the request comes after
+    CHECK([[AIAgentCLI imagePromptForRequest:@"cat" template:@"  "] isEqualToString:@"Use $imagegen skill to create picture cat, follow our design system."]);
+    CHECK([[AIAgentCLI imagePromptForRequest:@"cat" template:nil] isEqualToString:@"Use $imagegen skill to create picture cat, follow our design system."]);
+    CHECK([AIAgentCLI forProvider:Provider(@"codex-cli")].canMakeImages && ![AIAgentCLI forProvider:Provider(@"claude-cli")].canMakeImages && ![AIAgentCLI forProvider:Provider(@"agy-cli")].canMakeImages);
+
+    AIAgentCLI* codex = [AIAgentCLI forProvider:Provider(@"codex-cli")];
+    NSArray<NSString*>* a = [codex imageArgumentsWithModel:@"mini" effort:@"low" workDirectory:@"/tmp/work"];
+    NSArray<NSString*>* text = [codex argumentsWithModel:@"mini" effort:@"low" systemPrompt:@"x" prompt:@"y" workDirectory:@"/tmp/work"];
+    CHECK([a[0] isEqualToString:@"exec"] && [a[1] isEqualToString:@"--json"] && a.count == text.count + 1);         //the same run, with the events
+    NSMutableArray* without = [a mutableCopy];
+    [without removeObject:@"--json"];
+    CHECK([without isEqualToArray:text]);
+    CHECK([ValueAfter(a, @"-s") isEqualToString:@"read-only"] && [ValueAfter(a, @"--disable") isEqualToString:@"shell_tool"] && [a containsObject:@"--ephemeral"] && [a.lastObject isEqualToString:@"-"]);
+    CHECK([[[NSString alloc] initWithData:[codex standardInputForImagePrompt:@"Use $imagegen skill: ế"] encoding:NSUTF8StringEncoding] isEqualToString:@"Use $imagegen skill: ế"]);   //as it is: no rule about texts in front
+
+    CHECK([[AIAgentCLI codexHomeForEnvironment:@{@"CODEX_HOME": @"/x/codex"}] isEqualToString:@"/x/codex"]);
+    CHECK([[AIAgentCLI codexHomeForEnvironment:@{}] isEqualToString:[NSHomeDirectory() stringByAppendingPathComponent:@".codex"]]);
+    CHECK([[AIAgentCLI codexHomeForEnvironment:@{@"CODEX_HOME": @""}] hasSuffix:@"/.codex"]);
+
+    //the settings
+    [AISettings resetToDefaults];
+    CHECK([AISettings.imagePrompt isEqualToString:[AISettings defaultImagePrompt]]);
+    AISettings.imagePrompt = @"  Use $imagegen skill: {prompt}  ";
+    CHECK([AISettings.imagePrompt isEqualToString:@"Use $imagegen skill: {prompt}"]);
+    AISettings.imagePrompt = [AISettings defaultImagePrompt];
+    CHECK([[NSUserDefaults standardUserDefaults] stringForKey:@"AIImagePrompt"] == nil);                      //the default is not kept as a choice
+    AISettings.imagePrompt = @"x {prompt}";
+    [AISettings resetToDefaults];
+    CHECK([AISettings.imagePrompt isEqualToString:[AISettings defaultImagePrompt]]);
+}
+
+static void TestCodexEvents(void) {
+    printf("-- the events of codex exec --json\n");
+    NSData* stream = Lines(@[
+        @{@"type": @"thread.started", @"thread_id": @"01a1539b-a6e8-7fa1-a860-f7cd426576ff"},
+        @{@"type": @"turn.started"},
+        @{@"type": @"item.completed", @"item": @{@"id": @"item_0", @"type": @"agent_message", @"text": @"Tôi dùng kỹ năng imagegen."}},
+        @{@"type": @"item.started", @"item": @{@"id": @"item_1", @"type": @"command_execution", @"command": @"ls"}},
+        @{@"type": @"item.completed", @"item": @{@"id": @"item_2", @"type": @"agent_message", @"text": @"Xong rồi ❤️"}},
+        @{@"type": @"turn.completed", @"usage": @{@"input_tokens": @1}}]);
+    for (NSUInteger chunk = 1; chunk <= 6; chunk += 5) {
+        AIAgentOutputParser* parser = [[AIAgentOutputParser alloc] initWithFormat:AIAgentOutputCodexJSON];
+        NSMutableString* all = [NSMutableString string];
+        for (NSUInteger i = 0; i < stream.length; i += chunk)
+            for (NSString* piece in [parser feed:[stream subdataWithRange:NSMakeRange(i, MIN(chunk, stream.length - i))]])
+                [all appendString:piece];
+        for (NSString* piece in [parser finish])
+            [all appendString:piece];
+        CHECK([all isEqualToString:@"Tôi dùng kỹ năng imagegen.\n\nXong rồi ❤️"]);                       //the messages of the agent, one after the other
+        CHECK([parser.threadIdentifier isEqualToString:@"01a1539b-a6e8-7fa1-a860-f7cd426576ff"] && parser.errorMessage == nil);
+    }
+    AIAgentOutputParser* parser = [[AIAgentOutputParser alloc] initWithFormat:AIAgentOutputCodexJSON];
+    CHECK(parser.threadIdentifier == nil);
+    [parser feed:Lines(@[@{@"type": @"error", @"message": @"usage limit (429)"}, @{@"type": @"turn.failed", @"error": @{@"message": @"another"}}])];
+    CHECK([parser.errorMessage isEqualToString:@"usage limit (429)"]);                                       //the first reason stays
+    parser = [[AIAgentOutputParser alloc] initWithFormat:AIAgentOutputCodexJSON];
+    [parser feed:Lines(@[@{@"type": @"turn.failed", @"error": @{@"message": @"model not found"}}])];
+    CHECK([parser.errorMessage isEqualToString:@"model not found"]);
+    //values of another kind than expected are nothing, not a crash
+    parser = [[AIAgentOutputParser alloc] initWithFormat:AIAgentOutputCodexJSON];
+    [parser feed:Lines(@[@{@"type": @5}, @{@"type": @"thread.started", @"thread_id": @7}, @{@"type": @"item.completed", @"item": @"x"},
+                          @{@"type": @"item.completed", @"item": @{@"type": @"agent_message", @"text": @3}}, @{@"type": @"turn.failed", @"error": @"x"}])];
+    [parser finish];
+    CHECK(parser.threadIdentifier == nil);
+}
+
+static void MakeFile(NSString* path, NSTimeInterval age) {
+    [[NSFileManager defaultManager] createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:nil];
+    [@"x" writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    [[NSFileManager defaultManager] setAttributes:@{NSFileModificationDate: [NSDate dateWithTimeIntervalSinceNow:-age]} ofItemAtPath:path error:nil];
+}
+
+static void TestFindingPictures(void) {
+    printf("-- finding the picture of a run\n");
+    NSString* home = [gWork stringByAppendingPathComponent:@"codexhome"];
+    NSString* generated = [home stringByAppendingPathComponent:@"generated_images"];
+    NSDate* started = [NSDate dateWithTimeIntervalSinceNow:-10];
+    MakeFile([generated stringByAppendingString:@"/thread-a/old.png"], 100);
+    MakeFile([generated stringByAppendingString:@"/thread-a/new.png"], 5);
+    MakeFile([generated stringByAppendingString:@"/thread-a/notes.txt"], 1);                                  //not a picture
+    MakeFile([generated stringByAppendingString:@"/thread-b/other.jpg"], 3);
+    //by its thread: the newest picture of it, whenever it was made
+    CHECK([[AIAgentCLI generatedImageForThread:@"thread-a" codexHome:home since:started].lastPathComponent isEqualToString:@"new.png"]);
+    CHECK([[AIAgentCLI generatedImageForThread:@"thread-a" codexHome:home since:nil].lastPathComponent isEqualToString:@"new.png"]);
+    //a thread that has no folder: the newest picture made since the run started, in any folder
+    CHECK([[AIAgentCLI generatedImageForThread:@"nothing" codexHome:home since:started].lastPathComponent isEqualToString:@"other.jpg"]);
+    CHECK([[AIAgentCLI generatedImageForThread:nil codexHome:home since:started].lastPathComponent isEqualToString:@"other.jpg"]);
+    CHECK([AIAgentCLI generatedImageForThread:@"nothing" codexHome:home since:[NSDate dateWithTimeIntervalSinceNow:1]] == nil);  //nothing was made since
+    CHECK([AIAgentCLI generatedImageForThread:@"nothing" codexHome:home since:nil] == nil);                    //without a time there is no guessing
+    CHECK([AIAgentCLI generatedImageForThread:@"thread-a" codexHome:[gWork stringByAppendingString:@"/none"] since:started] == nil);
+    //a thread name comes out of a program: it cannot lead out of the folder
+    MakeFile([home stringByAppendingString:@"/evil/secret.png"], 1);
+    for (NSString* bad in @[@"../evil", @"/etc", @"thread-a/../../evil", @"a b", [@"" stringByPaddingToLength:200 withString:@"x" startingAtIndex:0]])
+        CHECK([AIAgentCLI generatedImageForThread:bad codexHome:home since:nil] == nil);
+    NSURL* viaFallback = [AIAgentCLI generatedImageForThread:@"../evil" codexHome:home since:started];
+    CHECK(![viaFallback.path containsString:@"/evil/"]);                                                       //the fallback looks only in generated_images
+}
+
+static void TestImageRuns(void) {
+    printf("-- real runs for a picture against the fake program\n");
+    NSString* home = [gWork stringByAppendingPathComponent:@"codexhome2"];
+    setenv("CODEX_HOME", home.UTF8String, 1);
+    NSString* prompt = @"Use $imagegen skill to create picture con mèo màu cam, follow our design system.";
+
+    __block NSURL* image = nil;
+    __block NSError* error = nil;
+    __block BOOL done = NO;
+    __block NSMutableString* notes = nil;
+    void (^make)(AIConfiguration*) = ^(AIConfiguration* c) {
+        image = nil; error = nil; done = NO; notes = [NSMutableString string];
+        AIClient* client = [[AIClient alloc] initWithConfiguration:c];
+        [client generateImageWithPrompt:prompt onNote:^(NSString* note) { [notes appendString:note]; }
+                             completion:^(NSURL* url, NSError* e) { image = url; error = e; done = YES; }];
+        SpinUntil(^BOOL { return done; }, 30);
+    };
+
+    Mode(@"image");
+    make(Config(@"codex-cli", nil, nil));
+    CHECK(error == nil && image != nil && [image.pathExtension isEqualToString:@"png"] && [[NSFileManager defaultManager] fileExistsAtPath:image.path]);
+    CHECK([image.path hasPrefix:[home stringByAppendingString:@"/generated_images/"]]);                        //where Codex keeps it
+    CHECK([[[NSImage alloc] initWithContentsOfURL:image] isValid] && [[NSImage alloc] initWithContentsOfURL:image].size.width == 16);
+    CHECK([notes containsString:@"imagegen skill"] && [notes containsString:@"Generated the picture."]);       //what the agent said on the way
+    NSDictionary* log = ReadLog();
+    NSArray* args = log[@"args"];
+    CHECK([args[1] isEqualToString:@"--json"] && [ValueAfter(args, @"-m") isEqualToString:@"fake-mini"] && [ValueAfter(args, @"-c") isEqualToString:@"model_reasoning_effort=\"low\""]);
+    CHECK([log[@"stdin_head"] isEqualToString:prompt]);                                                         //exactly the request: no rule of texts in front of it
+    CHECK(![JoinedArguments(args) containsString:@"imagegen"]);                                                //and not in the arguments
+
+    //the level and the model that were chosen are the ones used ("it is using the current reasoning level")
+    make(Config(@"codex-cli", @"fake-frontier", @"high"));
+    log = ReadLog();
+    CHECK(error == nil && [ValueAfter(log[@"args"], @"-m") isEqualToString:@"fake-frontier"] && [ValueAfter(log[@"args"], @"-c") isEqualToString:@"model_reasoning_effort=\"high\""]);
+
+    //the picture is in another folder than the thread's: the newest one since the start
+    Mode(@"image-elsewhere");
+    make(Config(@"codex-cli", nil, nil));
+    CHECK(error == nil && image != nil && [[NSFileManager defaultManager] fileExistsAtPath:image.path]);
+    //a thread name that is a way out of the folder: it is not followed, the picture is found the other way
+    Mode(@"image-evil");
+    make(Config(@"codex-cli", nil, nil));
+    CHECK(error == nil && image != nil && [image.path containsString:@"/generated_images/somewhere/"]);
+
+    //nothing came: what the agent said is told
+    Mode(@"image-none");
+    make(Config(@"codex-cli", nil, nil));
+    CHECK(image == nil && error.code == VOKAIErrorEmpty && [error.localizedDescription containsString:@"không tạo ra ảnh"] &&
+          [error.localizedDescription containsString:@"I cannot make pictures"]);
+    //an error of the program
+    Mode(@"image-error");
+    make(Config(@"codex-cli", nil, nil));
+    CHECK(image == nil && error.code == VOKAIErrorRateLimit);
+    Mode(@"login");
+    make(Config(@"codex-cli", nil, nil));
+    CHECK(image == nil && error.code == VOKAIErrorLogin);
+    //the others do not make pictures; nothing is run for them
+    Mode(@"image");
+    [[NSFileManager defaultManager] removeItemAtPath:gLog error:nil];
+    for (NSString* providerId in @[@"claude-cli", @"agy-cli"]) {
+        make(Config(providerId, nil, nil));
+        CHECK(image == nil && error != nil && [error.localizedDescription containsString:@"không tạo được ảnh"]);
+    }
+    CHECK(![[NSFileManager defaultManager] fileExistsAtPath:gLog]);
+    AIConfiguration* ollama = Config(@"codex-cli", nil, nil);
+    ollama.provider = Provider(@"ollama");
+    make(ollama);
+    CHECK(image == nil && error != nil);
+
+    //stopped while it works: nothing is delivered, the program and its children are gone
+    Mode(@"image-delayed");
+    __block BOOL delivered = NO;
+    AIClient* client = [[AIClient alloc] initWithConfiguration:Config(@"codex-cli", nil, nil)];
+    [client generateImageWithPrompt:prompt onNote:^(NSString* n) { delivered = YES; } completion:^(NSURL* url, NSError* e) { delivered = YES; }];
+    Spin(1.0);
+    [client cancel];
+    Spin(4.5);
+    CHECK(!delivered);
+    unsetenv("CODEX_HOME");
+}
+
 int main(int argc, char** argv) {
     @autoreleasepool {
         if (argc < 2) {
@@ -993,6 +1195,10 @@ int main(int argc, char** argv) {
         TestWorkFolder();
         TestBigPrompt();
         TestStopping();
+        TestImagePrompt();
+        TestCodexEvents();
+        TestFindingPictures();
+        TestImageRuns();
         [[NSFileManager defaultManager] removeItemAtPath:gWork error:nil];
         printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
     }

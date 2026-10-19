@@ -53,6 +53,12 @@ extern int vAICopySelection;
 +(NSString*)defaultSystemPrompt;
 @property (class, nonatomic, copy) NSString* systemPrompt;
 
+/// What is said to Codex to make a picture: {prompt} is where the request goes. Without the skill named in it Codex makes poor pictures.
++(NSString*)defaultImagePrompt;
+@property (class, nonatomic, copy) NSString* imagePrompt;
+/// A picture can be asked of this provider now: it is a program that makes them (Codex) and it is on this Mac.
++(BOOL)canMakeImagesWithProvider:(AIProvider*)provider;
+
 /// The service in use, saved.
 @property (class, nonatomic, copy) NSString* providerIdentifier;
 @property (class, nonatomic, readonly) AIProvider* provider;

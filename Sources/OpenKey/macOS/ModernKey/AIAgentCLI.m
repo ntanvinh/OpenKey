@@ -120,6 +120,7 @@ static NSString* WithoutEscapes(NSString* text) {
 }
 
 @implementation AIAgentOutputParser {
+    NSString* _threadIdentifier;
     AIAgentOutput _format;
     AIAgentTextDecoder* _decoder;
     NSMutableData* _line;               //stream-json: the bytes of the line that is not complete yet
@@ -143,6 +144,10 @@ static NSString* WithoutEscapes(NSString* text) {
 
 -(NSString*)leftover {
     return [_leftover copy];
+}
+
+-(NSString*)threadIdentifier {
+    return _threadIdentifier;
 }
 
 -(NSArray<NSString*>*)feed:(NSData*)data {
@@ -201,6 +206,29 @@ static NSString* WithoutEscapes(NSString* text) {
         return;
     }
     NSString* type = StringOf(json[@"type"]);
+    if (_format == AIAgentOutputCodexJSON) {
+        //the events of `codex exec --json`: which thread, what the agent says, and how it ended
+        if ([type isEqualToString:@"thread.started"]) {
+            _threadIdentifier = StringOf(json[@"thread_id"]);
+        } else if ([type isEqualToString:@"item.completed"]) {
+            NSDictionary* item = DictionaryOf(json[@"item"]);
+            NSString* message = StringOf(item[@"text"]);
+            if ([StringOf(item[@"type"]) isEqualToString:@"agent_message"] && message.length > 0) {
+                [pieces addObject:_fallback.length > 0 ? [@"\n\n" stringByAppendingString:message] : message];     //one message after the other
+                _sawPiece = YES;
+                [_fallback appendString:message];
+            }
+        } else if ([type isEqualToString:@"turn.failed"]) {
+            NSString* reason = StringOf(DictionaryOf(json[@"error"])[@"message"]);
+            if (_errorMessage == nil)                   //the first reason stays: an "error" event has said it already
+                _errorMessage = reason.length > 0 ? reason : @"error";
+        } else if ([type isEqualToString:@"error"]) {
+            NSString* reason = StringOf(json[@"message"]);
+            if (_errorMessage == nil)
+                _errorMessage = reason.length > 0 ? reason : @"error";
+        }
+        return;
+    }
     if ([type isEqualToString:@"stream_event"]) {
         NSDictionary* event = DictionaryOf(json[@"event"]);
         NSDictionary* delta = DictionaryOf(event[@"delta"]);
@@ -622,13 +650,41 @@ static NSArray<NSString*>* EffortOrder(void) {
     return [allowed containsObject:@"low"] ? @"low" : allowed.firstObject;
 }
 
--(NSString*)summaryForSavedModel:(NSString*)savedModel effort:(NSString*)savedEffort models:(NSArray<AIAgentModel*>*)models {
+-(NSString*)effectiveEffortForSavedModel:(NSString*)savedModel effort:(NSString*)savedEffort models:(NSArray<AIAgentModel*>*)models {
     NSString* model = [self modelToPassForSaved:savedModel models:models];
     NSString* effort = [self effortToPassForSaved:savedEffort modelToPass:model models:models];
     AIAgentModel* known = model.length > 0 ? [AIAgentCLI modelWithIdentifier:model among:models] : nil;
+    if (known.variants.count > 0) {
+        //the same choice as -resolveModel:...: the level asked for, or the program's own default level, which has to be some level
+        if (effort.length > 0 && known.variants[effort] != nil)
+            return effort;
+        NSString* own = known.defaultEffort ?: @"medium";
+        return known.variants[own] != nil ? own : known.efforts.firstObject;
+    }
+    return effort;
+}
+
++(NSString*)speedNoteForEffort:(NSString*)effort {
+    if ([self isFastEffort:effort] && effort != nil)
+        return @"Nhanh nhất, thường vài giây";
+    if ([effort isEqualToString:@"medium"])
+        return @"Chậm hơn nhiều, có thể 15 đến 40 giây";
+    if ([effort isEqualToString:@"high"])
+        return @"Chậm, có thể cả phút";
+    if (effort.length > 0)
+        return @"Rất chậm, có thể vài phút";
+    return @"Tùy chương trình, thường chậm hơn mức thấp";
+}
+
++(BOOL)isFastEffort:(NSString*)effort {
+    return effort.length == 0 || [effort isEqualToString:@"low"] || [effort isEqualToString:@"minimal"];
+}
+
+-(NSString*)summaryForSavedModel:(NSString*)savedModel effort:(NSString*)savedEffort models:(NSArray<AIAgentModel*>*)models {
+    NSString* model = [self modelToPassForSaved:savedModel models:models];
+    NSString* effort = [self effectiveEffortForSavedModel:savedModel effort:savedEffort models:models];
+    AIAgentModel* known = model.length > 0 ? [AIAgentCLI modelWithIdentifier:model among:models] : nil;
     NSString* modelText = known.name ?: (model.length > 0 ? model : @"model mặc định của CLI");
-    if (known.variants.count > 0 && effort == nil)
-        effort = known.variants[known.defaultEffort ?: @"medium"] != nil ? (known.defaultEffort ?: @"medium") : known.efforts.firstObject;    //what resolveModel would use
     NSString* effortText = effort.length > 0 ? [AIAgentCLI nameOfEffort:effort] : @"mức mặc định của CLI";
     return [NSString stringWithFormat:@"%@ · %@", modelText, effortText];
 }
@@ -720,6 +776,95 @@ static NSArray<NSString*>* EffortOrder(void) {
             break;
     }
     return arguments;
+}
+
+#pragma mark Pictures
+
++(NSString*)defaultImagePromptTemplate {
+    return @"Use $imagegen skill to create picture {prompt}, follow our design system.";
+}
+
++(NSString*)imagePromptForRequest:(NSString*)request template:(NSString*)template {
+    NSString* trimmed = [request stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString* pattern = [template stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (pattern.length == 0)
+        pattern = [self defaultImagePromptTemplate];
+    if ([pattern rangeOfString:@"{prompt}"].location == NSNotFound)
+        return [NSString stringWithFormat:@"%@ %@", pattern, trimmed];
+    return [pattern stringByReplacingOccurrencesOfString:@"{prompt}" withString:trimmed];
+}
+
+-(BOOL)canMakeImages {
+    return _kind == AIAgentKindCodex;
+}
+
+-(NSArray<NSString*>*)imageArgumentsWithModel:(NSString*)model effort:(NSString*)effort workDirectory:(NSString*)workDirectory {
+    //the arguments of a text, with the events in JSON; the skill makes the picture with a tool of Codex itself, no command is needed
+    NSMutableArray<NSString*>* arguments = [[self argumentsWithModel:model effort:effort systemPrompt:nil prompt:@"" workDirectory:workDirectory] mutableCopy];
+    [arguments insertObject:@"--json" atIndex:1];
+    return arguments;
+}
+
+-(NSData*)standardInputForImagePrompt:(NSString*)prompt {
+    return [prompt dataUsingEncoding:NSUTF8StringEncoding];
+}
+
++(NSString*)codexHomeForEnvironment:(NSDictionary<NSString*, NSString*>*)environment {
+    NSString* chosen = environment[@"CODEX_HOME"];
+    return chosen.length > 0 ? chosen : [NSHomeDirectory() stringByAppendingPathComponent:@".codex"];
+}
+
+static BOOL IsPicture(NSString* name) {
+    NSString* extension = name.pathExtension.lowercaseString;
+    return [@[@"png", @"jpg", @"jpeg", @"webp", @"gif"] containsObject:extension];
+}
+
+//the newest picture in a folder, with its time; nil when there is none
+static NSURL* NewestPicture(NSString* folder, NSDate* since, NSDate** time) {
+    NSURL* newest = nil;
+    NSDate* newestTime = nil;
+    for (NSString* name in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:folder error:nil]) {
+        if (!IsPicture(name))
+            continue;
+        NSURL* url = [NSURL fileURLWithPath:[folder stringByAppendingPathComponent:name]];
+        NSDate* modified = nil;
+        [url getResourceValue:&modified forKey:NSURLContentModificationDateKey error:nil];
+        if (modified == nil || (since != nil && [modified compare:since] == NSOrderedAscending))
+            continue;
+        if (newestTime == nil || [modified compare:newestTime] == NSOrderedDescending) {
+            newest = url;
+            newestTime = modified;
+        }
+    }
+    if (time != NULL)
+        *time = newestTime;
+    return newest;
+}
+
++(NSURL*)generatedImageForThread:(NSString*)thread codexHome:(NSString*)codexHome since:(NSDate*)since {
+    NSString* generated = [codexHome stringByAppendingPathComponent:@"generated_images"];
+    //the name of a thread comes from the output of a program: only what a name of a thread is made of goes into a path
+    NSCharacterSet* allowed = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"];
+    if (thread.length > 0 && thread.length <= 80 && [thread rangeOfCharacterFromSet:allowed.invertedSet].location == NSNotFound) {
+        NSURL* found = NewestPicture([generated stringByAppendingPathComponent:thread], nil, NULL);
+        if (found != nil)
+            return found;
+    }
+    //not found by its thread: the newest picture of the folders, if it was made since the run started. No leeway: the time of the file and
+    //the time of the run are of the same Mac, and a picture of the run before must not be taken for this one
+    if (since == nil)
+        return nil;
+    NSURL* newest = nil;
+    NSDate* newestTime = nil;
+    for (NSString* folder in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:generated error:nil]) {
+        NSDate* time = nil;
+        NSURL* candidate = NewestPicture([generated stringByAppendingPathComponent:folder], since, &time);
+        if (candidate != nil && (newestTime == nil || [time compare:newestTime] == NSOrderedDescending)) {
+            newest = candidate;
+            newestTime = time;
+        }
+    }
+    return newest;
 }
 
 -(NSData*)standardInputForPrompt:(NSString*)prompt systemPrompt:(NSString*)systemPrompt {

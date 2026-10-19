@@ -9,9 +9,12 @@
 import hashlib
 import json
 import os
+import struct
 import subprocess
 import sys
 import time
+import uuid
+import zlib
 
 name = os.path.basename(sys.argv[0])
 args = sys.argv[1:]
@@ -99,6 +102,52 @@ if mode == "no-read":
     sys.exit(0)                                         # ended without reading its input: writing to it must not kill the parent
 
 ANSWER = ["Xin chào, ", "đây là ", "câu trả lời."]
+
+
+def png(width=16, height=16, color=(200, 40, 40)):
+    """A real PNG file (a flat colour), made here so that nothing else is needed."""
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xffffffff)
+    rows = b"".join(b"\x00" + bytes(color) * width for _ in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+
+
+def event(**fields):
+    out(json.dumps(fields) + "\n")
+
+
+# --- a picture, the way `codex exec --json` and its imagegen skill do it: the events say which thread it is; the picture is a file that
+# Codex saves in $CODEX_HOME/generated_images/<thread>/ ----------------------------------------------------------------------------
+if name == "codex" and "--json" in args and mode.startswith("image"):
+    home = os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex")
+    thread = str(uuid.uuid4())
+    if mode == "image-evil":
+        thread = "../evil"                              # a thread name that is a way out of the folder
+    event(type="thread.started", thread_id=thread)
+    event(type="turn.started")
+    if mode == "image-delayed":
+        time.sleep(3.4)
+    event(type="item.completed", item={"id": "item_0", "type": "agent_message", "text": "I will use the imagegen skill."})
+    if mode == "image-error":
+        event(type="error", message="You've hit your usage limit. Try again later (429).")
+        event(type="turn.failed", error={"message": "You've hit your usage limit. Try again later (429)."})
+        sys.exit(1)
+    if mode == "image-none":
+        event(type="item.completed", item={"id": "item_1", "type": "agent_message", "text": "I cannot make pictures with this model."})
+        event(type="turn.completed", usage={})
+        sys.exit(0)
+    folder = {"image-elsewhere": str(uuid.uuid4()), "image-evil": "somewhere"}.get(mode, thread)
+    target = os.path.join(home, "generated_images", folder)
+    os.makedirs(target, exist_ok=True)
+    with open(os.path.join(target, "exec-%s.png" % uuid.uuid4()), "wb") as f:
+        f.write(png())
+    with open(os.path.join(target, "notes.txt"), "w") as f:
+        f.write("not a picture")
+    event(type="item.completed", item={"id": "item_1", "type": "agent_message", "text": "Generated the picture."})
+    event(type="turn.completed", usage={"input_tokens": 1})
+    sys.exit(0)
 
 
 def answer_claude(pieces):

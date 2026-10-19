@@ -55,6 +55,12 @@
                    onText:(void (^)(NSString* piece))onText
                completion:(void (^)(NSError* error))completion;
 
+/// A picture, from a program that makes them (Codex): `onNote` gets what the program says meanwhile, `completion` the file of the picture
+/// or the error. Main thread, and not at all after -cancel. Any other service gives an error.
+-(void)generateImageWithPrompt:(NSString*)prompt
+                        onNote:(void (^)(NSString* note))onNote
+                    completion:(void (^)(NSURL* image, NSError* error))completion;
+
 /// Stops the request. Whatever came is kept by the caller, nothing more is delivered.
 -(void)cancel;
 

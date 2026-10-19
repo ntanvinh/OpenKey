@@ -29,7 +29,8 @@ typedef NS_ENUM(NSInteger, AIAgentKind) {
 /// What the program prints on its standard output.
 typedef NS_ENUM(NSInteger, AIAgentOutput) {
     AIAgentOutputPlain,         //the answer itself
-    AIAgentOutputClaudeJSON     //one JSON object per line (stream-json): text deltas, then a result
+    AIAgentOutputClaudeJSON,    //one JSON object per line (stream-json): text deltas, then a result
+    AIAgentOutputCodexJSON      //one JSON object per line (`codex exec --json`): the thread, the messages of the agent, the end
 };
 
 /// Saved as the thinking level when the user wants what the program does by itself: no level is passed to it.
@@ -65,6 +66,8 @@ extern NSString* const AIAgentEffortProgramDefault;
 @property (nonatomic, readonly, copy) NSString* loginHint;
 /// How to install it, nil when unknown.
 @property (nonatomic, readonly, copy) NSString* installHint;
+/// The program can make pictures (Codex, with its imagegen skill). The others cannot.
+@property (nonatomic, readonly) BOOL canMakeImages;
 /// What the user should know besides where the text goes, nil when there is nothing to add. Antigravity keeps every request as a
 /// conversation of its own in its folder, and has no way to ask it not to; the others are told not to keep anything.
 @property (nonatomic, readonly, copy) NSString* storageNote;
@@ -119,6 +122,13 @@ extern NSString* const AIAgentEffortProgramDefault;
 /// What to pass as the thinking level. `saved` is what the user chose: nil/empty means "choose for me" (low, which is the fast one,
 /// when the model accepts it), AIAgentEffortProgramDefault means nothing is passed. nil: pass nothing.
 -(NSString*)effortToPassForSaved:(NSString*)saved modelToPass:(NSString*)model models:(NSArray<AIAgentModel*>*)models;
+/// The thinking level that a request will really have, as the name of a level; nil when the program is left to its own. For a model whose
+/// levels are models of the program it is the level of the one that will be asked for.
+-(NSString*)effectiveEffortForSavedModel:(NSString*)savedModel effort:(NSString*)savedEffort models:(NSArray<AIAgentModel*>*)models;
+/// What a level costs in time, in words ("Chậm hơn, có thể 15 đến 40 giây"), measured on real programs: the level decides most of the wait.
++(NSString*)speedNoteForEffort:(NSString*)effort;
+/// The levels that answer in a few seconds: the lowest ones, and the program's own default (nil) which is not known.
++(BOOL)isFastEffort:(NSString*)effort;
 /// The choice as it is told to the user: "GPT-6-Luna · Thấp (nhanh nhất)". `savedModel` and `savedEffort` are what the user chose
 /// (empty: "choose for me"), `models` what is known of the program.
 -(NSString*)summaryForSavedModel:(NSString*)savedModel effort:(NSString*)savedEffort models:(NSArray<AIAgentModel*>*)models;
@@ -144,6 +154,23 @@ extern NSString* const AIAgentEffortProgramDefault;
 /// What goes in the standard input, nil when the prompt is in the arguments.
 -(NSData*)standardInputForPrompt:(NSString*)prompt systemPrompt:(NSString*)systemPrompt;
 
+#pragma mark Pictures
+
+/// What is said to Codex to make a picture. Without the skill named it makes poor ones, so the request is put in a sentence that names it:
+/// `request` goes where {prompt} is in `template`; a template without {prompt} gets the request after it.
++(NSString*)imagePromptForRequest:(NSString*)request template:(NSString*)template;
+/// "Use $imagegen skill to create picture {prompt}, follow our design system."
++(NSString*)defaultImagePromptTemplate;
+/// The arguments for a picture: the same locked-down run as a text, with the events as JSON (they say which thread it was, and so where
+/// the picture is). The prompt is on the standard input as it is: -standardInputForImagePrompt:.
+-(NSArray<NSString*>*)imageArgumentsWithModel:(NSString*)model effort:(NSString*)effort workDirectory:(NSString*)workDirectory;
+-(NSData*)standardInputForImagePrompt:(NSString*)prompt;
+/// Where Codex keeps what it generates: $CODEX_HOME, or ~/.codex.
++(NSString*)codexHomeForEnvironment:(NSDictionary<NSString*, NSString*>*)environment;
+/// The picture a run made: in the folder of its thread under generated_images, or else the newest picture there that was made since
+/// `since`. nil when there is none.
++(NSURL*)generatedImageForThread:(NSString*)thread codexHome:(NSString*)codexHome since:(NSDate*)since;
+
 /// The environment of the program: this application's, with a PATH that finds what it needs, and no colours.
 -(NSDictionary<NSString*, NSString*>*)environmentForExecutable:(NSString*)executable;
 
@@ -164,6 +191,8 @@ extern NSString* const AIAgentEffortProgramDefault;
 -(NSArray<NSString*>*)feed:(NSData*)data;
 /// The output ended: what was held back, and for stream-json the text of the final message when no piece of the answer was seen.
 -(NSArray<NSString*>*)finish;
+/// `codex exec --json`: the thread that was started (the folder of its pictures is named after it), nil until the first line.
+@property (nonatomic, readonly, copy) NSString* threadIdentifier;
 /// The message of the error that the output carried (stream-json has a final message that says it failed), nil when none.
 @property (nonatomic, readonly, copy) NSString* errorMessage;
 /// What came on the output that was not the answer (a line that is not JSON...), for the message of an error.

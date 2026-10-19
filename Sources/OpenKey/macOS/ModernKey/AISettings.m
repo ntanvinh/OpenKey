@@ -17,6 +17,7 @@ static NSString* const kHotKeyKey = @"AIHotKey";
 static NSString* const kCopyKey = @"AICopySelection";
 static NSString* const kProviderKey = @"AIProvider";
 static NSString* const kSystemPromptKey = @"AISystemPrompt";
+static NSString* const kImagePromptKey = @"AIImagePrompt";
 
 static NSString* PerProviderKey(AIProvider* provider, NSString* what) {
     return [NSString stringWithFormat:@"AIProvider.%@.%@", provider.identifier, what];
@@ -70,6 +71,27 @@ static AIConfiguration* Failure(NSError** error, VOKAIErrorCode code, NSString* 
         [[NSUserDefaults standardUserDefaults] removeObjectForKey:kSystemPromptKey];
     else
         [[NSUserDefaults standardUserDefaults] setObject:trimmed forKey:kSystemPromptKey];
+}
+
++(NSString*)defaultImagePrompt {
+    return [AIAgentCLI defaultImagePromptTemplate];
+}
+
++(NSString*)imagePrompt {
+    NSString* saved = [[NSUserDefaults standardUserDefaults] stringForKey:kImagePromptKey];
+    return saved.length > 0 ? saved : [self defaultImagePrompt];
+}
+
++(void)setImagePrompt:(NSString*)prompt {
+    NSString* trimmed = [prompt stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (trimmed.length == 0 || [trimmed isEqualToString:[self defaultImagePrompt]])
+        [[NSUserDefaults standardUserDefaults] removeObjectForKey:kImagePromptKey];
+    else
+        [[NSUserDefaults standardUserDefaults] setObject:trimmed forKey:kImagePromptKey];
+}
+
++(BOOL)canMakeImagesWithProvider:(AIProvider*)provider {
+    return [AIAgentCLI forProvider:provider].canMakeImages && [self isProviderReady:provider];
 }
 
 +(NSString*)providerIdentifier {
@@ -194,7 +216,7 @@ static AIConfiguration* Failure(NSError** error, VOKAIErrorCode code, NSString* 
 
 +(void)resetToDefaults {
     NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-    for (NSString* key in @[kEnabledKey, kHotKeyKey, kCopyKey, kProviderKey, kSystemPromptKey])
+    for (NSString* key in @[kEnabledKey, kHotKeyKey, kCopyKey, kProviderKey, kSystemPromptKey, kImagePromptKey])
         [defaults removeObjectForKey:key];
     for (AIProvider* provider in [AIProvider allProviders]) {
         [defaults removeObjectForKey:PerProviderKey(provider, @"baseURL")];

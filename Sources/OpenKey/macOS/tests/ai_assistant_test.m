@@ -10,6 +10,8 @@
 #import <Carbon/Carbon.h>
 #import "AIAssistant.h"
 #import "AIAgentCLI.h"
+#import "AIProgress.h"
+#import "AILightbox.h"
 #import "AIKeychain.h"
 #import "AISettings.h"
 #import "AIOllamaRuntime.h"
@@ -58,13 +60,14 @@ static BOOL ScreenIsLocked(void) {
 
 static NSString *gFakeOllama, *gFakePort, *gWorkFolder, *gFakeAgent;
 static NSString* gPasted;
+static NSData* gPastedImage;
 static int gPastes;
 
 static AIAssistant* MakeAssistant(NSPasteboard* board) {
     SnippetInserter* inserter = [[SnippetInserter alloc] init];
     inserter.pasteboard = board;
     inserter.restoreDelay = 0.05;
-    inserter.pasteCommand = ^{ gPastes++; gPasted = [board stringForType:NSPasteboardTypeString]; };
+    inserter.pasteCommand = ^{ gPastes++; gPasted = [board stringForType:NSPasteboardTypeString]; gPastedImage = [board dataForType:NSPasteboardTypePNG]; };
     return [[AIAssistant alloc] initWithInserter:inserter];
 }
 
@@ -89,7 +92,7 @@ static void TestOpening(AIAssistant* assistant) {
     CHECK(assistant.state == AIAssistantStateIdle && assistant.resultText.length == 0);
     CHECK([assistant.providerPopUp.selectedItem.title isEqualToString:@"Ollama (chạy trên máy)"]);
     CHECK([assistant.infoLabel.stringValue containsString:@"Chạy trên máy"] && [assistant.infoLabel.stringValue containsString:@"normal"]);
-    if (!ScreenIsLocked()) {
+    if (!ScreenIsLocked() && !assistant.offscreenForTesting) {          //VOK_UI_VISIBLE=1: the window is really shown and takes the keys
         CHECK(assistant.panel.keyWindow);
         CHECK([AIAssistant isVisible]);
     }
@@ -425,6 +428,7 @@ static void TestLocalServer(AIAssistant* assistant) {
     [assistant ask];
     WaitForState(assistant, AIAssistantStateFailed);
     CHECK(assistant.state == AIAssistantStateFailed && [assistant.statusLabel.stringValue containsString:@"dừng ngay khi khởi động"]);
+    CHECK(!assistant.glowing && !((AIShimmerLabel*)assistant.progressLabel).shimmering);        //the wait is over: nothing keeps moving
     setenv("FAKE_OLLAMA_MODE", "normal", 1);
 
     //Ollama is not installed and nothing runs: the usual error, with the way to install it
@@ -538,8 +542,9 @@ static void TestAgentPrograms(AIAssistant* assistant) {
     assistant.inputView.string = @"Viết thư";
     [assistant ask];
     CHECK([assistant.statusLabel.stringValue containsString:@"Đang tạo"]);
+    CHECK([assistant.progressLabel.stringValue containsString:@"Codex CLI (ChatGPT)"]);                       //who was asked, in the place of the answer
     SpinUntil(^BOOL { return [assistant.statusLabel.stringValue containsString:@"giây"]; }, 5);
-    CHECK([assistant.statusLabel.stringValue containsString:@"Codex CLI"] && [assistant.statusLabel.stringValue containsString:@"giây"]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đã chờ"] && [assistant.statusLabel.stringValue containsString:@"giây"]);
     WaitForState(assistant, AIAssistantStateDone);
     CHECK([assistant.statusLabel.stringValue containsString:@"Xong"] && ![assistant.statusLabel.stringValue containsString:@"giây"]);
     [assistant ask];                                                                       //asked again, and stopped
@@ -548,6 +553,31 @@ static void TestAgentPrograms(AIAssistant* assistant) {
     CHECK([assistant.statusLabel.stringValue containsString:@"Đã dừng"]);
     Spin(2.5);                                                                              //the timer is gone: the message stays
     CHECK([assistant.statusLabel.stringValue containsString:@"Đã dừng"]);
+    [assistant hideAssistant];
+
+    //a long wait at a high level: the window offers to ask again at the lowest one, which is what makes it fast
+    AgentMode(@"delayed");
+    assistant.slowHintDelay = 1;
+    [AISettings setEffort:@"medium" forProvider:codex];                                    //the light model of the fake has no "high"
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"Viết thư";
+    [assistant ask];
+    CHECK(assistant.speedButton.hidden);                                                    //not at once
+    SpinUntil(^BOOL { return !assistant.speedButton.hidden; }, 5);
+    CHECK(!assistant.speedButton.hidden && [assistant.speedButton.title containsString:@"Thấp"]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Mức “Vừa”"]);                 //the cause, in the words of the menu
+    [assistant.speedButton performClick:nil];
+    CHECK([AISettings effortForProvider:codex] == nil && [assistant.effortPopUp.selectedItem.title isEqualToString:@"Tự động (nhanh)"]);
+    CHECK(assistant.state == AIAssistantStateGenerating && assistant.speedButton.hidden);   //asked again, at once
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([ValueAfterFlag(AgentLog()[@"args"], @"-c") isEqualToString:@"model_reasoning_effort=\"low\""]);
+    CHECK([assistant.resultText isEqualToString:@"Xin chào, đây là câu trả lời."]);
+    //at the lowest level there is nothing to offer
+    [assistant ask];
+    Spin(1.6);
+    CHECK(assistant.speedButton.hidden && ![assistant.statusLabel.stringValue containsString:@"Mức “"]);
+    WaitForState(assistant, AIAssistantStateDone);
+    assistant.slowHintDelay = 8;
     [assistant hideAssistant];
     AgentMode(@"ok");
 
@@ -623,6 +653,284 @@ static void TestAgentPrograms(AIAssistant* assistant) {
     [AISettings resetToDefaults];
 }
 
+#pragma mark - Waiting
+
+static void TestProgressText(void) {
+    printf("-- sentences of the wait\n");
+    NSString* first = [AIProgressText messageAfterSeconds:0 provider:@"Codex CLI"];
+    CHECK([first containsString:@"Codex CLI"] && [first containsString:@"gửi"]);                      //at first: what is happening, and to whom
+    CHECK([[AIProgressText messageAfterSeconds:-5 provider:@"X"] isEqualToString:[AIProgressText messageAfterSeconds:0 provider:@"X"]]);
+    CHECK([[AIProgressText messageAfterSeconds:3 provider:@"X"] isEqualToString:@"AI đang suy nghĩ…"]);
+    CHECK(![[AIProgressText messageAfterSeconds:3 provider:@"X"] isEqualToString:[AIProgressText messageAfterSeconds:6 provider:@"X"]]);      //it changes: never a window that looks stuck
+    CHECK([[AIProgressText messageAfterSeconds:9 provider:@"X"] containsString:@"kiên nhẫn"]);
+    CHECK([[AIProgressText messageAfterSeconds:18 provider:@"X"] containsString:@"Sắp có kết quả"]);
+    CHECK([[AIProgressText messageAfterSeconds:37 provider:@"Antigravity CLI"] containsString:@"không bị treo"] &&
+          [[AIProgressText messageAfterSeconds:37 provider:@"Antigravity CLI"] containsString:@"Antigravity CLI"]);                       //a long wait: it is not the application
+    CHECK([[AIProgressText messageAfterSeconds:75 provider:@"X"] containsString:@"Dừng"]);                                              //and it can be stopped
+    NSString* previous = nil;
+    int changes = 0;
+    for (NSInteger seconds = 0; seconds <= 600; seconds++) {
+        NSString* text = [AIProgressText messageAfterSeconds:seconds provider:@"Codex CLI (ChatGPT)"];
+        CHECK(text.length > 0 && ![text containsString:@"%@"]);
+        if (previous != nil && ![text isEqualToString:previous])
+            changes++;
+        previous = text;
+    }
+    CHECK(changes >= 100);                                                                                  //still moving after ten minutes
+    CHECK([[AIProgressText elapsedAfterSeconds:0] isEqualToString:@"Đã chờ 0 giây"]);
+    CHECK([[AIProgressText elapsedAfterSeconds:7] isEqualToString:@"Đã chờ 7 giây"]);
+    CHECK([[AIProgressText elapsedAfterSeconds:65] isEqualToString:@"Đã chờ 1 phút 05 giây"]);
+}
+
+static void TestWaiting(AIAssistant* assistant) {
+    printf("-- the wait is shown\n");
+    __block int settingsOpened = 0;
+    [AIAssistant setSettingsHandler:^{ settingsOpened++; }];
+    UseServer(@"wait");                                                                                       //nothing for 3.6 s
+    [assistant presentWithSelection:nil application:nil];
+    AIShimmerLabel* progress = (AIShimmerLabel*)assistant.progressLabel;
+    CHECK(!assistant.glowing && !progress.shimmering && [progress.stringValue isEqualToString:@"Câu trả lời của AI sẽ hiện ở đây."]);
+    assistant.inputView.string = @"hi";
+    [assistant ask];
+    //at once: the light runs, the words shimmer and say who was asked; the first words of the status are the old ones
+    CHECK(assistant.glowing && progress.shimmering);
+    CHECK([progress.stringValue containsString:@"Ollama"] && [assistant.statusLabel.stringValue containsString:@"Đang tạo"]);
+    CHECK(!progress.hidden && assistant.speedButton.hidden);
+    //it goes on: the sentence changes, the seconds are counted
+    SpinUntil(^BOOL { return ![progress.stringValue containsString:@"gửi yêu cầu"]; }, 5);
+    CHECK([progress.stringValue isEqualToString:@"AI đang suy nghĩ…"] && assistant.glowing);
+    SpinUntil(^BOOL { return [assistant.statusLabel.stringValue containsString:@"Đã chờ"]; }, 5);
+    CHECK([assistant.statusLabel.stringValue containsString:@"giây"]);
+    //the gear stays there while it waits
+    CHECK(!assistant.openSettingsButton.hidden && assistant.openSettingsButton.enabled);
+    WaitForState(assistant, AIAssistantStateDone);
+    //over: everything is still, the place of the answer is itself again, and the answer is where the sentences were
+    CHECK(!assistant.glowing && !progress.shimmering && [progress.stringValue isEqualToString:@"Câu trả lời của AI sẽ hiện ở đây."]);
+    CHECK(progress.hidden && assistant.speedButton.hidden && [assistant.statusLabel.stringValue containsString:@"Xong"]);
+    CHECK(![assistant.statusLabel.stringValue containsString:@"giây"]);
+    [assistant hideAssistant];
+
+    //stopped, an error, and the window closed all end it too
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"hi";
+    [assistant ask];
+    CHECK(assistant.glowing);
+    [assistant stop];
+    CHECK(!assistant.glowing && !progress.shimmering && [progress.stringValue isEqualToString:@"Câu trả lời của AI sẽ hiện ở đây."]);
+    UseServer(@"missing");
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateFailed);
+    CHECK(!assistant.glowing && !progress.shimmering);
+    UseServer(@"wait");
+    [assistant ask];
+    CHECK(assistant.glowing);
+    [assistant hideAssistant];
+    CHECK(!assistant.glowing && !progress.shimmering);
+    Spin(0.5);
+
+    //the gear opens the settings, closes the window, and is there when nothing is going on
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(!assistant.openSettingsButton.hidden && [assistant.openSettingsButton.toolTip containsString:@"Cài đặt AI"]);
+    CHECK(assistant.settingsButton.hidden);                                                                   //the button of the messages is not the gear
+    [assistant.openSettingsButton performClick:nil];
+    CHECK(settingsOpened == 1 && !assistant.panel.visible);
+    //also while it waits: the request is stopped with the window
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"hi";
+    [assistant ask];
+    [assistant.openSettingsButton performClick:nil];
+    CHECK(settingsOpened == 2 && !assistant.panel.visible && !assistant.glowing && assistant.state == AIAssistantStateIdle);
+    Spin(0.3);
+}
+
+#pragma mark - Pictures
+
+static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
+    if (gFakeAgent == nil || gWorkFolder == nil) {
+        printf("-- pictures: SKIPPED (no fake program given)\n");
+        return;
+    }
+    printf("-- pictures (Codex CLI)\n");
+    NSString* bin = [gWorkFolder stringByAppendingPathComponent:@"agent-bin"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:bin withIntermediateDirectories:YES attributes:nil error:nil];
+    for (NSString* command in @[@"codex", @"claude", @"agy"])
+        [[NSFileManager defaultManager] createSymbolicLinkAtPath:[bin stringByAppendingPathComponent:command] withDestinationPath:gFakeAgent error:nil];
+    gAgentLog = [gWorkFolder stringByAppendingPathComponent:@"agent-log.json"];
+    setenv("FAKE_AGENT_LOG", gAgentLog.UTF8String, 1);
+    NSString* home = [gWorkFolder stringByAppendingPathComponent:@"codexhome-ui"];
+    setenv("CODEX_HOME", home.UTF8String, 1);
+    AgentMode(@"image");
+    [AISettings resetToDefaults];
+    [AIAgentCLI setSearchDirectoriesForTesting:@[bin]];
+
+    //the button is there for every AI, and off for those that cannot make a picture, with the reason
+    UseServer(@"normal");
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(assistant.imageButton != nil && !assistant.imageButton.hidden && !assistant.imageButton.enabled);
+    CHECK([assistant.imageButton.toolTip containsString:@"Codex CLI"]);
+    assistant.inputView.string = @"con mèo";
+    [assistant askForImage];                                                                    //not by the button, but the key
+    CHECK(assistant.state == AIAssistantStateIdle && [assistant.statusLabel.stringValue containsString:@"Chỉ tạo được ảnh khi dùng Codex CLI"]);
+    [assistant hideAssistant];
+    for (NSString* other in @[@"claude-cli", @"agy-cli"]) {
+        AISettings.providerIdentifier = other;
+        [assistant presentWithSelection:nil application:nil];
+        CHECK(!assistant.imageButton.enabled);
+        [assistant hideAssistant];
+    }
+
+    //Codex: on; the status of the window follows the choice of the AI in the window
+    AISettings.providerIdentifier = @"codex-cli";
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(assistant.imageButton.enabled && [assistant.imageButton.toolTip containsString:@"imagegen"]);
+    Choose(assistant.providerPopUp, @"Claude Code CLI (Claude)");
+    CHECK(!assistant.imageButton.enabled);
+    Choose(assistant.providerPopUp, @"Codex CLI (ChatGPT)");
+    CHECK(assistant.imageButton.enabled);
+
+    //nothing described: nothing asked
+    assistant.inputView.string = @"  ";
+    [assistant.imageButton performClick:nil];
+    CHECK(assistant.state == AIAssistantStateIdle && [assistant.statusLabel.stringValue containsString:@"mô tả bức ảnh"]);
+
+    //the picture, with the request of the settings; the wait says that a picture takes time
+    AgentMode(@"image-delayed");
+    AISettings.imagePrompt = @"Use $imagegen skill to create picture {prompt}, in flat style.";
+    assistant.inputView.string = @"một chú mèo cam đang ngủ";
+    [assistant.imageButton performClick:nil];
+    CHECK(assistant.state == AIAssistantStateGenerating && assistant.glowing && !assistant.imageButton.enabled);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đang tạo ảnh"] && [assistant.progressLabel.stringValue containsString:@"Codex CLI (ChatGPT)"]);
+    SpinUntil(^BOOL { return [assistant.progressLabel.stringValue containsString:@"phác thảo"]; }, 8);
+    CHECK([assistant.progressLabel.stringValue containsString:@"phác thảo"] && assistant.speedButton.hidden);        //the words of a picture; no offer of a lower level
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(assistant.state == AIAssistantStateDone && !assistant.glowing);
+    NSURL* picture = assistant.resultImageURL;
+    CHECK(picture != nil && [picture.path hasPrefix:home] && [[NSFileManager defaultManager] fileExistsAtPath:picture.path]);
+    CHECK(!assistant.imageView.hidden && assistant.imageView.image.size.width == 16 && assistant.progressLabel.hidden);       //in the place of the answer
+    CHECK([assistant.statusLabel.stringValue containsString:@"Codex lưu ảnh ở"] && [assistant.statusLabel.stringValue containsString:@"generated_images"]);   //where it is kept is said
+    CHECK(!assistant.revealButton.hidden && assistant.imageButton.enabled);
+    CHECK([assistant.insertButton.title isEqualToString:@"Chèn ảnh"] && assistant.insertButton.isEnabled && assistant.copyButton.isEnabled);
+    CHECK([assistant.actionButton.title isEqualToString:@"Tạo"]);                                                      //"Tạo lại" is for a text
+    CHECK([AgentLog()[@"stdin_head"] isEqualToString:@"Use $imagegen skill to create picture một chú mèo cam đang ngủ, in flat style."]);
+    CHECK([ValueAfterFlag(AgentLog()[@"args"], @"-m") isEqualToString:@"fake-mini"]);                                  //the model and the level of the window
+
+    //copied: the picture is on the clipboard, as PNG and as TIFF
+    [board clearContents];
+    [board setString:@"của người dùng" forType:NSPasteboardTypeString];
+    [assistant copyResult];
+    CHECK([[board dataForType:NSPasteboardTypePNG] isEqualToData:[NSData dataWithContentsOfURL:picture]] && [board dataForType:NSPasteboardTypeTIFF].length > 0);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đã sao chép ảnh"] && !assistant.revealButton.hidden);
+    CHECK(assistant.copyConfirmed && [assistant.copyButton.title isEqualToString:@"Đã sao chép"] && assistant.copyButton.image != nil);   //the green check
+    Spin(2.4);
+    CHECK(!assistant.copyConfirmed && [assistant.copyButton.title isEqualToString:@"Sao chép"] && assistant.copyButton.image == nil);        //and it goes
+
+    //saved: in Downloads (a folder of the test), under a name of its own, never over a file
+    NSURL* downloads = [NSURL fileURLWithPath:[gWorkFolder stringByAppendingPathComponent:@"Downloads"]];
+    [AILightbox setDownloadsFolderForTesting:downloads];
+    CHECK(!assistant.saveImageButton.hidden);
+    [assistant saveImage];
+    NSArray* saved = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:downloads.path error:nil];
+    CHECK(saved.count == 1 && [[saved.firstObject precomposedStringWithCanonicalMapping] hasPrefix:@"Ảnh AI "] && [saved.firstObject hasSuffix:@".png"]);   //the disk gives the name decomposed
+    CHECK([[NSData dataWithContentsOfURL:[downloads URLByAppendingPathComponent:saved.firstObject]] isEqualToData:[NSData dataWithContentsOfURL:picture]]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Đã lưu vào Downloads"]);
+    [assistant saveImage];
+    CHECK([[NSFileManager defaultManager] contentsOfDirectoryAtPath:downloads.path error:nil].count == 2);
+
+    //the lightbox of the application, not another application
+    AILightbox* box = [AILightbox shared];
+    CHECK(!box.visible);
+    [assistant openImage];
+    CHECK(box.visible && box.zoom > 0 && [box.panel.title isEqualToString:picture.lastPathComponent]);
+    CGFloat fitted = box.zoom;
+    [box zoomIn];
+    CHECK(fabs(box.zoom - fitted * 1.25) < 0.01);
+    [box zoomOut];
+    CHECK(fabs(box.zoom - fitted) < 0.01);
+    [box zoomToActualSize];
+    CHECK(fabs(box.zoom - 1) < 0.001);
+    [box zoomToFit];
+    CHECK(fabs(box.zoom - fitted) < 0.01);
+    for (int i = 0; i < 40; i++)
+        [box zoomIn];
+    CHECK(box.zoom <= 8.001);                                                                                  //limits
+    [board clearContents];
+    [box copyImage];
+    CHECK([[board dataForType:NSPasteboardTypePNG] isEqualToData:[NSData dataWithContentsOfURL:picture]] && box.showsCopied);
+    NSError* saveError = nil;
+    NSURL* boxSaved = [box saveImage:&saveError];
+    CHECK(boxSaved != nil && saveError == nil && box.showsSaved && [box.savedURL isEqual:boxSaved] && [[NSFileManager defaultManager] fileExistsAtPath:boxSaved.path]);
+    CHECK([boxSaved.path hasPrefix:downloads.path] && [[NSFileManager defaultManager] contentsOfDirectoryAtPath:downloads.path error:nil].count == 3);
+    Spin(2.5);
+    CHECK(!box.showsCopied && !box.showsSaved);
+    [box close];
+    CHECK(!box.visible);
+    [assistant openImage];
+    CHECK(box.visible);
+    [assistant hideAssistant];
+    CHECK(!box.visible);                                                                                        //closing the window closes it too
+    [AILightbox setDownloadsFolderForTesting:nil];
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"con mèo";
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
+
+    //put into the application: pasted as a PNG, the window goes, the clipboard comes back
+    [board clearContents];
+    [board setString:@"của người dùng" forType:NSPasteboardTypeString];
+    gPastes = 0; gPastedImage = nil;
+    [assistant insertResult];
+    CHECK(!assistant.panel.visible && assistant.imageView.hidden && assistant.resultImageURL == nil && assistant.imageView.image == nil);
+    Spin(0.4);
+    CHECK(gPastes == 1 && [gPastedImage isEqualToData:[NSData dataWithContentsOfURL:picture]]);
+    Spin(0.3);
+    CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"của người dùng"] && [board dataForType:NSPasteboardTypePNG] == nil);
+    CHECK([[NSFileManager defaultManager] fileExistsAtPath:picture.path]);                                          //the file is Codex's: it is not removed
+
+    //a text request after a picture: the picture is gone, and the other way round
+    AgentMode(@"image");
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"con mèo";
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(assistant.resultImageURL != nil);
+    AgentMode(@"ok");
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(assistant.resultImageURL == nil && assistant.imageView.hidden && [assistant.resultText isEqualToString:@"Xin chào, đây là câu trả lời."]);
+    CHECK([assistant.insertButton.title isEqualToString:@"Chèn"]);
+    AgentMode(@"image");
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(assistant.resultImageURL != nil && assistant.resultText.length == 0 && assistant.outputView.string.length == 0);
+    [assistant hideAssistant];
+    CHECK(assistant.imageView.hidden && assistant.resultImageURL == nil);                                           //nothing is kept in the window
+
+    //what goes wrong: no picture, an error; stopping
+    AgentMode(@"image-none");
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"con mèo";
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateFailed);
+    CHECK([assistant.statusLabel.stringValue containsString:@"không tạo ra ảnh nào"] && assistant.imageView.hidden && !assistant.glowing && assistant.imageButton.enabled);
+    AgentMode(@"image-error");
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateFailed);
+    CHECK([assistant.statusLabel.stringValue containsString:@"hạn mức"] && assistant.settingsButton.hidden);
+    AgentMode(@"image-delayed");
+    [assistant askForImage];
+    Spin(0.5);
+    [assistant stop];
+    CHECK(assistant.state == AIAssistantStateIdle && !assistant.glowing && assistant.imageView.hidden && assistant.imageButton.enabled);
+    Spin(4.0);
+    CHECK(assistant.resultImageURL == nil && assistant.state == AIAssistantStateIdle);                                //it ended: nothing arrives later
+    [assistant hideAssistant];
+
+    unsetenv("CODEX_HOME");
+    [AIAgentCLI setSearchDirectoriesForTesting:@[]];
+    AgentMode(@"ok");
+    [AISettings resetToDefaults];
+}
+
 static void TestEscape(AIAssistant* assistant) {
     printf("-- escape\n");
     UseServer(@"slow");
@@ -660,6 +968,8 @@ int main(int argc, char** argv) {
         [AIAgentCLI setSearchDirectoriesForTesting:@[]];                     //the programs of the Mac that runs the test are not used
         NSPasteboard* board = [NSPasteboard pasteboardWithUniqueName];
         AIAssistant* assistant = MakeAssistant(board);
+        //by default the window stays off the screen and the keyboard stays where it is; VOK_UI_VISIBLE=1 shows it for real
+        assistant.offscreenForTesting = getenv("VOK_UI_VISIBLE") == NULL;
         __block int boundaries = 0;
         [AIAssistant setTypingBoundaryHandler:^{ boundaries++; }];
 
@@ -672,7 +982,10 @@ int main(int argc, char** argv) {
         TestProviders(assistant);
         TestBusyMac(assistant);
         TestLocalServer(assistant);
+        TestProgressText();
+        TestWaiting(assistant);
         TestAgentPrograms(assistant);
+        TestImages(assistant, board);
         TestEscape(assistant);
 
         [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:[NSProcessInfo processInfo].processName];

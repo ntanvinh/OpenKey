@@ -46,6 +46,10 @@
 /// selection in the application is replaced by the text.
 -(void)insertText:(NSString*)text application:(NSRunningApplication*)application;
 
+/// Inserts a picture the same way: pasted into `application` with ⌘V, the clipboard put back. `png` is the data of a PNG file; the clipboard
+/// gets it as a PNG and as a TIFF, which is what the applications that take a picture from the clipboard ask for.
+-(void)insertImageData:(NSData*)png application:(NSRunningApplication*)application;
+
 /// `text` with {clipboard}, {date} and {time} replaced by the current clipboard text and time.
 -(NSString*)expandedText:(NSString*)text;
 
