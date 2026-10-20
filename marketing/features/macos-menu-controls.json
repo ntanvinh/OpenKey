@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "macos-menu-controls",
+  "tier": "common",
+  "rank": 150,
+  "title": {
+    "en-US": "Control Input From macOS",
+    "vi": "Điều khiển bộ gõ trên macOS"
+  },
+  "description": {
+    "en-US": "Choose whether VOpenKey AI starts with macOS and how its menu bar and Dock controls appear. Open the control panel from the Dock when that icon is enabled.",
+    "vi": "Chọn có chạy VOpenKey AI cùng macOS hay không và tùy chỉnh biểu tượng trên thanh menu, Dock. Khi bật biểu tượng Dock, bạn có thể mở nhanh bảng điều khiển."
+  },
+  "screens": [
+    "General settings",
+    "Menu bar",
+    "Dock"
+  ]
+}

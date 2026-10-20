@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "contextual-word-suggestions",
+  "tier": "unique",
+  "rank": 70,
+  "title": {
+    "en-US": "See What You Can Type Next",
+    "vi": "Gợi ý từ khi đang gõ"
+  },
+  "description": {
+    "en-US": "See context-aware Vietnamese word suggestions as you type, including phrases entered without diacritics. Choose a suggestion from the keyboard when it fits.",
+    "vi": "Xem gợi ý từ tiếng Việt theo ngữ cảnh ngay khi gõ, kể cả cụm từ nhập không dấu. Chọn gợi ý phù hợp trực tiếp bằng bàn phím."
+  },
+  "screens": [
+    "Suggestion bar",
+    "Suggestion settings"
+  ]
+}

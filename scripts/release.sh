@@ -4,7 +4,10 @@
 #   scripts/release.sh patch           raise the version (3.0.0 -> 3.0.1; minor, major or an explicit 3.1.0 also work), build,
 #                                      sign, notarize, push, publish the GitHub release with the dmg, wait for the Windows
 #                                      build that GitHub Actions attaches to it, and only then announce the new version in
-#                                      version.json so that the apps tell users about it. "current" releases the version
+#                                      version.json (read by the Windows app and by Mac apps older than the self-updating one).
+#                                      The Mac app finds the release by itself, from GitHub, as soon as it is online and downloads
+#                                      VOpenKey-<version>.dmg. The release also carries VOpenKey.dmg, the same file without the
+#                                      version in its name, for the fixed link of the website. "current" releases the version
 #                                      that is in the project without raising it.
 #   scripts/release.sh patch --yes     the same without asking for confirmation
 #   scripts/release.sh patch --dry-run check everything and say what would happen, change nothing
@@ -126,7 +129,7 @@ if [ "$FULL" = 1 ]; then
         if [ "$NOTARIZE" = 1 ]; then echo "  2. build, sign and notarize $DISPLAY_NAME.app and the dmg"; else echo "  2. build and sign $DISPLAY_NAME.app and the dmg (NOT notarized)"; fi
         echo "  3. commit and push to master, create the GitHub release $TAG on $REPO with the dmg"
         [ "$WINDOWS" = 1 ] && echo "  4. wait for GitHub Actions to build the Windows version and attach it to the release"
-        echo "  5. write the version in version.json and push it: only then do the apps offer the update"
+        echo "  5. write the version in version.json and push it: only then does the Windows app offer the update (the Mac app already does, from step 3)"
     } >&2
     [ "$DRY_RUN" = 1 ] && { say "Dry run: every check passed, nothing was changed"; exit 0; }
     if [ "$ASSUME_YES" != 1 ]; then
@@ -206,6 +209,13 @@ fi
 
 ( cd "$DIST_DIR" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256" )
 
+# The same file under a name without the version, attached to every release too: GitHub sends
+#   https://github.com/<repo>/releases/latest/download/VOpenKey.dmg
+# to this file of the newest release, so the website links to that address and never has to change it. (The app updates itself from
+# VOpenKey-<version>.dmg, it does not use this copy.)
+LATEST_DMG="$DIST_DIR/$APP_NAME.dmg"
+cp "$DMG" "$LATEST_DMG"
+
 # --- what macOS thinks of it ------------------------------------------------------------------------------------------
 say "Gatekeeper's verdict"
 spctl -a -vv -t exec "$STAGING/$DISPLAY_NAME.app" 2>&1 | sed 's/^/    /' >&2 || true
@@ -233,7 +243,7 @@ After fixing it: gh workflow run release-windows.yml --repo $REPO -f tag=$tag   
     done
     conclusion="$(gh run view "$run" --repo "$REPO" --json conclusion --jq .conclusion)"
     [ "$conclusion" = success ] || die "the Windows build ended with '$conclusion': $url
-The macOS release is online and version.json was not changed, so nobody is offered the update yet.
+The macOS release is online (the Mac app updates itself from it) and version.json was not changed, so the Windows app is not offered the update yet.
 After fixing it: gh workflow run release-windows.yml --repo $REPO -f tag=$tag   then   scripts/release.sh --announce"
     gh release view "$tag" --repo "$REPO" --json assets --jq '.assets[].name' | grep -q "^$APP_NAME-.*-Windows.zip$" \
         || die "the Windows build succeeded but its zip is not on the release $tag: $url"
@@ -256,17 +266,18 @@ if [ "$PUBLISH" = 1 ]; then
         "$VERSION_SH" notes > "$NOTES"
         say "Publishing $TAG on $REPO"
         if [ -s "$NOTES" ]; then
-            gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --notes-file "$NOTES"
+            gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --notes-file "$NOTES"
         else
-            gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --generate-notes
+            gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --generate-notes
         fi
         if [ "$WINDOWS" = 1 ]; then wait_for_windows "$TAG" "$SHA"; fi
         announce_release
         say "Released: https://github.com/$REPO/releases/tag/$TAG"
+        say "Always the newest version, for the website: https://github.com/$REPO/releases/latest/download/$APP_NAME.dmg"
     else
         say "Publishing $TAG on $REPO"
-        gh release create "$TAG" "$DMG" "$DMG.sha256" --repo "$REPO" --title "$DISPLAY_NAME $VERSION" --generate-notes
-        warn "the app's update check reads version.json from the master branch of $REPO: make sure the version in it ($VERSION, build $BUILD) is pushed (scripts/release.sh --announce)"
+        gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --title "$DISPLAY_NAME $VERSION" --generate-notes
+        warn "the Mac app finds this release by itself; the Windows app and the Mac apps older than the self-updating one read version.json from the master branch of $REPO: make sure the version in it ($VERSION, build $BUILD) is pushed (scripts/release.sh --announce)"
     fi
 fi
 

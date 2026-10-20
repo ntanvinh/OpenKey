@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "convert-vietnamese-encodings",
+  "tier": "value",
+  "rank": 100,
+  "title": {
+    "en-US": "Convert Older Vietnamese Text",
+    "vi": "Chuyển mã văn bản cũ"
+  },
+  "description": {
+    "en-US": "Convert selected text between supported Vietnamese encodings, including legacy text that needs to move to Unicode. Configure a shortcut for quick conversion.",
+    "vi": "Chuyển văn bản giữa các bảng mã tiếng Việt được hỗ trợ, hữu ích khi đưa tài liệu cũ sang Unicode. Bạn có thể đặt phím tắt để chuyển mã nhanh."
+  },
+  "screens": [
+    "Encoding conversion tool",
+    "Conversion settings"
+  ]
+}

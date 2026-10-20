@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "custom-text-macros",
+  "tier": "value",
+  "rank": 90,
+  "title": {
+    "en-US": "Expand Your Text Shortcuts",
+    "vi": "Mở rộng nội dung gõ tắt"
+  },
+  "description": {
+    "en-US": "Turn a short trigger into a longer piece of text while you type. Create macros for the text you use repeatedly.",
+    "vi": "Gõ cụm kích hoạt ngắn để chèn nhanh một đoạn nội dung dài hơn. Tạo macro cho những nội dung bạn thường dùng."
+  },
+  "screens": [
+    "Macro settings",
+    "Text entry"
+  ]
+}

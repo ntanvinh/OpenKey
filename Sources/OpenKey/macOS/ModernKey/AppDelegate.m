@@ -15,6 +15,7 @@
 #import "AppDelegate.h"
 #import "SettingsWindowController.h"
 #import "OpenKeyManager.h"
+#import "AppUpdater.h"
 #import "SecureInputMonitor.h"
 #import "LegacyOpenKey.h"
 #import "StatusMenuController.h"
@@ -127,6 +128,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [AISettings start];
     [CaseBar registerDefaults];
     [CaseBar start];
+    [AppUpdater registerDefaults]; //the Settings window may show it before the first check
     [AIAssistant setSettingsHandler:^{ [self onAISettingsSelected]; }];
     //a download of Ollama that was cut by quitting leaves its working folder behind
     [AIOllamaInstaller removeLeftoversInWorkDirectory:[[[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject
@@ -191,10 +193,8 @@ extern bool convertToolDontAlertWhenCompleted;
     }
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"NonFirstTime"];
     
-    //check update if enable
-    NSInteger dontCheckUpdate = [[NSUserDefaults standardUserDefaults] integerForKey:@"DontCheckUpdate"];
-    if (!dontCheckUpdate)
-        [OpenKeyManager checkNewVersion:nil callbackFunc:nil];
+    //look for a new version (if enabled), and install the one that was left waiting
+    [OpenKeyManager startAutomaticUpdates];
     
     //correct run on startup
     NSInteger val = [[NSUserDefaults standardUserDefaults] integerForKey:@"RunOnStartup"];
@@ -261,6 +261,7 @@ extern bool convertToolDontAlertWhenCompleted;
 
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"GrayIcon"];
     [[NSUserDefaults standardUserDefaults] setInteger:1 forKey:@"RunOnStartup"];
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"AutoInstallUpdates"];
 
     [self fillData];
     [_settingsWC reload];

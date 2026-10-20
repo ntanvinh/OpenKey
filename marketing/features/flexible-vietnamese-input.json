@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "flexible-vietnamese-input",
+  "tier": "value",
+  "rank": 120,
+  "title": {
+    "en-US": "Choose Your Vietnamese Input",
+    "vi": "Chọn cách gõ tiếng Việt"
+  },
+  "description": {
+    "en-US": "Choose Telex, VNI, or Simple Telex and work with common Vietnamese encodings such as Unicode, TCVN3, and VNI Windows.",
+    "vi": "Chọn Telex, VNI hoặc Simple Telex; sử dụng các bảng mã thông dụng như Unicode, TCVN3 và VNI Windows."
+  },
+  "screens": [
+    "Input settings",
+    "Encoding settings"
+  ]
+}

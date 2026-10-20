@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "remember-input-settings-by-app",
+  "tier": "value",
+  "rank": 110,
+  "title": {
+    "en-US": "Remember Settings For Each App",
+    "vi": "Ghi nhớ thiết lập từng app"
+  },
+  "description": {
+    "en-US": "Keep a preferred input mode or encoding for individual apps and switch back to it when you return. Useful when different apps need different text formats.",
+    "vi": "Ghi nhớ kiểu gõ hoặc bảng mã riêng cho từng ứng dụng để tự chuyển lại khi bạn quay về. Tiện khi mỗi ứng dụng cần một định dạng văn bản khác nhau."
+  },
+  "screens": [
+    "Input settings",
+    "Encoding settings"
+  ]
+}

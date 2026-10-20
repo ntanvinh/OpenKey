@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "ai-image-generation",
+  "tier": "unique",
+  "rank": 40,
+  "title": {
+    "en-US": "Create Images From Prompts",
+    "vi": "Tạo ảnh từ mô tả"
+  },
+  "description": {
+    "en-US": "When Codex CLI is selected, describe an image and view the generated result in the assistant. Copy it or insert it into the app where you are working.",
+    "vi": "Khi chọn Codex CLI, hãy mô tả hình ảnh để trợ lý tạo ảnh và hiển thị kết quả ngay trong cửa sổ. Bạn có thể sao chép ảnh hoặc chèn vào ứng dụng đang dùng."
+  },
+  "screens": [
+    "AI assistant",
+    "AI settings"
+  ]
+}

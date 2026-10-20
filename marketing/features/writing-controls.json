@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "writing-controls",
+  "tier": "value",
+  "rank": 130,
+  "title": {
+    "en-US": "Tune Vietnamese Writing Rules",
+    "vi": "Tùy chỉnh cách gõ tiếng Việt"
+  },
+  "description": {
+    "en-US": "Adjust modern orthography, Quick Telex, spelling and grammar checks, capitalization, and other typing rules to suit your writing.",
+    "vi": "Tùy chỉnh cách đặt dấu, Quick Telex, kiểm tra chính tả và ngữ pháp, viết hoa đầu câu cùng các quy tắc gõ khác theo cách bạn viết."
+  },
+  "screens": [
+    "Input settings",
+    "Spelling settings"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "keyboard-shortcuts",
+  "tier": "common",
+  "rank": 140,
+  "title": {
+    "en-US": "Set Shortcuts That Fit You",
+    "vi": "Đặt phím tắt theo thói quen"
+  },
+  "description": {
+    "en-US": "Customize shortcuts for switching input modes and opening the AI assistant or snippet picker. Keep common actions close to your keyboard.",
+    "vi": "Đổi phím tắt chuyển kiểu gõ, mở trợ lý AI hoặc tìm snippet. Đưa các thao tác thường dùng đến gần bàn phím hơn."
+  },
+  "screens": [
+    "Keyboard shortcut settings"
+  ]
+}

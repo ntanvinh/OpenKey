@@ -1,0 +1,48 @@
+{
+  "$schema": "https://vappmanager.local/schema/product.v1.json",
+  "schemaVersion": 1,
+  "packageName": "v_open_key",
+  "displayName": "VOpenKey AI",
+  "slug": "v-open-key",
+  "websiteSlug": "vopenkey-ai",
+  "kind": "desktop",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
+  "sortOrder": 999,
+  "ids": {},
+  "links": {
+    "appStore": "#",
+    "googlePlay": "#",
+    "website": "#",
+    "macos": "#",
+    "windows": "#",
+    "linux": "#",
+    "privacyPolicy": "/privacy"
+  },
+  "locales": {
+    "text": [
+      "en-US",
+      "vi"
+    ],
+    "media": [
+      "en-US"
+    ],
+    "seed": [
+      "en-US"
+    ]
+  },
+  "targets": [
+    {
+      "name": "OpenKey",
+      "path": "Sources/OpenKey/macOS",
+      "kind": "desktop"
+    },
+    {
+      "name": "OpenKey",
+      "path": "Sources/OpenKey/win32/OpenKey",
+      "kind": "desktop"
+    }
+  ]
+}

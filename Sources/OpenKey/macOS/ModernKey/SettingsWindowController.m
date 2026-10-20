@@ -14,6 +14,7 @@
 #import "AISettings.h"
 #import "AppInfo.h"
 #import "AppPermissions.h"
+#import "AppUpdater.h"
 #import "CaseBar.h"
 #import "RememberedAppsController.h"
 #import "ShortcutConflicts.h"
@@ -1489,15 +1490,22 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 }
 
 -(NSView*)sectionAbout {
-    SettingsToggle* checkOnStart = [SettingsToggle title:@"Kiểm tra bản mới khi khởi động" detail:nil key:@"DontCheckUpdate" variable:NULL];
+    SettingsToggle* checkOnStart = [SettingsToggle title:@"Tự động kiểm tra bản mới" detail:@"Khi khởi động, rồi vài giờ một lần."
+                                                     key:@"DontCheckUpdate" variable:NULL];
     checkOnStart.inverted = YES;
-    NSMutableArray* rows = [NSMutableArray arrayWithObject:[self rowForToggle:checkOnStart]];
+    SettingsToggle* autoInstall = [SettingsToggle title:@"Tự động tải và cài bản mới" detail:@"Bản mới tải ngầm; cài khi bạn khởi động lại."
+                                                    key:@"AutoInstallUpdates" variable:NULL];
+    autoInstall.parent = checkOnStart;
+    NSMutableArray* rows = [NSMutableArray arrayWithObjects:[self rowForToggle:checkOnStart], [self rowForToggle:autoInstall], nil];
 
     NSString* version = [NSString stringWithFormat:@"Phiên bản %@ (%@)",
                          [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"],
                          [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"]];
     _checkUpdateButton = [NSButton buttonWithTitle:@"Kiểm tra bản mới…" target:self action:@selector(checkForUpdate:)];
     [rows addObject:[self buttonRowWithTitle:VOK_APP_NAME detail:version button:_checkUpdateButton]];
+    //the button follows the update: checking, downloading, ready (a check can be made by the app itself)
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateCheckButton) name:AppUpdaterDidChangeNotification object:nil];
+    [self updateCheckButton];
     [rows addObject:[self buttonRowWithTitle:@"Giới thiệu" detail:[NSString stringWithFormat:@"Phát triển bởi %@, fork từ OpenKey.", VOK_COMPANY]
                                       button:[NSButton buttonWithTitle:[NSString stringWithFormat:@"Giới thiệu %@", VOK_APP_NAME] target:self action:@selector(openAbout:)]]];
     [rows addObject:[self buttonRowWithTitle:@"Khôi phục mặc định" detail:@"Đưa mọi tùy chọn về như lúc mới cài."
@@ -1618,13 +1626,44 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [AppPermissions requestInputMonitoring];
 }
 
+-(void)updateCheckButton {
+    AppUpdater* updater = [AppUpdater shared];
+    BOOL enabled = YES;
+    NSString* title = @"Kiểm tra bản mới…";
+    switch (updater.state) {
+        case AppUpdaterStateChecking:
+            title = @"Đang kiểm tra…";
+            enabled = NO;
+            break;
+        case AppUpdaterStateAvailable:
+            title = [NSString stringWithFormat:@"Cập nhật lên %@…", updater.availableRelease.version];
+            break;
+        case AppUpdaterStateDownloading:
+            title = updater.progress >= 0 ? [NSString stringWithFormat:@"Đang tải %d%%…", (int)(updater.progress * 100)] : @"Đang tải…";
+            enabled = NO;
+            break;
+        case AppUpdaterStateReady:
+            title = @"Khởi động lại để cập nhật";
+            break;
+        default:
+            break;
+    }
+    _checkUpdateButton.title = title;
+    _checkUpdateButton.enabled = enabled;
+}
+
 -(void)checkForUpdate:(id)sender {
-    _checkUpdateButton.title = @"Đang kiểm tra…";
-    _checkUpdateButton.enabled = NO;
-    [OpenKeyManager checkNewVersion:self.window callbackFunc:^{
-        self->_checkUpdateButton.enabled = YES;
-        self->_checkUpdateButton.title = @"Kiểm tra bản mới…";
-    }];
+    switch ([AppUpdater shared].state) {
+        case AppUpdaterStateReady:
+            [OpenKeyManager restartToUpdate:self.window];
+            break;
+        case AppUpdaterStateAvailable:
+            [OpenKeyManager showUpdateDialog:self.window];
+            break;
+        default:
+            [OpenKeyManager checkNewVersion:self.window];
+            break;
+    }
 }
 
 -(void)openAbout:(id)sender {

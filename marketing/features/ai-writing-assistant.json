@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "ai-writing-assistant",
+  "tier": "unique",
+  "rank": 10,
+  "title": {
+    "en-US": "Write With Your Chosen AI",
+    "vi": "Soạn cùng AI bạn chọn"
+  },
+  "description": {
+    "en-US": "Draft, translate, or revise text from any app, then copy it or place it back into your work. Connect a hosted service, a local model, or a compatible signed-in command-line agent.",
+    "vi": "Soạn, dịch hoặc chỉnh sửa nội dung ngay trong ứng dụng bạn đang dùng, rồi sao chép hoặc chèn kết quả trở lại. Bạn có thể kết nối dịch vụ trực tuyến, mô hình chạy trên máy hoặc công cụ AI dòng lệnh đã đăng nhập."
+  },
+  "screens": [
+    "AI assistant",
+    "AI settings"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "prompt-snippet-library",
+  "tier": "unique",
+  "rank": 50,
+  "title": {
+    "en-US": "Reuse Prompts In Any App",
+    "vi": "Dùng lại prompt mọi nơi"
+  },
+  "description": {
+    "en-US": "Find and insert your own snippets from a keyboard shortcut, including prompts for summarizing, translating, rewriting, and code review. Search works without Vietnamese diacritics, and snippets can include clipboard text, date, or time.",
+    "vi": "Mở nhanh snippet cá nhân bằng phím tắt để dùng lại prompt tóm tắt, dịch, viết lại hay review code. Có thể tìm không dấu và chèn nội dung clipboard, ngày hoặc giờ vào snippet."
+  },
+  "screens": [
+    "Snippet palette",
+    "Snippet management",
+    "Snippet settings"
+  ]
+}

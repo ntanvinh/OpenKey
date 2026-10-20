@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "restore-accidental-typing",
+  "tier": "unique",
+  "rank": 60,
+  "title": {
+    "en-US": "Recover Words While Typing",
+    "vi": "Khôi phục từ khi đang gõ"
+  },
+  "description": {
+    "en-US": "Restore non-Vietnamese words that were changed by Vietnamese input, or use a shortcut to recover a word that needs correction. Keep typing the rest of that word without conversion.",
+    "vi": "Tự trả lại từ không phải tiếng Việt bị bộ gõ chuyển đổi, hoặc dùng phím tắt để khôi phục từ cần sửa. Phần còn lại của từ sẽ được gõ nguyên văn."
+  },
+  "screens": [
+    "Input settings",
+    "Text entry"
+  ]
+}

@@ -19,7 +19,7 @@ current name. If a task seems to need a rename, ask the owner first.
 
 These are identifiers or file names that must not move, they are not the name of the app:
 
-- release file names `VOpenKey-<version>.dmg` and `VOpenKey-<version>-Windows.zip` (`APP_NAME` in `scripts/common.sh`: no spaces, GitHub rewrites them)
+- release file names `VOpenKey-<version>.dmg` and `VOpenKey-<version>-Windows.zip` (`APP_NAME` in `scripts/common.sh`: no spaces, GitHub rewrites them), and `VOpenKey.dmg`, the same dmg without the version, which the website links to as `.../releases/latest/download/VOpenKey.dmg`; the app's updater looks for exactly `VOpenKey-<version>.dmg` (`VOK_RELEASE_FILE_NAME` in `AppInfo.h`)
 - the bundle id `vn.io.lssoft.vopenkey`
 - the folder names `~/Library/Application Support/VOpenKey` and `~/Library/Logs/VOpenKey` (`VOK_DATA_DIR_NAME`), so the user's data stays where it is
 - the notarytool profile `VOpenKey-notary`

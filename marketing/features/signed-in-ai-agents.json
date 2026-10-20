@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "signed-in-ai-agents",
+  "tier": "unique",
+  "rank": 30,
+  "title": {
+    "en-US": "Use AI You’re Signed Into",
+    "vi": "Dùng AI bạn đã đăng nhập"
+  },
+  "description": {
+    "en-US": "Use supported AI command-line tools already installed and signed in on your Mac, without entering a separate API key in VOpenKey AI. Choose a model and thinking level for writing tasks.",
+    "vi": "Dùng các công cụ AI dòng lệnh được hỗ trợ, đã cài và đăng nhập trên máy mà không cần nhập API key riêng vào VOpenKey AI. Bạn có thể chọn mô hình và mức suy nghĩ cho tác vụ viết."
+  },
+  "screens": [
+    "AI assistant",
+    "AI settings"
+  ]
+}

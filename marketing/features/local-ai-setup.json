@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "local-ai-setup",
+  "tier": "unique",
+  "rank": 20,
+  "title": {
+    "en-US": "Run AI On Your Mac",
+    "vi": "Chạy AI ngay trên máy Mac"
+  },
+  "description": {
+    "en-US": "Check whether your Mac can handle a local model and get help installing and connecting it. With a local model, your prompt stays on your computer.",
+    "vi": "Kiểm tra máy Mac có chạy được mô hình AI cục bộ hay không, rồi được hướng dẫn cài đặt và kết nối. Khi dùng mô hình cục bộ, nội dung bạn nhập vẫn nằm trên máy."
+  },
+  "screens": [
+    "AI settings",
+    "Local AI setup"
+  ]
+}

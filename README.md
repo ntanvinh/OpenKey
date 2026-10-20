@@ -61,7 +61,7 @@ Bộ gõ tiếng Việt cho macOS, sử dụng kỹ thuật `Backspace`. Loại 
 - **Chuyển chế độ thông minh:** (On/Off) (Bản 1.2 về sau) - Bạn đang dùng chế độ gõ Tiếng Việt trên ứng dụng A, bạn chuyển qua ứng dụng B trước đó bạn dùng chế độ gõ Tiếng Anh, OpenKey sẽ tự động chuyển qua chế độ gõ Tiếng Anh cho bạn, khi bạn quay lại ứng dụng A, OpenKey tất nhiên sẽ chuyển lại chế độ gõ tiếng Việt, rất cơ động.
 - **Viết Hoa chữ cái đầu câu** (On/Off) (Bản 1.2 về sau) - Khi gõ văn bản dài, đôi khi bạn quên ghi hoa chữ cái đầu câu khi kết thúc một câu hoặc khi xuống hàng, tính năng này sẽ tự ghi hoa chữ cái đầu câu cho bạn, thật tuyệt vời.
 - **Chế độ “Gửi từng phím”:** (On/Off) (Bản 1.1 về sau) mặc định dùng kỹ thuật mới gửi dữ liệu 1 lần thay vì gửi nhiều lần cho chuỗi ký tự, nên nếu có ứng dụng nào không tương thích, hãy bật tính năng này lên, mặc định thì nên tắt vì kỹ thuật mới sẽ chạy nhanh hơn.
-- **Cập nhật tự động:** (Bản 1.3 về sau) tính năng hỗ trợ cập nhật phiên bản OpenKey mới nhất mỗi khi mở OpenKey hoặc tự check trong phần mục Giới thiệu.
+- **Cập nhật tự động:** VOpenKey AI tự hỏi GitHub xem có bản mới không (khi khởi động rồi vài giờ một lần; tắt ở Cài đặt > Hệ thống > "Tự động kiểm tra bản mới"), tự tải bản mới về và hỏi bạn khởi động lại để dùng nó (mất vài giây); nếu bạn chọn "Để sau", bản mới được cài lần tới khi bạn mở ứng dụng. Công tắc "Tự động tải và cài bản mới" tắt thì chỉ báo có bản mới và hỏi trước khi tải. Chỉ cài bản có chữ ký số của LSSoft (Apple Developer Team `39SH232CQ4`), đúng tên, đúng phiên bản, đúng mã SHA-256 mà GitHub công bố; sai một điều là bỏ, không cài. Ứng dụng phải nằm ở nơi VOpenKey AI ghi được (`Applications` hoặc `~/Applications`); nếu không (chạy thẳng từ file `.dmg`, tự build từ mã nguồn) thì chỉ mở trang tải về. Kiểm tra tay ở Cài đặt > Hệ thống > "Kiểm tra bản mới…" hoặc mục "Cập nhật lên…" trên menu khi có bản mới.
 - **Công cụ chuyển mã:** (Bản 1.4 về sau) hỗ trợ chuyển mã qua lại văn bản, thích hợp cho việc chuyển đổi văn bản cũ viết bằng VNI, TCVN3 qua Unicode,... Hỗ trợ cấu hình phím tắt chuyển mã nhanh, bảng cấu hình tùy chọn chuyển mã.
 - **Tự ghi nhớ bảng mã theo ứng dụng:** (Bản 2.0.1 về sau) Phù hợp cho các bạn dùng Photoshop, CAD,... với các bảng mã VNI, TCVN3. OpenKey tự ghi nhớ ứng dụng nào dùng bảng mã nào để lần sau sử dụng Photoshop, CAD,... OpenKey có thể tự chuyển sang bảng mã đó.
 - ...
@@ -72,7 +72,7 @@ Bộ gõ tiếng Việt cho macOS, sử dụng kỹ thuật `Backspace`. Loại 
 ## Cài đặt:
 Yêu cầu macOS 13 (Ventura) trở lên.
 
-Tải file `VOpenKey-<phiên bản>.dmg` từ [trang Releases](https://github.com/ntanvinh/OpenKey/releases/latest), mở ra rồi kéo `VOpenKey AI.app` vào thư mục `Applications`. Mở VOpenKey AI từ đó.
+Tải [VOpenKey.dmg](https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg) (địa chỉ cố định, luôn là bản mới nhất; các bản cũ ở [trang Releases](https://github.com/ntanvinh/OpenKey/releases)), mở ra rồi kéo `VOpenKey AI.app` vào thư mục `Applications`. Mở VOpenKey AI từ đó. Từ đó về sau VOpenKey AI tự cập nhật.
 
 ## Cấp quyền khi mở lần đầu:
 VOpenKey AI cần 2 quyền của macOS để đọc phím bạn gõ và thay bằng chữ có dấu. Khi mở lần đầu sẽ có cửa sổ **Chào mừng đến với VOpenKey AI**, bạn chỉ cần:
@@ -93,7 +93,7 @@ Khi Secure Input đang bật, menu của VOpenKey AI có một dòng cho biết 
 ## Build và phát hành:
 Xem [macOS_Build.md](macOS_Build.md). Tóm tắt:
 - `scripts/dev.sh`: build bản dev, ký, cài vào `~/Applications` và mở.
-- `scripts/release.sh`: build bản phát hành, ký Developer ID, đóng gói `dist/VOpenKey-<phiên bản>.dmg`. Thêm `--notarize` để Apple xác nhận, `--publish` để đăng lên GitHub Releases.
+- `scripts/release.sh`: build bản phát hành, ký Developer ID, đóng gói `dist/VOpenKey-<phiên bản>.dmg` (và bản sao `VOpenKey.dmg` không có số phiên bản, cho link cố định). Thêm `--notarize` để Apple xác nhận, `--publish` để đăng lên GitHub Releases. Xem [RELEASING.md](RELEASING.md).
 
 ## Tác giả
 - **LSSoft** - phát triển VOpenKey AI (bản fork này): [github.com/ntanvinh/OpenKey](https://github.com/ntanvinh/OpenKey).

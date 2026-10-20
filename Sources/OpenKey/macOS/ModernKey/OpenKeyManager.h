@@ -11,8 +11,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-typedef void (^CheckNewVersionCallback)(void);
-
 @interface OpenKeyManager : NSObject
 +(BOOL)isInited;
 +(BOOL)initEventTap;
@@ -26,7 +24,15 @@ typedef void (^CheckNewVersionCallback)(void);
 
 +(BOOL)quickConvert;
 
-+(void)checkNewVersion:(NSWindow*)parent callbackFunc:(CheckNewVersionCallback) callback;
+//Updates, see AppUpdater. At launch: installs a downloaded update that was waiting, then looks for a new version and goes on looking
+//every few hours (unless "Kiểm tra bản mới" is off); a new version is downloaded by itself when "Tự động tải và cài bản mới" is on.
++(void)startAutomaticUpdates;
+//The user asked: looks, and tells the result in any case (a sheet of `parent`, or an alert when it is nil).
++(void)checkNewVersion:(NSWindow*)parent;
+//What to say about the new version, by how far it has come: offer it, say it is downloading, or ask to restart.
++(void)showUpdateDialog:(NSWindow*)parent;
+//The update is downloaded: restart into it now.
++(void)restartToUpdate:(NSWindow*)parent;
 @end
 
 #endif /* OpenKeyManager_h */

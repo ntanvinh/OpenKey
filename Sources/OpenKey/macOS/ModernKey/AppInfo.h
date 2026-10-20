@@ -24,6 +24,12 @@
 
 #define VOK_REPO_URL            @"https://github.com/ntanvinh/OpenKey"
 #define VOK_RELEASES_URL        @"https://github.com/ntanvinh/OpenKey/releases/latest"
-#define VOK_VERSION_JSON_URL    @"https://raw.githubusercontent.com/ntanvinh/OpenKey/master/version.json"
+
+//Updates (AppUpdater): the newest release of the repository above is read from the GitHub API, its dmg (VOpenKey-<version>.dmg) is
+//downloaded and installed over the running app. Only an app signed by this Apple Developer Team is ever installed.
+#define VOK_RELEASE_API_URL     @"https://api.github.com/repos/ntanvinh/OpenKey/releases/latest"
+//the start of the name of the files of a release, VOpenKey-<version>.dmg: APP_NAME of scripts/common.sh (no spaces, on purpose, see CLAUDE.md)
+#define VOK_RELEASE_FILE_NAME   @"VOpenKey"
+#define VOK_TEAM_ID             @"39SH232CQ4"
 
 #endif /* AppInfo_h */

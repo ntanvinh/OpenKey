@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "open-source-project",
+  "tier": "common",
+  "rank": 160,
+  "title": {
+    "en-US": "Explore The Open Source Code",
+    "vi": "Tìm hiểu mã nguồn mở"
+  },
+  "description": {
+    "en-US": "Review the publicly available source under GPL-3.0 and build or adapt it under the license terms.",
+    "vi": "Xem mã nguồn công khai theo giấy phép GPL-3.0 để tự build hoặc điều chỉnh theo các điều khoản của giấy phép."
+  },
+  "screens": [
+    "About",
+    "Project repository"
+  ]
+}

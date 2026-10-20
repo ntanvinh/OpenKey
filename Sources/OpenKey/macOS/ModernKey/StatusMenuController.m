@@ -8,6 +8,7 @@
 #import "AIAssistant.h"
 #import "AISettings.h"
 #import "AppInfo.h"
+#import "AppUpdater.h"
 #import "CaseBar.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
@@ -54,6 +55,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
     NSMenuItem* _permissionItem;
     NSMenuItem* _secureItem;
+    NSMenuItem* _updateItem;
     NSMenuItem* _noticeSeparator;
 
     NSMenuItem* _vietnameseItem;
@@ -77,6 +79,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
                                                      name:SecureInputMonitorDidChangeNotification object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
+                                                     name:AppUpdaterDidChangeNotification object:nil];
         [self refresh];
     }
     return self;
@@ -105,9 +109,11 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _permissionItem = MakeItem(@"Cấp quyền để VOpenKey AI hoạt động…", @"exclamationmark.shield", self, @selector(askPermissions:));
     _secureItem = MakeItem(@"Secure Input đang bật", @"exclamationmark.triangle", nil, nil);
     _secureItem.enabled = NO;
+    _updateItem = MakeItem(@"", @"arrow.down.circle", self, @selector(updateAction:));
     _noticeSeparator = [NSMenuItem separatorItem];
     [_menu addItem:_permissionItem];
     [_menu addItem:_secureItem];
+    [_menu addItem:_updateItem];
     [_menu addItem:_noticeSeparator];
 
     //Typing language, with the native checkmark in the leading state column.
@@ -199,9 +205,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
     BOOL needsPermission = ![OpenKeyManager isInited];
     NSString* secureDescription = [SecureInputMonitor statusDescription];
+    [self refreshUpdateItem];
     _permissionItem.hidden = !needsPermission;
     _secureItem.hidden = secureDescription == nil;
-    _noticeSeparator.hidden = !needsPermission && secureDescription == nil;
+    _noticeSeparator.hidden = !needsPermission && secureDescription == nil && _updateItem.hidden;
     if (secureDescription != nil) {
         NSString* holder = [SecureInputMonitor holderName];
         _secureItem.title = holder != nil ? [NSString stringWithFormat:@"Secure Input đang bật bởi %@", holder] : @"Secure Input đang bật";
@@ -209,6 +216,33 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
         if (@available(macOS 14.4, *)) {
             _secureItem.subtitle = [SecureInputMonitor isFallbackActive] ? @"Đang dùng bộ gõ Vietnamese của macOS" : @"Tạm chuyển sang tiếng Anh";
         }
+    }
+}
+
+//A new version: shown while there is one to install, being downloaded, or waiting for the restart
+-(void)refreshUpdateItem {
+    AppUpdater* updater = [AppUpdater shared];
+    NSString* version = updater.availableRelease.version;
+    _updateItem.hidden = NO;
+    _updateItem.enabled = YES;
+    switch (updater.state) {
+        case AppUpdaterStateAvailable:
+            _updateItem.title = [NSString stringWithFormat:@"Cập nhật lên %@…", version];
+            _updateItem.image = VOKSymbol(@"arrow.down.circle", 13, NSFontWeightRegular);
+            break;
+        case AppUpdaterStateDownloading:
+            _updateItem.title = updater.progress >= 0 ? [NSString stringWithFormat:@"Đang tải bản %@… %d%%", version, (int)(updater.progress * 100)]
+                                                      : [NSString stringWithFormat:@"Đang tải bản %@…", version];
+            _updateItem.image = VOKSymbol(@"arrow.down.circle", 13, NSFontWeightRegular);
+            _updateItem.enabled = NO;
+            break;
+        case AppUpdaterStateReady:
+            _updateItem.title = [NSString stringWithFormat:@"Khởi động lại để cập nhật lên %@", version];
+            _updateItem.image = VOKSymbol(@"arrow.triangle.2.circlepath", 13, NSFontWeightRegular);
+            break;
+        default:
+            _updateItem.hidden = YES;
+            break;
     }
 }
 
@@ -265,6 +299,13 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
 -(void)openAbout:(id)sender {
     [appDelegate onAboutSelected];
+}
+
+-(void)updateAction:(id)sender {
+    if ([AppUpdater shared].state == AppUpdaterStateReady)
+        [OpenKeyManager restartToUpdate:nil];
+    else
+        [OpenKeyManager showUpdateDialog:nil];
 }
 
 -(void)askPermissions:(id)sender {

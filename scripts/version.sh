@@ -6,9 +6,10 @@
 #   scripts/version.sh bump <bump>           raise the version in the Xcode project, the Windows resources and the change log
 #   scripts/version.sh notes                 print the change log entry of the current version (the release notes)
 #   scripts/version.sh announce [--no-windows]
-#                                            write the current version to version.json, which the apps read from the master
-#                                            branch to tell the user that a new version is out: do it last, when the files
-#                                            to download are online
+#                                            write the current version to version.json, which the Windows app (and the Mac apps older
+#                                            than the self-updating one) read from the master branch to tell the user that a new
+#                                            version is out: do it last, when the files to download are online. The current Mac app
+#                                            does not read it: it asks GitHub for the newest release
 #
 # <bump> is patch, minor, major, an explicit version such as 3.1.0, or "current" (no change, for a version that was
 # raised by hand and is not released yet).

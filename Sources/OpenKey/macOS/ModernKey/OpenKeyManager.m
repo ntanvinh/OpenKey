@@ -7,6 +7,7 @@
 //
 
 #import "OpenKeyManager.h"
+#import "AppUpdater.h"
 #import "SecureInputMonitor.h"
 #import "SuggestionController.h"
 #import "InputSourceGuard.h"
@@ -181,68 +182,180 @@ static CFRunLoopSourceRef runLoopSource;
     }
 }
 
-#pragma mark -AutoUpdate feature
+#pragma mark - Updates
 
-+(void)checkNewVersion:(NSWindow*)parent callbackFunc:(CheckNewVersionCallback) callback {
-    NSURLRequest* request = [NSURLRequest requestWithURL:[NSURL URLWithString:VOK_VERSION_JSON_URL]
-                                             cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
-                                         timeoutInterval:15];
-    [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        NSDictionary* latest = nil;
-        if (data != nil && ((NSHTTPURLResponse *)response).statusCode == 200) {
-            id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if ([object isKindOfClass:[NSDictionary class]])
-                latest = [object valueForKey:@"latestVersion"];
-        }
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (callback != nil) {
-                callback();
-            }
-            if (![latest isKindOfClass:[NSDictionary class]]) {
-                //the user asked for the check, so say it did not work instead of leaving them waiting
-                if (callback != nil)
-                    [self showMessage:parent message:@"Không kiểm tra được phiên bản mới" subMsg:@"Hãy kiểm tra kết nối mạng rồi thử lại."];
-                return;
-            }
-            NSInteger versionCode = [[latest valueForKey:@"versionCode"] integerValue];
-            NSInteger currentVersionCode = [[[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleVersion"] integerValue];
-            if (versionCode > currentVersionCode || callback != nil) {
-                [self showUpdateMessage:parent needUpdating:versionCode > currentVersionCode newVersion:[latest valueForKey:@"versionName"]];
-            }
-        });
-    }] resume];
+//The state of an update is AppUpdater's; here is what the user is told and asked. Looking for a new version, downloading it and
+//installing it are the same steps whether they were asked for or are automatic.
+
+static const NSTimeInterval kUpdateCheckInterval = 6 * 3600;    //while the app stays open for days
+static const NSTimeInterval kUpdateRetryInterval = 10 * 60;     //the Mac has not got its network yet when the app starts at login
+static NSTimer* sUpdateTimer;
+static NSString* sOfferedVersion;                               //the version that the user was already told about, in this run
+
++(void)startAutomaticUpdates {
+    [AppUpdater registerDefaults];
+    AppUpdater* updater = [AppUpdater shared];
+    NSString* failure = [updater takeLastInstallFailure];
+    if (failure != nil)
+        [self showMessage:nil message:@"Chưa cập nhật được VOpenKey AI" subMsg:failure];
+    [updater loadReadyUpdate:^{
+        if ([[NSUserDefaults standardUserDefaults] integerForKey:@"DontCheckUpdate"])
+            return;
+        //an update that was downloaded and not installed (the user said later) is installed now that the app starts: nothing is
+        //being typed. Once: if it did not work, the user is asked instead of the app restarting forever.
+        if (updater.state == AppUpdaterStateReady && [AppUpdater automaticInstallEnabled] && !updater.readyUpdateWasTried &&
+            [self installReadyUpdateAndQuit:nil showErrors:NO])
+            return;
+        [self scheduleUpdateCheck:0];
+    }];
 }
 
-+(void)showUpdateMessage:(NSWindow*)parent needUpdating:(BOOL)needUpdating newVersion:(NSString*)versionString {
-    NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:(needUpdating ? [NSString stringWithFormat:@"%@ có phiên bản mới (%@)", VOK_APP_NAME, versionString] : @"Bạn đang dùng phiên bản mới nhất")];
-    [alert setInformativeText:(needUpdating ? @"Trang tải về sẽ mở trong trình duyệt." : @"")];
-    
-    //buttons say what they do, not Yes and No; the one that goes on is the default
-    if (!needUpdating) {
-        [alert addButtonWithTitle:@"OK"];
++(void)scheduleUpdateCheck:(NSTimeInterval)delay {
+    [sUpdateTimer invalidate];
+    sUpdateTimer = [NSTimer timerWithTimeInterval:MAX(delay, 1) target:self selector:@selector(updateTimerFired:) userInfo:nil repeats:NO];
+    sUpdateTimer.tolerance = MIN(60, delay / 10);
+    [[NSRunLoop mainRunLoop] addTimer:sUpdateTimer forMode:NSRunLoopCommonModes];
+}
+
++(void)updateTimerFired:(NSTimer*)timer {
+    if ([[NSUserDefaults standardUserDefaults] integerForKey:@"DontCheckUpdate"])
+        return;                                                     //switched off: it is looked at again when the app starts
+    [[AppUpdater shared] checkForUpdate:^(AppUpdateRelease* release, NSError* error) {
+        [self scheduleUpdateCheck:error != nil ? kUpdateRetryInterval : kUpdateCheckInterval];
+        if (release != nil)
+            [self handleFoundRelease:release];
+    }];
+}
+
+//A check nobody asked for found a newer version: download it quietly, or say that it is there.
++(void)handleFoundRelease:(AppUpdateRelease*)release {
+    AppUpdater* updater = [AppUpdater shared];
+    BOOL automatic = [AppUpdater automaticInstallEnabled] && updater.reasonCannotInstall == nil;
+    if (updater.state == AppUpdaterStateDownloading || [sOfferedVersion isEqualToString:release.version])
+        return;
+    if (updater.state == AppUpdaterStateReady) {
+        sOfferedVersion = release.version;
+        [self showRestartMessage:nil];
+    } else if (automatic) {
+        [updater downloadUpdate:^(NSError* error) {
+            if (error == nil && updater.state == AppUpdaterStateReady) {
+                sOfferedVersion = release.version;
+                [self showRestartMessage:nil];
+            }                                                       //a failure is not worth an alert: the next check tries again
+        }];
     } else {
-        [alert addButtonWithTitle:@"Tải về"];
-        [alert addButtonWithTitle:@"Để sau"].keyEquivalent = @"\033";
+        sOfferedVersion = release.version;
+        [self showUpdateDialog:nil];
     }
+}
+
++(void)checkNewVersion:(NSWindow*)parent {
+    [[AppUpdater shared] checkForUpdate:^(AppUpdateRelease* release, NSError* error) {
+        if (error != nil) {
+            //the user asked for the check, so say it did not work instead of leaving them waiting
+            [self showMessage:parent message:@"Không kiểm tra được phiên bản mới"
+                       subMsg:[error.localizedDescription stringByAppendingString:@" Hãy kiểm tra kết nối mạng rồi thử lại."]];
+        } else if (release == nil) {
+            [self showMessage:parent message:@"Bạn đang dùng phiên bản mới nhất"
+                       subMsg:[NSString stringWithFormat:@"%@ %@", VOK_APP_NAME, [AppUpdater shared].currentVersion]];
+        } else {
+            [self showUpdateDialog:parent];
+        }
+    }];
+}
+
+//Shows an alert as a sheet of the window, or by itself above the other windows when there is none (the app has no window of its own to show)
++(void)present:(NSAlert*)alert parent:(NSWindow*)parent completion:(void (^)(NSModalResponse))completion {
     if (parent == nil) {
         [alert.window makeKeyAndOrderFront:nil];
         [alert.window setLevel:NSStatusWindowLevel];
-        NSModalResponse res = [alert runModal];
-        if (res == NSAlertFirstButtonReturn && needUpdating) {
-            [self openReleasePage];
-        }
+        NSModalResponse response = [alert runModal];
+        if (completion != nil) completion(response);
     } else {
-        [alert beginSheetModalForWindow:parent completionHandler:^(NSModalResponse returnCode) {
-            if (returnCode == NSAlertFirstButtonReturn && needUpdating) {
-                [self openReleasePage];
-            }
+        [alert beginSheetModalForWindow:parent completionHandler:^(NSModalResponse response) {
+            if (completion != nil) completion(response);
         }];
     }
 }
 
-+(void)openReleasePage {
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:VOK_RELEASES_URL]];
+//What to say about the new version, by how far it has come
++(void)showUpdateDialog:(NSWindow*)parent {
+    AppUpdater* updater = [AppUpdater shared];
+    AppUpdateRelease* release = updater.availableRelease;
+    if (release == nil)
+        return;
+    if (updater.state == AppUpdaterStateReady) {
+        [self showRestartMessage:parent];
+        return;
+    }
+    NSAlert* alert = [[NSAlert alloc] init];
+    alert.messageText = [NSString stringWithFormat:@"%@ có phiên bản mới (%@)", VOK_APP_NAME, release.version];
+    if (updater.state == AppUpdaterStateDownloading) {
+        alert.informativeText = @"Đang tải bản mới. Khi tải xong, bạn sẽ được hỏi có khởi động lại để cập nhật không.";
+        [alert addButtonWithTitle:@"OK"];
+        [self present:alert parent:parent completion:nil];
+        return;
+    }
+    NSString* reason = updater.reasonCannotInstall;
+    //buttons say what they do, not Yes and No; the one that goes on is the default
+    if (reason == nil) {
+        alert.informativeText = [NSString stringWithFormat:@"Bạn đang dùng %@. %@ sẽ tải bản mới rồi tự khởi động lại để cập nhật, mất vài giây.",
+                                 updater.currentVersion, VOK_APP_NAME];
+        [alert addButtonWithTitle:@"Cập nhật"];
+    } else {
+        alert.informativeText = [NSString stringWithFormat:@"%@\nTrang tải về sẽ mở trong trình duyệt.", reason];
+        [alert addButtonWithTitle:@"Tải về"];
+    }
+    [alert addButtonWithTitle:@"Để sau"].keyEquivalent = @"\033";
+    [self present:alert parent:parent completion:^(NSModalResponse response) {
+        if (response != NSAlertFirstButtonReturn)
+            return;
+        if (reason != nil)
+            [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:VOK_RELEASES_URL]];
+        else
+            [self downloadAndRestart:parent];
+    }];
+}
+
+//The user said yes: download, and when it is there restart without asking again
++(void)downloadAndRestart:(NSWindow*)parent {
+    [[AppUpdater shared] downloadUpdate:^(NSError* error) {
+        if (error == nil) {
+            [self installReadyUpdateAndQuit:parent showErrors:YES];
+        } else if (error.code != AppUpdateErrorCancelled) {
+            [self showMessage:parent message:@"Không cập nhật được" subMsg:error.localizedDescription];
+        }
+    }];
+}
+
++(void)showRestartMessage:(NSWindow*)parent {
+    AppUpdateRelease* release = [AppUpdater shared].availableRelease;
+    if (release == nil)
+        return;
+    NSAlert* alert = [[NSAlert alloc] init];
+    alert.messageText = [NSString stringWithFormat:@"%@ %@ đã sẵn sàng", VOK_APP_NAME, release.version];
+    alert.informativeText = @"Khởi động lại để dùng bản mới, mất vài giây. Nếu để sau, bản mới sẽ được cài khi bạn mở lại ứng dụng.";
+    [alert addButtonWithTitle:@"Khởi động lại"];
+    [alert addButtonWithTitle:@"Để sau"].keyEquivalent = @"\033";
+    [self present:alert parent:parent completion:^(NSModalResponse response) {
+        if (response == NSAlertFirstButtonReturn)
+            [self installReadyUpdateAndQuit:parent showErrors:YES];
+    }];
+}
+
++(void)restartToUpdate:(NSWindow*)parent {
+    [self installReadyUpdateAndQuit:parent showErrors:YES];
+}
+
+//Hands the app over to the helper that replaces it, and quits. NO when the helper could not start.
++(BOOL)installReadyUpdateAndQuit:(NSWindow*)parent showErrors:(BOOL)showErrors {
+    NSError* error = nil;
+    if ([[AppUpdater shared] installReadyUpdate:&error]) {
+        [NSApp terminate:nil];
+        return YES;
+    }
+    if (showErrors)
+        [self showMessage:parent message:@"Không cập nhật được" subMsg:error.localizedDescription];
+    return NO;
 }
 @end
