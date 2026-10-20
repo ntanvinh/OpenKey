@@ -738,6 +738,15 @@ extern "C" {
         return length > 0 ? [NSString stringWithCharacters:buffer length:length] : @"";
     }
 
+    //The full text of the abbreviation being typed, when the user has to confirm it (nil when it is none, or replaced at once)
+    NSString* CurrentMacroOffer() {
+        if (!vMacroNeedsConfirm || !vUseMacro)
+            return nil;
+        static Uint16 buffer[65536]; //a macro is at most 65535 bytes long
+        int length = vPeekMacro(buffer, 65536);
+        return length > 0 ? [NSString stringWithCharacters:buffer length:length] : nil;
+    }
+
     //The keys pressed for the word being typed, before Telex/VNI changed them ("hoso" when the screen shows an accent)
     NSString* CurrentRawTypingWord() {
         Uint16 buffer[MAX_BUFF];
@@ -941,7 +950,7 @@ extern "C" {
         //⌥Tab while the bar is up is a Tab that the bar does not take (to go on to the next field of a form). The Option is
         //taken off the key here, so the typing engine and the application both see an ordinary Tab
         bool tabForTheApplication = false;
-        if (type == kCGEventKeyDown && vSuggestEnabled && SuggestionIsOptionTab(_keycode, _flag) && [SuggestionController isShowing]) {
+        if (type == kCGEventKeyDown && VOK_SUGGESTION_ACTIVE && SuggestionIsOptionTab(_keycode, _flag) && [SuggestionController isShowing]) {
             _flag = SuggestionTakeOptionOff(event);
             _optionTabRewritten = true;
             tabForTheApplication = true;
@@ -1150,7 +1159,7 @@ extern "C" {
         }
         
         //Tab or ⌥1-5 chooses a suggestion from the bar
-        if (type == kCGEventKeyDown && vSuggestEnabled && !tabForTheApplication && [SuggestionController isShowing] && !OverlayHasKeyboard()) {
+        if (type == kCGEventKeyDown && VOK_SUGGESTION_ACTIVE && !tabForTheApplication && [SuggestionController isShowing] && !OverlayHasKeyboard()) {
             int slot = SuggestionSlotForKey(_keycode, _flag, vSuggestTabAccepts != 0);
             if (slot >= 0) {
                 NSString* suggestion = nil;
@@ -1174,14 +1183,14 @@ extern "C" {
                             _keycode,
                             _flag & kCGEventFlagMaskShift ? 1 : (_flag & kCGEventFlagMaskAlphaShift ? 2 : 0),
                             OTHER_CONTROL_KEY);
-            if (vSuggestEnabled && !OverlayHasKeyboard()) { //the windows of the snippets and of the AI are not places to suggest words in
+            if (VOK_SUGGESTION_ACTIVE && !OverlayHasKeyboard()) { //the windows of the snippets and of the AI are not places to suggest words in
                 VOKSuggestionKey kind = VOKSuggestionKeyOther;
                 if (_keycode == KEY_SPACE && !(OTHER_CONTROL_KEY) && pData->code == vDoNothing) {
                     kind = VOKSuggestionKeySpace;
                 } else if (_keycode == KEY_DELETE) {
                     kind = VOKSuggestionKeyDelete;
                 }
-                [SuggestionController keyProcessed:kind word:CurrentTypingWord() raw:CurrentRawTypingWord()];
+                [SuggestionController keyProcessed:kind word:CurrentTypingWord() raw:CurrentRawTypingWord() macro:CurrentMacroOffer()];
             }
             if (pData->code == vDoNothing) { //do nothing
                 if (IS_DOUBLE_CODE(vCodeTable)) { //VNI

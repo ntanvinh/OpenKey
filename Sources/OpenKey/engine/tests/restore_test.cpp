@@ -77,6 +77,14 @@ static void apply(const vKeyHookState& answer, char typed) {
                 screen += (char16_t)typed; //the key that ended the word is typed again after it
             break;
         }
+        case vReplaceMaro: {
+            size_t erase = answer.backspaceCount;
+            screen.erase(screen.size() >= erase ? screen.size() - erase : 0);
+            for (size_t i = 0; i < answer.macroData.size(); i++)
+                screen += characterOf(answer.macroData[i]);
+            screen += (char16_t)typed; //the key that ended the abbreviation follows the text
+            break;
+        }
         default:
             break;
     }
@@ -276,6 +284,63 @@ int main() {
                 }
             }
         }
+    }
+
+    // 14. abbreviations: replaced at once, or only offered (vPeekMacro) when the platform asks the user first
+    {
+        addMacro("vn", "Việt Nam");
+        addMacro("btw", "by the way");
+        addMacro("ko", "không");
+        vUseMacro = 1;
+        Uint16 offer[64];
+        auto peek = [&]() { return utf8(std::u16string((const char16_t*)offer, vPeekMacro(offer, 64))); };
+
+        // as it always was
+        vMacroNeedsConfirm = 0;
+        EXPECT("vn ", 0, 0, "Việt Nam ");
+        EXPECT("vn.", 0, 0, "Việt Nam.");
+        EXPECT("btw ", 0, 0, "by the way ");
+
+        // asking first: the abbreviation stays what was typed, with a space and with a break key
+        vMacroNeedsConfirm = 1;
+        EXPECT("vn ", 0, 0, "vn ");
+        EXPECT("vn.", 0, 0, "vn.");
+        EXPECT("khoaconvoi.com.vn ", 0, 0, "khoaconvoi.com.vn ");
+        EXPECT("btw ", 0, 0, "btw ");
+        EXPECT("ko ", 0, 0, "ko ");
+        EXPECT("xin chaof ", 0, 0, "xin chào ");           // the rest of typing is untouched
+
+        // what the platform may offer while the abbreviation is typed
+        newWord(); type("vn");
+        CHECK(peek() == "Việt Nam");
+        newWord(); type("v");
+        CHECK(peek().empty());                               // "v" is no abbreviation
+        newWord(); type("vnn");
+        CHECK(peek().empty());
+        newWord(); type("ko");
+        CHECK(peek() == "không");
+        newWord(); type("vn ");
+        CHECK(peek().empty());                               // the word is over
+        vAutoCapsMacro = 1;
+        newWord(); type("Vn");
+        CHECK(peek() == "Việt Nam");                         // upper case first letter: "Vn" -> the same text capitalised
+        newWord(); type("VN");
+        CHECK(peek() == "VIỆT NAM");
+        newWord(); type("Btw");
+        CHECK(peek() == "By the way");
+        vAutoCapsMacro = 0;
+
+        // only the Unicode table can be shown to the user: another table replaces at once
+        vCodeTable = 1;
+        vMacroNeedsConfirm = 1;
+        newWord(); type("vn ");
+        CHECK(!screen.empty() && screen != u"vn ");
+        vCodeTable = 0;
+
+        vMacroNeedsConfirm = 0;
+        vUseMacro = 0;
+        newWord(); type("vn");
+        CHECK(vPeekMacro(offer, 64) == 0);                   // abbreviations off: nothing to offer
     }
 
     printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);

@@ -163,6 +163,48 @@ int vGetTypingWord(Uint16* out, const int& maxCount) {
     return _index;
 }
 
+int vMacroNeedsConfirm = 0;
+
+//Replacing at once is what happens unless the user is asked first, and only Unicode text can be put in front of the user
+static bool macroWaitsForConfirmation() {
+    return vMacroNeedsConfirm && vCodeTable == 0;
+}
+
+int vPeekMacro(Uint16* out, const int& maxCount) {
+    if (!vUseMacro || hMacroKey.empty() || _willTempOffEngine)
+        return 0;
+    vector<Uint32> key = hMacroKey; //findMacro rewrites its argument
+    vector<Uint32> content;
+    if (!findMacro(key, content) || content.empty())
+        return 0;
+    int length = 0;
+    for (size_t n = 0; n < content.size(); n++) {
+        Uint32 code = content[n];
+        Uint32 character;
+        if (code & PURE_CHARACTER_MASK) {
+            character = code & ~PURE_CHARACTER_MASK;
+        } else if (code & CHAR_CODE_MASK) {
+            character = (Uint16)code; //Unicode table: low 16 bits are the character
+        } else {
+            character = keyCodeToCharacter(code);
+            if (character == 0)
+                return 0;
+        }
+        if (character > 0xFFFF) { //an emoji: a surrogate pair
+            if (length + 2 > maxCount)
+                return 0;
+            character -= 0x10000;
+            out[length++] = (Uint16)(0xD800 + (character >> 10));
+            out[length++] = (Uint16)(0xDC00 + (character & 0x3FF));
+        } else {
+            if (length + 1 > maxCount)
+                return 0;
+            out[length++] = (Uint16)character;
+        }
+    }
+    return length;
+}
+
 int vGetTypingRawWord(Uint16* out, const int& maxCount) {
     if (_index == 0 || _stateIndex == 0 || _stateIndex > maxCount || _spaceCount > 0 || _willTempOffEngine ||
         _specialChar.size() > 0 || _longWordHelper.size() > 0)
@@ -1404,7 +1446,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         hExt = 1; //word break
         
         //check macro feature
-        if (vUseMacro && isMacroBreakCode(data) && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) {
+        if (vUseMacro && !macroWaitsForConfirmation() && isMacroBreakCode(data) && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) {
             hCode = vReplaceMaro;
             hBPC = (Byte)hMacroKey.size();
             _hasHandledMacro = true;
@@ -1467,7 +1509,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         if (!tempDisableKey && (vCheckSpelling || vRestoreIfWrongSpelling)) {
             checkSpelling(true); //force check spelling
         }
-        if (vUseMacro && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) { //macro
+        if (vUseMacro && !macroWaitsForConfirmation() && !_hasHandledMacro && findMacro(hMacroKey, hMacroData)) { //macro
             hCode = vReplaceMaro;
             hBPC = (Byte)hMacroKey.size();
             _spaceCount++;

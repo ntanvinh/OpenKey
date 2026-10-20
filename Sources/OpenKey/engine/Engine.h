@@ -114,6 +114,14 @@ extern int vFixRecommendBrowser;
 extern int vUseMacro;
 
 /**
+ * The platform has a place to ask the user (the suggestion bar) before an abbreviation is replaced.
+ * 1: typing the abbreviation and then a space or a break key does NOT replace it, the platform offers the full text
+ *    (vPeekMacro) and types it only when the user chooses it. Matters for "vn" at the end of "example.com.vn".
+ * 0: replace at once (default, and always the case in the english mode and with a code table other than Unicode)
+ */
+extern int vMacroNeedsConfirm;
+
+/**
  * Still use macro if you are in english mode
  */
 extern int vUseMacroInEnglishMode;
@@ -228,6 +236,13 @@ int vGetTypingWord(Uint16* out, const int& maxCount);
  * if the screen shows "ho" with an accent). Same rules as vGetTypingWord, but works with any code table.
  */
 int vGetTypingRawWord(Uint16* out, const int& maxCount);
+
+/**
+ * The full text of the abbreviation typed so far (the keys since the last word break), as UTF-16 into out, with the case rule
+ * of vAutoCapsMacro. Returns the length, 0 when the typed keys are no abbreviation. Only for the Unicode table. Read only.
+ * The platform shows it to the user when vMacroNeedsConfirm is on.
+ */
+int vPeekMacro(Uint16* out, const int& maxCount);
 
 /**
  * do some task in english mode (use for macro)

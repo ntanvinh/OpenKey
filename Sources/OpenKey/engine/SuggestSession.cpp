@@ -47,6 +47,7 @@ void Session::hideNow() {
     mode_ = Mode::Idle;
     candidates_.clear();
     shownFor_.clear();
+    macroShown_ = false;
     if (showing_) {
         showing_ = false;
         host_.hideCandidates();
@@ -60,7 +61,8 @@ void Session::reset() {
     hideNow();
 }
 
-void Session::keyProcessed(KeyKind kind, const std::string& currentWord, const std::string& rawWord) {
+void Session::keyProcessed(KeyKind kind, const std::string& currentWord, const std::string& rawWord,
+                           const std::string& macroText) {
     if (!settings_.enabled)
         return;
 
@@ -73,6 +75,7 @@ void Session::keyProcessed(KeyKind kind, const std::string& currentWord, const s
         lastWord_ = currentWord;
         typed_ = currentWord;
         rawTyped_ = rawWord;
+        macro_ = macroText;
         mode_ = Mode::Typing;
         dirty_ = true;
         return;
@@ -111,13 +114,16 @@ void Session::refresh() {
         hideNow();
         return;
     }
-    //a single letter says too little, unless the words before it narrow it down
-    if (mode_ == Mode::Typing && codePointCount(typed_) < 2 && context_.empty()) {
+    const bool hasMacro = mode_ == Mode::Typing && !macro_.empty();
+    //a single letter says too little, unless the words before it narrow it down. An abbreviation can be one letter
+    if (mode_ == Mode::Typing && codePointCount(typed_) < 2 && context_.empty() && !hasMacro) {
         hideNow();
         return;
     }
-    std::vector<Candidate> found = engine_.suggest(context_, typed_, settings_.maxCandidates);
-    if (settings_.compounds && mode_ == Mode::Typing) {
+    std::vector<Candidate> found;
+    if (settings_.words)
+        found = engine_.suggest(context_, typed_, settings_.maxCandidates);
+    if (settings_.words && settings_.compounds && mode_ == Mode::Typing) {
         std::vector<std::string> inputs(1, typed_);
         if (!rawTyped_.empty() && rawTyped_ != typed_)
             inputs.push_back(rawTyped_);
@@ -134,10 +140,19 @@ void Session::refresh() {
         if (found.size() > settings_.maxCandidates)
             found.resize(settings_.maxCandidates);
     }
+    if (hasMacro) { //first, so that Tab takes it
+        Candidate macro;
+        macro.text = macro_;
+        macro.score = 0;
+        found.insert(found.begin(), macro);
+        if (found.size() > settings_.maxCandidates)
+            found.resize(settings_.maxCandidates);
+    }
     if (found.empty()) {
         hideNow();
         return;
     }
+    macroShown_ = hasMacro;
     candidates_ = found;
     shownFor_ = typed_;
     showing_ = true;
@@ -153,6 +168,22 @@ bool Session::accept(size_t slot, const std::string& currentWord, Acceptance& ou
     const std::string word = candidates_[slot].text;
     out.text = word + " ";
     out.eraseCount = codePointCount(currentWord);
+
+    if (macroShown_ && slot == 0) { //an abbreviation is no word of the user: nothing to learn, and the text before it is over
+        context_.clear();
+        lastWord_.clear();
+        candidates_.clear();
+        shownFor_.clear();
+        macroShown_ = false;
+        if (settings_.nextWord && settings_.words) {
+            typed_.clear();
+            mode_ = Mode::NextWord;
+            dirty_ = true;
+        } else {
+            hideNow();
+        }
+        return true;
+    }
 
     //a compound is several words: all of them become context, and the compound itself is remembered
     std::vector<std::string> syllables;
@@ -174,6 +205,7 @@ bool Session::accept(size_t slot, const std::string& currentWord, Acceptance& ou
     //to accept, until refresh() replaces it with the new list or hides it
     candidates_.clear();
     shownFor_.clear();
+    macroShown_ = false;
     if (settings_.nextWord) {
         typed_.clear();
         mode_ = Mode::NextWord;

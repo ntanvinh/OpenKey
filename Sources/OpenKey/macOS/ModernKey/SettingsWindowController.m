@@ -566,6 +566,12 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 -(NSView*)sectionMacro {
     SettingsToggle* macro = [SettingsToggle title:@"Cho phép gõ tắt" detail:@"Gõ ngắn, ra cả cụm từ để tiết kiệm thời gian."
                                               key:@"UseMacro" variable:&vUseMacro];
+    macro.onChange = ^(BOOL on) { [SuggestionController reloadSettings]; };
+    SettingsToggle* confirm = [SettingsToggle title:@"Hỏi trước khi thay chữ viết tắt"
+                                             detail:@"Chữ viết tắt không tự đổi: bản đầy đủ hiện trên thanh gợi ý, bấm Tab (hoặc ⌥1) để thay. Gõ tiếp thì giữ nguyên, ví dụ vn ở cuối tên miền .com.vn. Không áp dụng khi tắt gõ tiếng Việt."
+                                                key:@"MacroConfirm" variable:&vMacroConfirm];
+    confirm.onChange = ^(BOOL on) { [SuggestionController reloadSettings]; };
+    confirm.parent = macro;
     SettingsToggle* inEnglish = [SettingsToggle title:@"Gõ tắt cả khi tắt gõ tiếng Việt" detail:nil
                                                   key:@"UseMacroInEnglishMode" variable:&vUseMacroInEnglishMode];
     SettingsToggle* capitalize = [SettingsToggle title:@"Tự động viết hoa theo phím tắt" detail:nil
@@ -573,7 +579,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSButton* edit = [NSButton buttonWithTitle:@"Bảng gõ tắt…" target:self action:@selector(openMacroTable:)];
 
     NSMutableArray* rows = [NSMutableArray array];
-    for (SettingsToggle* toggle in @[macro, inEnglish, capitalize])
+    for (SettingsToggle* toggle in @[macro, confirm, inEnglish, capitalize])
         [rows addObject:[self rowForToggle:toggle]];
     [rows addObject:[self buttonRowWithTitle:@"Danh sách gõ tắt" detail:@"Thêm, sửa, nhập và xuất các từ gõ tắt." button:edit]];
     return [self sectionWithTitle:@"Gõ tắt" rows:rows];

@@ -18,6 +18,9 @@ int vSuggestNextWord = 1;
 int vSuggestLearn = 1;
 int vSuggestCompounds = 1;
 int vSuggestTabAccepts = 1;
+int vMacroConfirm = 1;
+
+extern int vMacroNeedsConfirm; //Engine.cpp
 
 static NSString* const kExcludedAppsKey = @"SuggestionExcludedApps"; //optional: extra bundle ids to leave alone
 
@@ -48,10 +51,22 @@ private:
 -(void)hideBar;
 @end
 
+//A word fits the bar, the full text of an abbreviation may be a paragraph: one line, not too long (what is typed is the full text)
+static NSString* BarText(const std::string& text) {
+    static const NSUInteger kMaxLength = 36;
+    NSString* line = [ToNSString(text) stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+    line = [line stringByReplacingOccurrencesOfString:@"\r" withString:@""];
+    line = [line stringByReplacingOccurrencesOfString:@"\t" withString:@" "];
+    if (line.length <= kMaxLength)
+        return line;
+    NSRange safe = [line rangeOfComposedCharacterSequenceAtIndex:kMaxLength - 1];
+    return [[line substringToIndex:NSMaxRange(safe)] stringByAppendingString:@"…"];
+}
+
 void BarHost::showCandidates(const std::vector<vsuggest::Candidate>& candidates, const std::string& typed) {
     NSMutableArray<NSString*>* words = [NSMutableArray array];
     for (const vsuggest::Candidate& c : candidates)
-        [words addObject:ToNSString(c.text)];
+        [words addObject:BarText(c.text)];
     [owner_ showBarWithWords:words typed:ToNSString(typed)];
 }
 
@@ -165,7 +180,8 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 +(void)registerDefaults {
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"SuggestionNextWord": @1, @"SuggestionLearn": @1,
-                                                              @"SuggestionCompounds": @1, @"SuggestionTab": @1}];
+                                                              @"SuggestionCompounds": @1, @"SuggestionTab": @1,
+                                                              @"MacroConfirm": @1}];
 }
 
 +(void)start {
@@ -188,6 +204,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     vSuggestLearn = (int)[defaults integerForKey:@"SuggestionLearn"];
     vSuggestCompounds = (int)[defaults integerForKey:@"SuggestionCompounds"];
     vSuggestTabAccepts = (int)[defaults integerForKey:@"SuggestionTab"];
+    vMacroConfirm = (int)[defaults integerForKey:@"MacroConfirm"];
 
     _accessibilityQueue = dispatch_queue_create("vn.io.lssoft.vopenkey.suggestion.accessibility", DISPATCH_QUEUE_SERIAL);
 
@@ -249,11 +266,15 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 -(void)applySettings {
     vsuggest::Settings settings;
-    settings.enabled = vSuggestEnabled && !_appExcluded;
+    //The bar is also there for abbreviations alone (words off). Where it cannot be (Terminal...) they are replaced at once, as before.
+    BOOL askAboutMacros = vUseMacro && vMacroConfirm && !_appExcluded;
+    settings.enabled = (vSuggestEnabled && !_appExcluded) || askAboutMacros;
+    settings.words = vSuggestEnabled && !_appExcluded;
     settings.nextWord = vSuggestNextWord;
     settings.learn = vSuggestLearn;
     settings.compounds = vSuggestCompounds;
     _session->setSettings(settings);
+    vMacroNeedsConfirm = askAboutMacros;
 }
 
 #pragma mark - Called while typing
@@ -306,13 +327,13 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         [s resetState];
 }
 
-+(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw {
++(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw macro:(NSString*)macro {
     SuggestionController* s = [self shared];
     if (!s->_started || !s->_session->settings().enabled)
         return;
     vsuggest::KeyKind kind = key == VOKSuggestionKeySpace ? vsuggest::KeyKind::Space :
                              (key == VOKSuggestionKeyDelete ? vsuggest::KeyKind::Delete : vsuggest::KeyKind::Other);
-    s->_session->keyProcessed(kind, word.UTF8String ?: "", raw.UTF8String ?: "");
+    s->_session->keyProcessed(kind, word.UTF8String ?: "", raw.UTF8String ?: "", macro.UTF8String ?: "");
     [s scheduleRefresh];
 }
 

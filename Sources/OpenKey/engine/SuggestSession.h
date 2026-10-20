@@ -13,6 +13,9 @@
 //      Alt/Option+Tab is an ordinary Tab: the way to go on to the next field of a form while the bar is up (Tab is also
 //                     the key that moves between fields). The platform turns it into a plain Tab and lets it through,
 //                     the session sees it as any other key that is not part of a word.
+//  An abbreviation (macro) the user must confirm is offered the same way: keyProcessed gets its full text, it is the first
+//  suggestion and Tab / Alt+1 types it instead of the abbreviation. Not choosing it leaves the abbreviation as typed
+//  ("vn" at the end of "example.com.vn"). Settings::words = false gives a bar with only that and nothing else.
 //  Accepting replaces the word typed so far with the suggestion followed by a space, and the bar
 //  goes on with the next word prediction, so a sentence can be typed with Tab Tab Tab.
 //
@@ -59,6 +62,7 @@ enum class KeyKind {
 
 struct Settings {
     bool enabled = false;
+    bool words = true;          //suggest words (false: the bar is only for abbreviations that wait for the user)
     bool nextWord = true;       //predict the next word after a space, before anything is typed
     bool learn = true;          //remember the user's words and word pairs
     bool compounds = true;      //suggest compound words too: "thietke" gives the compound with its accents
@@ -82,8 +86,11 @@ public:
      * currentWord: the word now on screen (what vGetTypingWord returns, as UTF-8), empty if no word is in progress.
      * rawWord: the keys pressed for it (vGetTypingRawWord), optional. Telex may have turned them into accents,
      * compounds typed without accents are looked up with these as well.
+     * macroText: the full text of the abbreviation that currentWord is (UTF-8), empty when it is none or when the
+     * abbreviation is replaced without asking.
      */
-    void keyProcessed(KeyKind kind, const std::string& currentWord, const std::string& rawWord = std::string());
+    void keyProcessed(KeyKind kind, const std::string& currentWord, const std::string& rawWord = std::string(),
+                      const std::string& macroText = std::string());
 
     /** Computes the suggestions for the last keyProcessed and shows them. Cheap when nothing changed. */
     void refresh();
@@ -117,6 +124,8 @@ private:
     std::string lastWord_;             //last word seen while typing, committed by the next space
     std::string typed_;                //what the pending refresh is for
     std::string rawTyped_;             //the keys behind typed_
+    std::string macro_;                //the full text of typed_ if it is an abbreviation waiting for the user
+    bool macroShown_ = false;          //candidate 0 is that abbreviation
     Mode mode_ = Mode::Idle;
     bool dirty_ = false;
 

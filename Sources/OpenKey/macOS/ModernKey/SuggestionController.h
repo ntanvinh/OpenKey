@@ -21,7 +21,12 @@ extern int vSuggestEnabled;
 extern int vSuggestNextWord;
 extern int vSuggestLearn;
 extern int vSuggestCompounds;
+extern int vMacroConfirm;      //an abbreviation is not replaced by itself: the bar offers its full text, Tab or ⌥1 types it (on by default)
 extern int vSuggestTabAccepts; //Tab chooses the first suggestion (on by default); ⌥Tab is an ordinary Tab, for the fields of a form
+
+/// The bar is in use: for words, or only for the abbreviations that wait for the user.
+extern int vUseMacro;
+#define VOK_SUGGESTION_ACTIVE (vSuggestEnabled || (vUseMacro && vMacroConfirm))
 
 @interface SuggestionController : NSObject
 
@@ -49,7 +54,8 @@ extern int vSuggestTabAccepts; //Tab chooses the first suggestion (on by default
 
 /// A key was handled by the typing engine. word is the word now on screen, empty if there is none;
 /// raw is the keys pressed for it, before Telex or VNI turned them into accents.
-+(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw;
+/// macro is the full text of the word when it is an abbreviation that waits for the user (vPeekMacro), nil otherwise.
++(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw macro:(NSString* _Nullable)macro;
 
 /// Tab or ⌥1-5 was pressed. Returns YES when it chose a suggestion: swallow the key, delete `erase`
 /// characters and type `text`.

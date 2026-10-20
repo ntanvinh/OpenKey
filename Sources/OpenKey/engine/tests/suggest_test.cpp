@@ -343,6 +343,59 @@ int main(int argc, char** argv) {
         CHECK(top(after) == "sinh viên");
     }
 
+    // ---- 9b. abbreviations the user has to confirm ("vn" must stay "vn" at the end of a domain name)
+    {
+        Engine e; e.loadText(kDict);
+        FakeHost host;
+        Session s(e, host);
+        Settings st; st.enabled = true; s.setSettings(st);
+        Acceptance a;
+        const std::string vietnam = "Vi\xE1\xBB\x87t Nam";   // Việt Nam
+
+        // one letter is enough for an abbreviation, and it is the first suggestion
+        s.keyProcessed(KeyKind::Other, "v", "v", vietnam); s.refresh();
+        CHECK(host.visible && top(host.shown) == vietnam);
+        s.keyProcessed(KeyKind::Other, "vn", "vn", vietnam); s.refresh();
+        CHECK(host.visible && top(host.shown) == vietnam);
+        // a bar that was made for another word does not accept
+        CHECK(!s.accept(0, "v", a));
+        CHECK(s.accept(0, "vn", a));
+        CHECK(a.text == vietnam + " " && a.eraseCount == 2);
+        CHECK(s.context().empty());                                   // nothing of it was learned
+        CHECK(e.serializeUser().find("Vi") == std::string::npos);
+
+        // not choosing it: the next key ends the word, nothing replaces it
+        s.reset();
+        s.keyProcessed(KeyKind::Other, "vn", "vn", vietnam); s.refresh();
+        CHECK(host.visible);
+        s.keyProcessed(KeyKind::Space, "", "");
+        s.refresh();
+        CHECK(!(host.visible && top(host.shown) == vietnam));
+
+        // a word that is no abbreviation: the usual suggestions, and one letter still says too little
+        s.reset();
+        s.keyProcessed(KeyKind::Other, "h", "h"); s.refresh();
+        CHECK(!host.visible);
+        s.keyProcessed(KeyKind::Other, "ho", "ho"); s.refresh();
+        CHECK(host.visible && top(host.shown) != "");
+
+        // an abbreviation that is also the start of words: the abbreviation first, the words after it
+        s.reset();
+        s.keyProcessed(KeyKind::Other, "ho", "ho", "hello"); s.refresh();
+        CHECK(top(host.shown) == "hello" && host.shown.size() > 1);
+        CHECK(s.accept(1, "ho", a) && a.text != "hello ");            // a word of the list still works
+
+        // only the abbreviations: no words, no next word prediction, no learning
+        Settings onlyMacros = st; onlyMacros.words = false; s.setSettings(onlyMacros); s.reset();
+        s.keyProcessed(KeyKind::Other, "ho", "ho"); s.refresh();
+        CHECK(!host.visible);
+        s.keyProcessed(KeyKind::Other, "vn", "vn", vietnam); s.refresh();
+        CHECK(host.visible && host.shown.size() == 1 && top(host.shown) == vietnam);
+        CHECK(s.accept(0, "vn", a) && a.text == vietnam + " ");
+        s.refresh();
+        CHECK(!host.visible);                                         // no next word prediction after it
+    }
+
     // ---- 10. the shipped dictionary, when it is given
     if (argc > 1) {
         std::ifstream in(argv[1], std::ios::binary);

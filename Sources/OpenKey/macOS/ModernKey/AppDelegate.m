@@ -247,6 +247,7 @@ extern bool convertToolDontAlertWhenCompleted;
     vSuggestLearn = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestLearn forKey:@"SuggestionLearn"];
     vSuggestCompounds = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestCompounds forKey:@"SuggestionCompounds"];
     vSuggestTabAccepts = 1;[[NSUserDefaults standardUserDefaults] setInteger:vSuggestTabAccepts forKey:@"SuggestionTab"];
+    vMacroConfirm = 1;[[NSUserDefaults standardUserDefaults] setInteger:vMacroConfirm forKey:@"MacroConfirm"];
     [SuggestionController reloadSettings];
     vForceABC = 1;[[NSUserDefaults standardUserDefaults] setInteger:vForceABC forKey:@"ForceABCWhenVietnamese"];
     [InputSourceGuard enforce];
