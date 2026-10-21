@@ -1,0 +1,14 @@
+{
+  "restore-accidental-typing": {
+    "shows": "The Input settings page with the auto-restore switch and the ⌥Space restore key",
+    "inUse": false
+  },
+  "contextual-word-suggestions": {
+    "shows": "The Suggestion settings page with the suggestion bar switched on",
+    "inUse": false
+  },
+  "smooth-vietnamese-typing": {
+    "shows": "The Apps settings page with the \"Sửa lỗi gợi ý\" option on",
+    "inUse": false
+  }
+}
