@@ -16,5 +16,6 @@
   "screens": [
     "Suggestion bar",
     "Suggestion settings"
-  ]
+  ],
+  "image": "../screenshots/desktop/07-contextual-word-suggestions.png"
 }

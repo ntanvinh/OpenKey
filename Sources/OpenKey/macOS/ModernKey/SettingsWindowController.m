@@ -145,6 +145,21 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 @interface SettingsTabs : NSTabViewController
 @end
 
+//The app has no main menu, so ⌘W would do nothing: the settings window handles it (and Esc) itself, like System Settings.
+@interface SettingsWindow : NSWindow
+@end
+
+@implementation SettingsWindow
+-(BOOL)performKeyEquivalent:(NSEvent*)event {
+    NSEventModifierFlags flags = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask;
+    if (flags == NSEventModifierFlagCommand && [event.charactersIgnoringModifiers isEqualToString:@"w"]) {
+        [self performClose:nil];
+        return YES;
+    }
+    return [super performKeyEquivalent:event];
+}
+@end
+
 @implementation SettingsTabs
 -(void)tabView:(NSTabView*)tabView didSelectTabViewItem:(NSTabViewItem*)tabViewItem {
     [super tabView:tabView didSelectTabViewItem:tabViewItem];
@@ -205,8 +220,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 }
 
 -(instancetype)init {
-    NSWindow* window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 560, 400)
-                                                   styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
+    NSWindow* window = [[SettingsWindow alloc] initWithContentRect:NSMakeRect(0, 0, 560, 400)
+                                                   styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable //only the close button, as in System Settings
                                                      backing:NSBackingStoreBuffered
                                                        defer:NO];
     window.toolbarStyle = NSWindowToolbarStylePreference;

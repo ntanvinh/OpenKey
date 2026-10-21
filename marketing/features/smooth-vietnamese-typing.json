@@ -16,5 +16,6 @@
   "screens": [
     "Input settings",
     "Text entry"
-  ]
+  ],
+  "image": "../screenshots/desktop/08-smooth-vietnamese-typing.png"
 }

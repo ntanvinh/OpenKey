@@ -16,5 +16,6 @@
   "screens": [
     "AI assistant",
     "AI settings"
-  ]
+  ],
+  "image": "../screenshots/desktop/04-ai-image-generation.png"
 }

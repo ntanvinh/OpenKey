@@ -17,5 +17,6 @@
     "Snippet palette",
     "Snippet management",
     "Snippet settings"
-  ]
+  ],
+  "image": "../screenshots/desktop/05-prompt-snippet-library.png"
 }

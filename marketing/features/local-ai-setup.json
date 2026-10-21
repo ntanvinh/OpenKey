@@ -16,5 +16,6 @@
   "screens": [
     "AI settings",
     "Local AI setup"
-  ]
+  ],
+  "image": "../screenshots/desktop/02-local-ai-setup.png"
 }
