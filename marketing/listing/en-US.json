@@ -5,12 +5,12 @@
     "name": "VOpenKey AI: Vietnamese",
     "subtitle": "Recover mistyped words",
     "promotionalText": "Recover words changed during Vietnamese typing. Open snippets or an AI writing assistant with a shortcut.",
-    "description": "Keep Vietnamese typing in flow. VOpenKey AI combines a Vietnamese input method with writing tools you can open from keyboard shortcuts.\n\nTYPE WITH MORE CONTROL\n• Choose Telex, VNI, or Simple Telex.\n• Automatically restore non-Vietnamese words changed during typing, or use a shortcut to recover the current word.\n• See optional, context-aware Vietnamese suggestions, including for phrases typed without diacritics.\n• Convert text between supported Vietnamese encodings, including older text to Unicode.\n\nWRITE WITH SHORTCUTS\n• Search and insert snippets in any app; search works without Vietnamese diacritics.\n• Expand repeated text with custom macros.\n• Open an AI writing assistant to draft, translate, or revise text. Choose a hosted service, a local model, or a supported signed-in command-line agent.\n• When Codex CLI is selected, create an image from a prompt, then copy or insert it.\n\nTune typing rules and shortcuts to your workflow. VOpenKey AI is open source under GPL-3.0. Start by choosing an input method and the writing tools you want to use.",
+    "description": "Keep Vietnamese typing in flow. VOpenKey AI combines a Vietnamese input method with writing tools you can open from keyboard shortcuts.\n\nType with more control\n• Choose Telex, VNI, or Simple Telex.\n• Automatically restore non-Vietnamese words changed during typing, or use a shortcut to recover the current word.\n• See optional, context-aware Vietnamese suggestions, including for phrases typed without diacritics.\n• Convert text between supported Vietnamese encodings, including older text to Unicode.\n\nWrite with shortcuts\n• Search and insert snippets in any app; search works without Vietnamese diacritics.\n• Expand repeated text with custom macros.\n• Open an AI writing assistant to draft, translate, or revise text. Choose a hosted service, a local model, or a supported signed-in command-line agent.\n• When Codex CLI is selected, create an image from a prompt, then copy or insert it.\n\nTune typing rules and shortcuts to your workflow. VOpenKey AI is open source under GPL-3.0. Start by choosing an input method and the writing tools you want to use.",
     "keywords": "telex,vni,spelling,autocorrect,snippets,macros,encoding,converter,accents,restore",
     "whatsNew": "General improvements to the typing and writing experience.",
-    "supportUrl": "",
-    "marketingUrl": "",
-    "privacyUrl": ""
+    "supportUrl": "https://lssoft.io.vn/en/vopenkey-ai/",
+    "marketingUrl": "https://lssoft.io.vn/en/vopenkey-ai/",
+    "privacyUrl": "https://lssoft.io.vn/en/vopenkey-ai/privacy-policy"
   },
   "android": {
     "title": "VOpenKey AI: Vietnamese",

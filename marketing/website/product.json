@@ -9,8 +9,8 @@
     "vi": "Gõ tiếng Việt, lỡ tay vẫn sửa được."
   },
   "description": {
-    "en": "VOpenKey AI is a macOS Vietnamese input method and writing companion for people who work in Vietnamese across apps. Recover words the input method changes unexpectedly, then use shortcuts for reusable snippets or an optional AI assistant. Choose Telex, VNI, or Simple Telex and tailor your typing rules.",
-    "vi": "VOpenKey AI là bộ gõ tiếng Việt kiêm trợ lý viết trên macOS, dành cho người thường làm việc bằng tiếng Việt ở nhiều ứng dụng. Nếu bộ gõ đổi nhầm một từ, bạn có thể khôi phục từ đó rồi tiếp tục gõ; snippet và trợ lý AI giúp xử lý nhanh những nội dung hay dùng. Bạn chọn Telex, VNI hoặc Simple Telex và tùy chỉnh quy tắc gõ theo thói quen."
+    "en": "Vietnamese input on Mac helps you recover words changed by typing, then write across apps with shortcuts for snippets and an optional AI assistant.",
+    "vi": "Bộ gõ tiếng Việt trên Mac giúp bạn khôi phục từ bị đổi nhầm, cùng snippet và trợ lý AI tùy chọn để viết nhanh trong nhiều ứng dụng."
   },
   "seo": {
     "keywords": {
@@ -29,14 +29,14 @@
       "vi": [
         "bộ gõ",
         "gõ tiếng Việt",
-        "go Telex",
+        "go tieng Viet",
+        "gõ Telex",
         "go VNI",
         "gõ tắt",
         "khôi phục từ",
+        "gợi ý từ",
         "goi y tu",
-        "AI soạn thảo",
-        "chuyển mã",
-        "sửa chính tả"
+        "AI soạn thảo"
       ]
     }
   },

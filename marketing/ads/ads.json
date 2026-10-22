@@ -1,0 +1,12 @@
+{
+  "$schema": "https://vapp.dev/schemas/ads.json",
+  "schemaVersion": 1,
+  "admob": {},
+  "units": [],
+  "consent": {
+    "umpConfigured": false,
+    "attPrompt": false,
+    "notes": "No advertising SDK, ad units, or ad placements are configured in this macOS project."
+  },
+  "mediation": ""
+}

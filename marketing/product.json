@@ -16,10 +16,10 @@
     "appStore": "#",
     "googlePlay": "#",
     "website": "#",
-    "macos": "#",
-    "windows": "#",
+    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest",
+    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest",
     "linux": "#",
-    "privacyPolicy": "/privacy"
+    "privacyPolicy": "https://github.com/ntanvinh/OpenKey/blob/HEAD/PRIVACY.md"
   },
   "locales": {
     "text": [
