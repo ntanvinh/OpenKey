@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "locale": "vi",
+  "ios": {
+    "name": "VOpenKey AI: Tiếng Việt",
+    "subtitle": "Khôi phục từ bị đổi nhầm",
+    "promotionalText": "Khôi phục từ bị đổi nhầm khi gõ tiếng Việt. Mở snippet hoặc trợ lý AI nhanh bằng phím tắt.",
+    "description": "Gõ tiếng Việt liền mạch hơn với VOpenKey AI. Bộ gõ kết hợp các công cụ viết có thể mở nhanh bằng phím tắt.\n\nGÕ THEO CÁCH CỦA BẠN\n• Chọn Telex, VNI hoặc Simple Telex.\n• Tự trả lại từ không phải tiếng Việt bị bộ gõ đổi nhầm; khi cần, dùng phím tắt để khôi phục từ đang gõ.\n• Bật gợi ý từ theo ngữ cảnh, kể cả với cụm từ nhập không dấu.\n• Chuyển văn bản giữa các bảng mã tiếng Việt được hỗ trợ, gồm cả chuyển văn bản cũ sang Unicode.\n\nVIẾT NHANH VỚI PHÍM TẮT\n• Tìm và chèn snippet trong ứng dụng đang dùng; có thể tìm không dấu.\n• Tạo macro để chèn nhanh nội dung bạn thường gõ.\n• Mở trợ lý AI để soạn, dịch hoặc chỉnh sửa. Bạn chọn dịch vụ trực tuyến, mô hình chạy trên máy hoặc công cụ dòng lệnh đã đăng nhập được hỗ trợ.\n• Khi chọn Codex CLI, tạo ảnh từ mô tả rồi sao chép hoặc chèn ảnh.\n\nTùy chỉnh quy tắc gõ và phím tắt theo thói quen. VOpenKey AI là dự án mã nguồn mở theo giấy phép GPL-3.0. Bắt đầu bằng cách chọn kiểu gõ và công cụ viết bạn cần.",
+    "keywords": "telex,vni,chính tả,goi y,chuyen ma,macro,bỏ dấu,bàn phím,nhập liệu,phím tắt",
+    "whatsNew": "Cải thiện chung trải nghiệm gõ và viết.",
+    "supportUrl": "",
+    "marketingUrl": "",
+    "privacyUrl": ""
+  },
+  "android": {
+    "title": "VOpenKey AI: Tiếng Việt",
+    "shortDescription": "Gõ tiếng Việt, khôi phục từ gõ nhầm, dùng snippet và trợ lý AI.",
+    "fullDescription": "Gõ tiếng Việt liền mạch hơn với VOpenKey AI. Bộ gõ kết hợp các công cụ viết tiện dụng cho người thường xuyên soạn nội dung bằng tiếng Việt.\n\nGÕ THEO CÁCH CỦA BẠN\n• Chọn Telex, VNI hoặc Simple Telex.\n• Tự khôi phục từ không phải tiếng Việt bị đổi nhầm; khi cần, bạn có thể khôi phục từ đang gõ bằng phím tắt.\n• Xem gợi ý từ theo ngữ cảnh, kể cả với cụm từ nhập không dấu.\n• Chuyển văn bản giữa các bảng mã tiếng Việt được hỗ trợ, kể cả đưa văn bản cũ sang Unicode.\n\nVIẾT NHANH VỚI PHÍM TẮT\n• Tìm và chèn snippet, kể cả khi tìm không dấu.\n• Tạo macro cho những nội dung bạn thường dùng.\n• Soạn, dịch hoặc chỉnh sửa nội dung với trợ lý AI. Bạn chọn dịch vụ trực tuyến, mô hình chạy trên máy hoặc công cụ dòng lệnh đã đăng nhập được hỗ trợ.\n• Khi chọn Codex CLI, tạo ảnh từ mô tả rồi sao chép hoặc chèn ảnh.\n\nChọn kiểu gõ và quy tắc phù hợp với cách bạn làm việc. VOpenKey AI là dự án mã nguồn mở theo giấy phép GPL-3.0.",
+    "whatsNew": "Cải thiện chung trải nghiệm gõ và viết."
+  }
+}

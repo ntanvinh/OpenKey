@@ -10,6 +10,17 @@
 static const CGFloat kWindowWidth = 720;
 static const CGFloat kInner = 640;                 //width of what is inside a card
 
+//The page of the window is shorter than the window when little is shown: a flipped document view keeps it at the top
+//(an ordinary one sits at the bottom of the scroll view and leaves an empty band above the title).
+@interface AILocalSetupPage : NSView
+@end
+
+@implementation AILocalSetupPage
+-(BOOL)isFlipped {
+    return YES;
+}
+@end
+
 @interface AILocalSetupController () <NSWindowDelegate, NSTextFieldDelegate>
 @end
 
@@ -224,7 +235,7 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
     scroll.hasVerticalScroller = YES;
     scroll.drawsBackground = NO;
     scroll.borderType = NSNoBorder;
-    NSView* documentView = [[NSView alloc] init];
+    NSView* documentView = [[AILocalSetupPage alloc] init];
     documentView.translatesAutoresizingMaskIntoConstraints = NO;
     [documentView addSubview:content];
     scroll.documentView = documentView;
@@ -246,8 +257,11 @@ static NSView* Section(NSString* title, NSArray<NSView*>* rows) {
     _window.contentView = scroll;
     _window.minSize = NSMakeSize(kWindowWidth, 420);
     _window.maxSize = NSMakeSize(kWindowWidth, 1400);
-    [_window center];
     [self reloadAll];
+    //the window opens as tall as what it says, not as an empty 600 points (it scrolls when more appears, a download for example)
+    [content layoutSubtreeIfNeeded];
+    [_window setContentSize:NSMakeSize(kWindowWidth, MIN(MAX(content.fittingSize.height, 420), 900))];
+    [_window center];
 }
 
 #pragma mark - Showing

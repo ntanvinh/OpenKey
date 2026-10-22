@@ -1,14 +1,42 @@
 {
+  "ai-writing-assistant": {
+    "shows": "The AI assistant panel beside a document with a selected Vietnamese message to a customer: Codex CLI is connected and its real, politer three-sentence rewrite is in the result box, ready to replace the selection.",
+    "inUse": true,
+    "language": "vi"
+  },
+  "local-ai-setup": {
+    "shows": "The real 'Cài AI chạy trên máy' window checking this Mac (Apple M1 Max, 32 GB RAM), recommending Qwen 2.5 14B with quality/speed/Vietnamese ratings and an Install button; text stays on the machine.",
+    "inUse": true,
+    "language": "vi"
+  },
+  "signed-in-ai-agents": {
+    "shows": "The AI assistant beside a document, using Claude Code CLI (already signed in, no API key) with model Haiku and thinking level chosen in the header; it has rewritten a lower-case Vietnamese draft into a fanpage post.",
+    "inUse": true,
+    "language": "vi"
+  },
+  "ai-image-generation": {
+    "shows": "The AI assistant with Codex CLI selected, a Vietnamese picture description in the box and the real generated image of a phin coffee on a wooden table shown in the window, with Save, Show, Copy and Insert image buttons, next to the blog document.",
+    "inUse": true,
+    "language": "vi"
+  },
+  "prompt-snippet-library": {
+    "shows": "The snippet palette opened over a document with a selected note: 'tom tat' typed without diacritics finds 'Tóm tắt văn bản', with the Vietnamese prompt and {clipboard} placeholder in the preview.",
+    "inUse": true,
+    "language": "vi"
+  },
   "restore-accidental-typing": {
-    "shows": "The Input settings page with the auto-restore switch and the ⌥Space restore key",
-    "inUse": false
+    "shows": "A document where a Vietnamese email was typed key by key through the real typing engine: English words file, report, email, restore, database, backup, update are back as typed instead of being turned into Vietnamese-looking text.",
+    "inUse": true,
+    "language": "vi"
   },
   "contextual-word-suggestions": {
-    "shows": "The Suggestion settings page with the suggestion bar switched on",
-    "inUse": false
+    "shows": "A document with 'Chị Mai xem giúp em bản thietke' typed without diacritics and the real suggestion bar under the caret offering 'thiết kế', 'thiết kế đồ họa' and 'thiết kế web' (Tab / ⌥2 / ⌥3).",
+    "inUse": true,
+    "language": "vi"
   },
   "smooth-vietnamese-typing": {
-    "shows": "The Apps settings page with the \"Sửa lỗi gợi ý\" option on",
-    "inUse": false
+    "shows": "A document where Vietnamese was typed through the real engine up to an unfinished last word ('viết'); the text is plain with no underline. It shows the result of the Backspace technique, not a side-by-side with the macOS input method.",
+    "inUse": true,
+    "language": "vi"
   }
 }
