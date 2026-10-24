@@ -17,7 +17,8 @@ static const CGFloat kLabelGap = 6;       //between the key hint and the word
 static const CGFloat kScreenMargin = 6;
 static const CGFloat kDistanceFromText = 4;
 static const NSTimeInterval kFadeIn = 0.12;
-static const NSTimeInterval kHoverFade = 0.15;
+static const NSTimeInterval kHoverDelay = 1.2; //give the user time to read before the bar yields to the pointer
+static const NSTimeInterval kHoverFade = 0.25;
 static const CGFloat kHoverAlpha = 0.15;   //the pointer is over the bar: it is almost gone, so the app behind can be read
 
 #pragma mark - The words
@@ -130,6 +131,7 @@ static NSImage* BarMask(void) {
     SuggestionItemsView* _items;
     BOOL _firstWordUsesTab;
     id _mouseMonitor;
+    NSTimer* _hoverTimer;
     BOOL _faded;
 }
 
@@ -212,15 +214,37 @@ static NSImage* BarMask(void) {
     if (_mouseMonitor)
         [NSEvent removeMonitor:_mouseMonitor];
     _mouseMonitor = nil;
+    [_hoverTimer invalidate];
+    _hoverTimer = nil;
     _faded = NO;
 }
 
 -(void)updateFadeForPointer {
     BOOL over = self.visible && NSPointInRect([NSEvent mouseLocation], self.frame);
-    if (over == _faded)
+    if (!over) {
+        [_hoverTimer invalidate];
+        _hoverTimer = nil;
+        [self setPointerFaded:NO];
         return;
-    _faded = over;
-    CGFloat alpha = over ? kHoverAlpha : 1;
+    }
+    //Suggestion updates and mouse moves inside the bar must not restart the grace period.
+    if (_faded || _hoverTimer)
+        return;
+    __weak SuggestionPanel* weakSelf = self;
+    _hoverTimer = [NSTimer scheduledTimerWithTimeInterval:kHoverDelay repeats:NO block:^(NSTimer* timer) {
+        SuggestionPanel* panel = weakSelf;
+        if (!panel)
+            return;
+        panel->_hoverTimer = nil;
+        [panel setPointerFaded:panel.visible && NSPointInRect([NSEvent mouseLocation], panel.frame)];
+    }];
+}
+
+-(void)setPointerFaded:(BOOL)faded {
+    if (faded == _faded)
+        return;
+    _faded = faded;
+    CGFloat alpha = faded ? kHoverAlpha : 1;
     if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
         self.alphaValue = alpha;
         return;
@@ -250,6 +274,7 @@ static NSImage* BarMask(void) {
     if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
         self.alphaValue = 1;
         [self orderFrontRegardless];
+        [self updateFadeForPointer];
         return;
     }
     self.alphaValue = 0;
@@ -258,6 +283,7 @@ static NSImage* BarMask(void) {
         context.duration = kFadeIn;
         self.animator.alphaValue = 1;
     }];
+    [self updateFadeForPointer];
 }
 
 +(NSPoint)originForBarOfSize:(NSSize)size line:(NSRect)line visibleFrame:(NSRect)visible {
