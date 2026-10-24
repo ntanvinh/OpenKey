@@ -1158,6 +1158,11 @@ extern "C" {
             }
         }
         
+        //Esc puts the bar away and goes on to the application, the same on every desktop system
+        if (type == kCGEventKeyDown && _keycode == KEY_ESC && VOK_SUGGESTION_ACTIVE && [SuggestionController isShowing]) {
+            [SuggestionController reset];
+        }
+
         //Tab or ⌥1-5 chooses a suggestion from the bar
         if (type == kCGEventKeyDown && VOK_SUGGESTION_ACTIVE && !tabForTheApplication && [SuggestionController isShowing] && !OverlayHasKeyboard()) {
             int slot = SuggestionSlotForKey(_keycode, _flag, vSuggestTabAccepts != 0);

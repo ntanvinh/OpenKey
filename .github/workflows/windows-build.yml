@@ -46,6 +46,33 @@ jobs:
             ${{ env.SOLUTION_DIR }}/x64/Release/OpenKey64.exe
             ${{ env.SOLUTION_DIR }}/Release/OpenKey32.exe
 
+  # Types into a real window with the program running (scripts/windows-ui-test.ps1). The hosted runner has to give an interactive
+  # desktop for this; when it does not, the script says SKIP and the job fails instead of reporting a pass.
+  ui-test:
+    needs: windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x86, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: OpenKey-${{ matrix.platform }}
+          path: artifact
+      - name: Run the program and type into it
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem artifact -Recurse -Filter "OpenKey*.exe" | Select-Object -First 1
+          Write-Host "testing $($exe.FullName)"
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-ui-test.ps1 -Exe $exe.FullName -Out "ui-shots-${{ matrix.platform }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-test-${{ matrix.platform }}
+          path: ui-shots-${{ matrix.platform }}
+
   portable-tests:
     runs-on: ubuntu-latest
     steps:

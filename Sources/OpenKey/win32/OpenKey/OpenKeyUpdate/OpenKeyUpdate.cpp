@@ -87,7 +87,7 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		DeleteFile(path);
 		data = buffer.str();
 	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("VOpenKey AI Update"), MB_OK);
 		ExitProcess(0);
 		return 0;
 	}
@@ -163,13 +163,13 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		DeleteFile(L"_OpenKeyUpdate\\LICENSE");
 		RemoveDirectory(L".\\_OpenKeyUpdate");
 		if (replaced) {
-			MessageBox(hDlg, _T("Bạn đã cập nhật OpenKey bản mới nhất thành công!"), _T("OpenKey Update"), MB_OK);
+			MessageBox(hDlg, _T("Bạn đã cập nhật VOpenKey AI bản mới nhất thành công!"), _T("VOpenKey AI Update"), MB_OK);
 		} else {
-			MessageBox(hDlg, _T("Không cập nhật được: tệp tải về không đủ hoặc không thay được chương trình cũ. Chương trình cũ vẫn như trước, hãy thử lại sau!"), _T("OpenKey Update"), MB_OK);
+			MessageBox(hDlg, _T("Không cập nhật được: tệp tải về không đủ hoặc không thay được chương trình cũ. Chương trình cũ vẫn như trước, hãy thử lại sau!"), _T("VOpenKey AI Update"), MB_OK);
 		}
 		ExitProcess(0);
 	} else {
-		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK);
+		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("VOpenKey AI Update"), MB_OK);
 		ExitProcess(0);
 	}
 	return 0;

@@ -81,7 +81,7 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_AI, _T("Mở trợ lý AI")},
 	{POPUP_AI_SETTINGS, _T("Cài đặt AI...")},
 	{POPUP_CONTROL_PANEL, _T("Bảng điều khiển...")},
-	{POPUP_ABOUT_OPENKEY, _T("Giới thiệu OpenKey")},
+	{POPUP_ABOUT_OPENKEY, _T("Giới thiệu VOpenKey AI")},
 	{POPUP_OPENKEY_EXIT, _T("Thoát")},
 };
 

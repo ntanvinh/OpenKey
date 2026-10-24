@@ -6,7 +6,7 @@ The name of the app is **VOpenKey AI**, everywhere a person sees or launches it:
 
 - the app bundle: `VOpenKey AI.app`, executable `VOpenKey AI` (`PRODUCT_NAME` in the Xcode project), `CFBundleName` / `CFBundleDisplayName`
 - `VOK_APP_NAME` in `Sources/OpenKey/macOS/ModernKey/AppInfo.h` and `DISPLAY_NAME` in `scripts/common.sh`
-- every string in the UI (menus, alerts, tooltips, settings), README and the docs
+- every string in the UI (menus, alerts, tooltips, settings), README and the docs, on Windows too (`OpenKey.rc`, tray menu, message boxes, the desktop shortcut `VOpenKey AI.lnk`); the owner confirmed on 2026-10-24 that all desktop versions use the one name
 - where `scripts/dev.sh` installs it: `~/Applications/VOpenKey AI.app` (never `VOpenKey.app`)
 - the DMG volume name and the title of the GitHub release
 
@@ -23,4 +23,5 @@ These are identifiers or file names that must not move, they are not the name of
 - the bundle id `vn.io.lssoft.vopenkey`
 - the folder names `~/Library/Application Support/VOpenKey` and `~/Library/Logs/VOpenKey` (`VOK_DATA_DIR_NAME`), so the user's data stays where it is
 - the notarytool profile `VOpenKey-notary`
+- on Windows: the program files `OpenKey64.exe`, `OpenKey32.exe`, `OpenKeyUpdate.exe`, the registry key `SOFTWARE\TuyenMai\OpenKey` and the "OpenKey" start-up entry in it, the github URLs and the licence headers of the original author
 - the `##### VOpenKey x.y.z` headings of `CHANGELOG.md` (`scripts/version.sh` searches for them) and the comment line `//  VOpenKey` at the top of source files

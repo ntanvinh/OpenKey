@@ -1,14 +1,14 @@
-# OpenKey for Windows
+# VOpenKey AI for Windows
 [![GitHub release](https://img.shields.io/github/v/release/ntanvinh/OpenKey.svg)](https://github.com/ntanvinh/OpenKey/releases/latest)
-- OpenKey phiên bản cho Windows bắt đầu từ bản 1.5, có tất cả các tính năng của bản macOS.  
-- OpenKey mặc định chạy ở chế độ `Administrator` để có thể dễ dàng gõ Tiếng Việt trong **game**. Mã nguồn đã được phát hành công khai dưới giấy phép **GPL** nên các bạn hoàn toàn yên tâm về tính minh bạch của chương trình, không keylog, không backdoor,...
-- OpenKey for Windows hỗ trợ từ Windows Vista trở lên, Windows XP thì chưa có cơ hội để test, Windows 2000 trở về trước thì chắc chắn không thể hỗ trợ rồi.
+- VOpenKey AI phiên bản cho Windows bắt đầu từ bản 1.5, có tất cả các tính năng của bản macOS.  
+- VOpenKey AI mặc định chạy ở chế độ `Administrator` để có thể dễ dàng gõ Tiếng Việt trong **game**. Mã nguồn đã được phát hành công khai dưới giấy phép **GPL** nên các bạn hoàn toàn yên tâm về tính minh bạch của chương trình, không keylog, không backdoor,...
+- VOpenKey AI for Windows hỗ trợ từ Windows Vista trở lên, Windows XP thì chưa có cơ hội để test, Windows 2000 trở về trước thì chắc chắn không thể hỗ trợ rồi.
 ![Giao diện chính](https://raw.githubusercontent.com/tuyenvm/tuyenvm.github.io/master/images/win32_2.0_1.png "Main UI")
 
 
 
 ## Tính năng
-Mặc định, OpenKey cho phép gõ với chế độ bỏ dấu tự do, không cần phải bỏ dấu sau nguyên âm.
+Mặc định, VOpenKey AI cho phép gõ với chế độ bỏ dấu tự do, không cần phải bỏ dấu sau nguyên âm.
 * Hỗ trợ kiểu gõ:
 	* Telex
 	* VNI
@@ -25,7 +25,7 @@ Mặc định, OpenKey cho phép gõ với chế độ bỏ dấu tự do, khôn
 	* Tự khôi phục phím với từ sai
 	* Cho phép chữ "z w j f" làm phụ âm đầu
 	* Tạm tắt chính tả bằng phím Ctrl
-	* Tạm tắt OpenKey bằng phím Alt
+	* Tạm tắt VOpenKey AI bằng phím Alt
 * Tùy chọn:
 	* Tự cấu hình phím tắt chuyển Anh - Việt
 	* Bỏ dấu kiểu mới (oà, uý) và kiểu cũ (òa úy)
@@ -66,7 +66,7 @@ Dữ liệu nằm ở `%APPDATA%\VOpenKey` (từ điển, từ đã học, snipp
 ## Cài đặt
 - Vào [đây](https://github.com/ntanvinh/OpenKey/releases/latest) tải file `VOpenKey-<phiên bản>-Windows.zip` mới nhất về máy, giải nén vào nơi bất kỳ.
 - Nhấp đúp vô `OpenKey.exe` để chạy chương trình.
-- Lưu ý, khi chạy chương trình lần đầu, Windows sẽ mở một hộp thoại để hỏi bạn, bấm `yes` để đồng ý OpenKey chạy với quyền `admin`
+- Lưu ý, khi chạy chương trình lần đầu, Windows sẽ mở một hộp thoại để hỏi bạn, bấm `yes` để đồng ý VOpenKey AI chạy với quyền `admin`
 - Xong rồi một biểu tượng chữ `V` sẽ hiện trên system tray, đúp click vô đó để mở bảng điều khiển, cấu hình những thứ bạn cần.
 - Xong.
 ## Một số hình ảnh khác

@@ -225,7 +225,7 @@ INT_PTR MainControlDialog::eventProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
             int msgboxID = MessageBox(
                 hDlg,
                 _T("Bạn có chắc chắn muốn thiết lập lại cài đặt gốc?"),
-                _T("OpenKey"),
+                _T("VOpenKey AI"),
                 MB_ICONEXCLAMATION | MB_YESNO
             );
             if (msgboxID == IDYES) {
@@ -606,13 +606,13 @@ void MainControlDialog::onUpdateButton() {
     if (OpenKeyManager::checkUpdate(newVersion)) {
         WCHAR msg[256];
         wsprintf(msg,
-            TEXT("OpenKey Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
+            TEXT("VOpenKey AI Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
             utf8ToWideString(newVersion).c_str());
 
         int msgboxID = MessageBox(
             hDlg,
             msg,
-            _T("OpenKey Update"),
+            _T("VOpenKey AI Update"),
             MB_ICONEXCLAMATION | MB_YESNO
         );
         if (msgboxID == IDYES) {
@@ -627,7 +627,7 @@ void MainControlDialog::onUpdateButton() {
 
     }
     else {
-        MessageBox(hDlg, _T("Bạn đang dùng phiên bản mới nhất!"), _T("OpenKey Update"), MB_OK);
+        MessageBox(hDlg, _T("Bạn đang dùng phiên bản mới nhất!"), _T("VOpenKey AI Update"), MB_OK);
     }
     EnableWindow(hUpdateButton, true);
 }
@@ -637,8 +637,8 @@ void MainControlDialog::requestRestartAsAdmin() {
     if (vRunAsAdmin && !IsUserAnAdmin()) {
         int msgboxID = MessageBox(
             hDlg,
-            _T("Bạn cần phải khởi động lại OpenKey để kích hoạt chế độ Admin!\nBạn có muốn khởi động lại OpenKey không?"),
-            _T("OpenKey"),
+            _T("Bạn cần phải khởi động lại VOpenKey AI để kích hoạt chế độ Admin!\nBạn có muốn khởi động lại VOpenKey AI không?"),
+            _T("VOpenKey AI"),
             MB_ICONEXCLAMATION | MB_YESNO
         );
         if (msgboxID == IDYES) {
