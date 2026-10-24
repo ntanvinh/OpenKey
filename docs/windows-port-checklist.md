@@ -1,0 +1,33 @@
+# Windows port: what was checked and what must still be tried on a real Windows
+
+The Windows version (x86 and x64) got the features of the macOS app: suggestion bar, snippets, case list, word restore,
+AI assistant (HTTP services), common abbreviations, plus a fix of the updater for x86. It was written on a Mac.
+
+## Checked (on the Mac)
+
+- `scripts/test-portable.sh`: the shared C++ code and its tests: suggestions, snippet search and list, JSON, AI protocol
+  (addresses, keys, requests, streams, errors), case rules, abbreviation table, shortcut keys, word restore.
+- `scripts/check-windows.sh`: every Windows source compiles with mingw-w64 for x86 and x64.
+- `scripts/link-windows.sh`: the whole program links for x86 and x64 (no missing function or library).
+- `.github/workflows/windows-build.yml`: builds with Visual Studio for x86 and x64 on every change (not yet run: the first push
+  of the branch does it).
+
+## NOT checked: nothing of the Windows program was run
+
+Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
+
+1. Typing Vietnamese still works as before (Telex, VNI, other code tables), switch shortcut, smart switch, macros.
+2. Suggestion bar (Settings > "Gợi ý, snippet và công cụ..." > on): it shows under the caret in Notepad, Word, Chrome, VS Code;
+   Tab and Alt+1..5 type the word (with Alt held the application must not see Alt+Backspace); Esc hides; no bar in cmd and
+   PowerShell; the bar fades when the pointer is on it; a macro waits on the bar.
+3. Snippet window: Ctrl+Alt+S opens it, Vietnamese can be typed in the search box, Enter pastes into the program that had
+   the keyboard, the clipboard of the user comes back (test with an image on the clipboard), the editor adds, edits, deletes.
+4. Case list: select text, Ctrl+Alt+C, rows with previews, Alt+n and Enter replace the selection; empty selection says so.
+5. Restore: type `restore` in Telex, Ctrl+Alt+R gives the keys back.
+6. AI assistant: key saved and shown only as "saved", list of models, a request streams into the window, Esc stops, Ctrl+Shift+Enter
+   inserts; a local Ollama needs no key; a wrong key shows the message; the key is not in the registry in the clear.
+7. Dark and light theme, 100% and 150% DPI, a second monitor.
+8. Update from a release zip on x86 and on x64 (`OpenKeyUpdate.exe` now replaces the file that is there and keeps the old one if
+   the new one is missing).
+9. The Windows strings of the old program still say "OpenKey" (OpenKey.rc, the tray menu): the owner decides on the rename
+   (see CLAUDE.md), it was not touched.

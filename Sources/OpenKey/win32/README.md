@@ -46,6 +46,23 @@ Mặc định, OpenKey cho phép gõ với chế độ bỏ dấu tự do, khôn
 	* Gõ tắt phụ âm đầu: f->ph, j->gi, w->qu
 	* Gõ tắt phụ âm cuối: g->ng, h->nh, k->ch
 
+## Tính năng của VOpenKey AI trên Windows
+Ngoài bộ gõ, bản Windows (x86 và x64) có các tính năng giống bản macOS. Mở **Gợi ý, snippet và công cụ...** từ menu của biểu tượng khay để bật và đổi phím tắt.
+
+| Tính năng | Cách dùng | Phím tắt mặc định |
+|---|---|---|
+| Thanh gợi ý từ | Hiện dưới con trỏ khi gõ: `Tab` chọn gợi ý đầu, `Alt+1` đến `Alt+5` chọn gợi ý khác, `Esc` tắt thanh. Không hiện trong terminal. Chỉ dùng với bảng mã Unicode. Mặc định tắt | |
+| Gõ tắt chờ xác nhận | Gõ `vn` ở cuối `example.com.vn` không bị đổi; gõ tắt hiện trên thanh gợi ý, `Tab` để thay | |
+| Snippet | Bảng tìm nhanh các đoạn chữ có sẵn (21 prompt cho AI) và của bạn, dán vào chỗ đang gõ; có `{clipboard}`, `{date}`, `{time}` | `Ctrl+Alt+S` |
+| Đổi chữ hoa thường | Chọn chữ rồi nhấn phím tắt: CHỮ HOA, chữ thường, Viết Hoa Từng Từ, camelCase, snake_case, bỏ dấu... kèm xem trước. `Alt+1`...`Alt+9`, `Alt+0` hoặc ↑ ↓ Enter để chọn | `Ctrl+Alt+C` |
+| Khôi phục từ | Trả lại phím đã gõ cho từ không phải tiếng Việt (`restore` đừng thành `rétỏe`). Tự động khi hết từ, hoặc bằng phím tắt | `Ctrl+Alt+R` |
+| Trợ lý AI | Cửa sổ viết văn bản bằng OpenAI, Gemini, Claude, DeepSeek, Qwen, OpenRouter, Ollama, LM Studio hoặc máy chủ tương thích OpenAI. Key được mã hoá bằng tài khoản Windows (DPAPI). `Ctrl+Enter` tạo, `Ctrl+Shift+Enter` chèn vào chỗ đang gõ | `Ctrl+Alt+A` |
+| Gõ tắt phổ biến | Nút "Thêm gõ tắt phổ biến" thêm `ko`, `dc`, `vs`... mà không ghi đè gõ tắt của bạn | |
+
+Chưa có trên Windows: AI chạy trên máy do VOpenKey AI tự cài (hãy cài Ollama hoặc LM Studio rồi chọn trong Cài đặt AI), dùng Codex, Claude Code, Antigravity làm AI, tạo ảnh, và hộp chữ hoa thường tự hiện khi bôi đen.
+
+Dữ liệu nằm ở `%APPDATA%\VOpenKey` (từ điển, từ đã học, snippet); cài đặt ở registry như các cài đặt cũ.
+
 ## Cài đặt
 - Vào [đây](https://github.com/ntanvinh/OpenKey/releases/latest) tải file `VOpenKey-<phiên bản>-Windows.zip` mới nhất về máy, giải nén vào nơi bất kỳ.
 - Nhấp đúp vô `OpenKey.exe` để chạy chương trình.
@@ -66,7 +83,8 @@ Trải qua nhiều lần cập nhật và phát triển, ngày 31/07/2019, OpenK
 - Phiên bản OpenKey cho Linux vẫn đang âm thầm phát triển, vì Linux có hệ thống GUI phức tạp, API "lạ" nên đòi hỏi thời gian nhiều hơn cho việc phát triển.
 
 ## Mã nguồn
-- Mã nguồn cho Windows được build thành công với Microsoft Visual Studio 2017.
+- Mã nguồn cho Windows được build thành công với Microsoft Visual Studio 2017 trở lên (workflow `windows-build.yml` build x86 và x64 bằng Visual Studio 2022).
+- Trên Mac hoặc Linux có thể kiểm tra cú pháp và link bằng mingw-w64: `scripts/check-windows.sh`, `scripts/link-windows.sh`; test phần dùng chung: `scripts/test-portable.sh`. Những lệnh này không chạy được chương trình Windows.
 ## Giấy phép
 OpenKey for Windows được phát hành dưới giấy phép GPL, điều này nghĩa là bạn hoàn toàn có thể tự do tải mã nguồn về chỉnh sửa, cải tiến theo mục đích của bạn. Nếu bạn tái phân phối bản cải tiến của bạn, bạn **phải** công bố mã nguồn và credit OpenKey bản gốc.
 

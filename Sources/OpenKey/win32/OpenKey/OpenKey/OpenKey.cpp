@@ -13,6 +13,12 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "stdafx.h"
 #include "AppDelegate.h"
+#include <algorithm>
+#include "SuggestionController.h"
+#include "SuggestionKeys.h"
+#include "FeatureActions.h"
+#include "ShortcutField.h"
+#include "CaseBar.h"
 
 #pragma comment(lib, "imm32")
 #define IMC_GETOPENSTATUS 0x0005
@@ -63,15 +69,19 @@ static int _languageTemp = 0; //use for smart switch key
 static vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
 
 static bool _hasJustUsedHotKey = false;
+static DWORD _swallowedKey = 0; //a key that chose a suggestion: its repeats and its key up are not for the application
 
 static INPUT backspaceEvent[2];
 static INPUT keyEvent[2];
 
+static bool restoreTypingWord();
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam);
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
 
 void OpenKeyFree() {
+	SuggestionController::stop();
+	FeatureActions::stop();
 	UnhookWindowsHookEx(hMouseHook);
 	UnhookWindowsHookEx(hKeyboardHook);
 	UnhookWinEvent(hSystemEvent);
@@ -167,6 +177,12 @@ void OpenKeyInit() {
 	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
 	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
 	hSystemEvent = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, winEventProcCallback, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+
+	//suggestion bar, snippets and the other features of VOpenKey AI
+	FeatureActions::loadSettings();
+	FeatureActions::setRestoreHandler(restoreTypingWord);
+	FeatureActions::start(hInstance);
+	SuggestionController::start(hInstance);
 }
 
 void saveSmartSwitchKeyData() {
@@ -411,6 +427,7 @@ void switchLanguage() {
 		saveSmartSwitchKeyData();
 	}
 	startNewSession();
+	SuggestionController::reset();
 }
 
 static void SendPureCharacter(const Uint16& ch) {
@@ -454,6 +471,114 @@ static void handleMacro() {
 	SendKeyCode(_keycode | (_flag & MASK_SHIFT ? CAPS_MASK : 0));
 }
 
+//The address bar of a browser, or a cell of Excel, may have added a proposal after what was typed: the first backspace would
+//remove that instead of a letter. `count` is the number of characters about to be deleted, it is changed to what must be sent.
+template <typename Count>
+static void fixRecommendation(Count& count) {
+	if (vFixChromiumBrowser &&
+		std::find(_chromiumBrowser.begin(), _chromiumBrowser.end(), OpenKeyHelper::getLastAppExecuteName()) != _chromiumBrowser.end()) {
+		SendCombineKey(KEY_LEFT_SHIFT, KEY_LEFT, 0, KEYEVENTF_EXTENDEDKEY);
+		if (count == 1)
+			count--;
+	} else {
+		SendEmptyCharacter();
+		count++;
+	}
+}
+
+//The word being typed, as the typing engine has it, UTF-8 (empty if none). Only meaningful with the Unicode table.
+static string currentTypingWord() {
+	Uint16 buffer[MAX_BUFF];
+	int length = vGetTypingWord(buffer, MAX_BUFF);
+	return length > 0 ? wideStringToUtf8(wstring((const wchar_t*)buffer, length)) : string();
+}
+
+//The keys pressed for the word being typed, before Telex/VNI changed them
+static string currentRawTypingWord() {
+	Uint16 buffer[MAX_BUFF];
+	int length = vGetTypingRawWord(buffer, MAX_BUFF);
+	return length > 0 ? wideStringToUtf8(wstring((const wchar_t*)buffer, length)) : string();
+}
+
+//The full text of the abbreviation being typed, when the user has to confirm it (empty when it is none, or replaced at once)
+static string currentMacroOffer() {
+	if (!vMacroNeedsConfirm || !vUseMacro)
+		return string();
+	static Uint16 buffer[65536]; //a macro is at most 65535 bytes long
+	int length = vPeekMacro(buffer, 65536);
+	return length > 0 ? wideStringToUtf8(wstring((const wchar_t*)buffer, length)) : string();
+}
+
+//A shortcut like Alt+2 or Ctrl+Alt+R has its keys still down while the program types the result of it. Backspace sent then
+//would be Alt+Backspace (undo) or Ctrl+Backspace (delete a word). So the modifiers the user holds are let go first, and put
+//back afterwards, so that the user can go on holding them.
+struct HeldModifiers {
+	WORD keys[8];
+	int count;
+};
+
+static bool isExtendedModifier(WORD key) {
+	return key == VK_RCONTROL || key == VK_RMENU || key == VK_LWIN || key == VK_RWIN;
+}
+
+static HeldModifiers releaseHeldModifiers() {
+	static const WORD all[] = { VK_LSHIFT, VK_RSHIFT, VK_LCONTROL, VK_RCONTROL, VK_LMENU, VK_RMENU, VK_LWIN, VK_RWIN };
+	HeldModifiers held;
+	held.count = 0;
+	for (int i = 0; i < 8; i++) {
+		if (!(GetAsyncKeyState(all[i]) & 0x8000))
+			continue;
+		INPUT up;
+		prepareKeyEvent(up, all[i], false, isExtendedModifier(all[i]) ? KEYEVENTF_EXTENDEDKEY : 0);
+		SendInput(1, &up, sizeof(INPUT));
+		held.keys[held.count++] = all[i];
+	}
+	return held;
+}
+
+static void restoreHeldModifiers(const HeldModifiers& held) {
+	bool needsMask = false;
+	for (int i = 0; i < held.count; i++) {
+		INPUT down;
+		prepareKeyEvent(down, held.keys[i], true, isExtendedModifier(held.keys[i]) ? KEYEVENTF_EXTENDEDKEY : 0);
+		SendInput(1, &down, sizeof(INPUT));
+		if (held.keys[i] == VK_LMENU || held.keys[i] == VK_RMENU || held.keys[i] == VK_LWIN || held.keys[i] == VK_RWIN)
+			needsMask = true;
+	}
+	if (needsMask) {
+		//Alt or Windows let go on their own would open the menu of the program or the Start menu: a key that means nothing
+		//in between prevents that
+		INPUT mask[2];
+		prepareKeyEvent(mask[0], 0xE8, true);
+		prepareKeyEvent(mask[1], 0xE8, false);
+		SendInput(2, mask, sizeof(INPUT));
+	}
+}
+
+//Replaces the word that was typed with the chosen suggestion
+static void sendSuggestionText(const wstring& text, size_t eraseCount) {
+	//the same preparation as for a word the engine replaces
+	if (eraseCount > 0 && vFixRecommendBrowser)
+		fixRecommendation(eraseCount);
+	for (size_t i = 0; i < eraseCount; i++) {
+		SendInput(2, backspaceEvent, sizeof(INPUT));
+	}
+	//the text goes in as Unicode characters, a few at a time
+	vector<INPUT> events;
+	events.reserve(text.size() * 2);
+	for (size_t i = 0; i < text.size(); i++) {
+		INPUT down, up;
+		prepareUnicodeEvent(down, text[i], true);
+		prepareUnicodeEvent(up, text[i], false);
+		events.push_back(down);
+		events.push_back(up);
+	}
+	for (size_t start = 0; start < events.size(); start += 32) {
+		UINT count = (UINT)min((size_t)32, events.size() - start);
+		SendInput(count, &events[start], sizeof(INPUT));
+	}
+}
+
 static bool SetModifierMask(const Uint16& vkCode) {
 	// For caps lock case, toggling the flag isn't enough. We need to check the actual state, which should be done before each key press.
 	// Example: the caps lock state can be changed without the key being pressed, or the key toggle is made with admin privilege, making the app not able to detect the change.
@@ -489,6 +614,65 @@ static bool UnsetModifierMask(const Uint16& vkCode) {
 	return true;
 }
 
+//Types what the engine has worked out for the key: delete the characters of the word, then type the new ones
+static void sendEngineResult() {
+	//fix autocomplete
+	if (vFixRecommendBrowser && pData->extCode != 4) {
+		fixRecommendation(pData->backspaceCount);
+	}
+	
+	//send backspace
+	if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
+		for (_i = 0; _i < pData->backspaceCount; _i++) {
+			SendBackspace();
+		}
+	}
+
+	//send new character
+	if (!vSendKeyStepByStep) {
+		SendNewCharString();
+	} else {
+		if (pData->newCharCount > 0 && pData->newCharCount <= MAX_BUFF) {
+			for (int i = pData->newCharCount - 1; i >= 0; i--) {
+				SendKeyCode(pData->charData[i]);
+			}
+		}
+		if (pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
+			SendKeyCode(_keycode | ((_flag & MASK_CAPITAL) || (_flag & MASK_SHIFT) ? CAPS_MASK : 0));
+		}
+		if (pData->code == vRestoreAndStartNewSession) {
+			startNewSession();
+		}
+	}
+}
+
+//The restore shortcut: gives back the keys typed for the word on screen ("r\u00e9t\u1ecfe" -> "restore"). False when there is
+//nothing to give back, then the key is left for the program.
+static bool restoreTypingWord() {
+	if (!vRestoreWord())
+		return false;
+	HeldModifiers held = releaseHeldModifiers();
+	sendEngineResult();
+	restoreHeldModifiers(held);
+	SuggestionController::reset(); //the word is no longer what the suggestion bar was looking at
+	return true;
+}
+
+//A shortcut of the features was pressed: true when it did something (then the key is not for the program). The restore needs
+//the state of this file, the other ones are done from the message loop.
+static bool runFeatureHotKey(const FeatureActions::HotKey& key) {
+	if (key.action == FeatureActions::RestoreWord)
+		return vLanguage != 0 && restoreTypingWord(); //nothing to give back: the key goes to the program
+	return FeatureActions::post(key.action);
+}
+
+//Our own windows (snippets, settings...) have the keyboard: what is typed there is not text to suggest words for
+static bool ownWindowHasKeyboard() {
+	DWORD process = 0;
+	GetWindowThreadProcessId(GetForegroundWindow(), &process);
+	return process == GetCurrentProcessId();
+}
+
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	keyboardData = (KBDLLHOOKSTRUCT *)lParam;
 	//ignore my event
@@ -496,6 +680,14 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
+	//a key that was used for a shortcut, a suggestion or the case list: the repeats of it and its key up are not for the program
+	//either. It is looked at before anything that can return early, or the key up could be missed and the next press eaten.
+	if (_swallowedKey != 0 && keyboardData->vkCode == _swallowedKey) {
+		if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
+			_swallowedKey = 0;
+		return -1;
+	}
+
 	//ignore if IME pad is open when typing Japanese/Chinese...
 	HWND hWnd = GetForegroundWindow();
 	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
@@ -515,11 +707,44 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	if (!_isFlagKey && wParam != WM_KEYUP && wParam != WM_SYSKEYUP)
 		_keycode = (Uint16)keyboardData->vkCode;
 
-	//switch language shortcut; convert hotkey
+	//a field of the settings waits for the user to press a shortcut: the keys are for it (the modifiers were followed above)
+	if (ShortcutField::isRecording()) {
+		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+	}
+
+	//the list that changes the case of the selection uses some keys (arrows, Enter, Esc, Alt+digits)
+	if ((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) && !_isFlagKey && CaseBar::isVisible() &&
+		GET_SWITCH_KEY(vCaseBarHotKey) != _keycode) {
+		if (CaseBar::keyDown(_keycode, (_flag & MASK_ALT) != 0, (_flag & MASK_CONTROL) != 0, (_flag & MASK_SHIFT) != 0, (_flag & MASK_WIN) != 0)) {
+			_swallowedKey = _keycode; //its key up and repeats too
+			return -1;
+		}
+	}
+
+	//switch language shortcut; convert hotkey; the shortcuts of the features
 	if ((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) && !_isFlagKey && _keycode != 0) {
-		if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode) {
+		const vector<FeatureActions::HotKey>& featureKeys = FeatureActions::hotKeys();
+		bool isFeatureKey = false;
+		for (size_t i = 0; i < featureKeys.size(); i++) {
+			if ((!featureKeys[i].enabled || *featureKeys[i].enabled) && GET_SWITCH_KEY(*featureKeys[i].shortcut) == _keycode)
+				isFeatureKey = true;
+		}
+		if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isFeatureKey) {
 			_lastFlag = 0;
 		} else {
+			for (size_t i = 0; i < featureKeys.size(); i++) {
+				const FeatureActions::HotKey& key = featureKeys[i];
+				if (key.enabled && !*key.enabled)
+					continue;
+				if (GET_SWITCH_KEY(*key.shortcut) != _keycode || !checkHotKey(*key.shortcut))
+					continue;
+				if (runFeatureHotKey(key)) {
+					_hasJustUsedHotKey = true;
+					_swallowedKey = _keycode;
+					_keycode = 0;
+					return -1;
+				}
+			}
 			if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)) {
 				switchLanguage();
 				_hasJustUsedHotKey = true;
@@ -563,6 +788,8 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	//if is in english mode
 	if (vLanguage == 0) {
+		if (SuggestionController::isShowing())
+			SuggestionController::reset();
 		if (vUseMacro && vUseMacroInEnglishMode && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
 			vEnglishMode(((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) ? vKeyEventState::KeyDown : vKeyEventState::MouseDown),
 				_keycode,
@@ -579,12 +806,44 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	//handle keyboard
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
+		//Tab or Alt+1-5 chooses a suggestion from the bar; Esc puts it away (and goes on to the application)
+		bool suggesting = !ownWindowHasKeyboard();
+		if (suggesting && SuggestionController::isShowing()) {
+			if (_keycode == vsuggestkeys::kEscape) {
+				SuggestionController::reset();
+			} else {
+				vsuggestkeys::Modifiers modifiers = {(_flag & MASK_SHIFT) != 0, (_flag & MASK_CONTROL) != 0,
+													 (_flag & MASK_ALT) != 0, (_flag & MASK_WIN) != 0};
+				int slot = vsuggestkeys::slotForKey(_keycode, modifiers, vSuggestTabAccepts != 0);
+				wstring suggestion;
+				size_t eraseCount = 0;
+				if (slot >= 0 && SuggestionController::accept(slot, currentTypingWord(), suggestion, eraseCount)) {
+					HeldModifiers held = releaseHeldModifiers();
+					sendSuggestionText(suggestion, eraseCount);
+					restoreHeldModifiers(held);
+					startNewSession(); //the word on screen is no longer what the typing engine has
+					_syncKey.clear();
+					_swallowedKey = _keycode;
+					return -1;
+				}
+			}
+		}
+
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Keyboard,
 						vKeyEventState::KeyDown,
 						_keycode,
 						(_flag & MASK_SHIFT && _flag & MASK_CAPITAL) ? 0 : (_flag & MASK_SHIFT ? 1 : (_flag & MASK_CAPITAL ? 2 : 0)),
 						OTHER_CONTROL_KEY);
+		{
+			vsuggest::KeyKind kind = vsuggest::KeyKind::Other;
+			if (_keycode == KEY_SPACE && !(OTHER_CONTROL_KEY) && pData->code == vDoNothing)
+				kind = vsuggest::KeyKind::Space;
+			else if (_keycode == KEY_DELETE)
+				kind = vsuggest::KeyKind::Delete;
+			if (suggesting && SuggestionController::isActive())
+				SuggestionController::keyProcessed(kind, currentTypingWord(), currentRawTypingWord(), currentMacroOffer());
+		}
 		if (pData->code == vDoNothing) { //do nothing
 			if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 				if (pData->extCode == 1) { //break key
@@ -603,42 +862,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 			return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 		} else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) { //handle result signal
-			//fix autocomplete
-			if (vFixRecommendBrowser && pData->extCode != 4) {
-				if (vFixChromiumBrowser && 
-					std::find(_chromiumBrowser.begin(), _chromiumBrowser.end(), OpenKeyHelper::getLastAppExecuteName()) != _chromiumBrowser.end()) {
-					SendCombineKey(KEY_LEFT_SHIFT, KEY_LEFT, 0, KEYEVENTF_EXTENDEDKEY);
-					if (pData->backspaceCount == 1)
-						pData->backspaceCount--;
-				} else {
-					SendEmptyCharacter();
-					pData->backspaceCount++;
-				}
-			}
-			
-			//send backspace
-			if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) {
-				for (_i = 0; _i < pData->backspaceCount; _i++) {
-					SendBackspace();
-				}
-			}
-
-			//send new character
-			if (!vSendKeyStepByStep) {
-				SendNewCharString();
-			} else {
-				if (pData->newCharCount > 0 && pData->newCharCount <= MAX_BUFF) {
-					for (int i = pData->newCharCount - 1; i >= 0; i--) {
-						SendKeyCode(pData->charData[i]);
-					}
-				}
-				if (pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
-					SendKeyCode(_keycode | ((_flag & MASK_CAPITAL) || (_flag & MASK_SHIFT) ? CAPS_MASK : 0));
-				}
-				if (pData->code == vRestoreAndStartNewSession) {
-					startNewSession();
-				}
-			}
+			sendEngineResult();
 		} else if (pData->code == vReplaceMaro) { //MACRO
 			handleMacro();
 		}
@@ -663,6 +887,9 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	case WM_NCXBUTTONUP:
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
+		SuggestionController::reset();
+		if (wParam != WM_LBUTTONUP && wParam != WM_RBUTTONUP && wParam != WM_MBUTTONUP && wParam != WM_XBUTTONUP && wParam != WM_NCXBUTTONUP)
+			CaseBar::mouseDown(mouseData->pt);
 		if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 			_syncKey.clear();
 		}
@@ -672,6 +899,10 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+	//the suggestion bar: another program, another word
+	SuggestionController::applicationActivated(string(OpenKeyHelper::getFrontMostAppExecuteName()));
+	CaseBar::hide();
+
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
 		string& exe = OpenKeyHelper::getFrontMostAppExecuteName();

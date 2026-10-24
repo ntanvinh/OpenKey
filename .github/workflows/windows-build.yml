@@ -1,0 +1,54 @@
+name: Windows build
+
+# Builds the Windows version for x86 and x64 on every change of it and runs the tests of the portable code. This is the only
+# place where the Windows code is compiled by Visual Studio and linked (the Mac only checks the syntax with mingw-w64).
+# The release itself is made by release-windows.yml.
+
+on:
+  push:
+    paths:
+      - "Sources/OpenKey/win32/**"
+      - "Sources/OpenKey/engine/**"
+      - ".github/workflows/windows-build.yml"
+  pull_request:
+    paths:
+      - "Sources/OpenKey/win32/**"
+      - "Sources/OpenKey/engine/**"
+  workflow_dispatch:
+
+env:
+  SOLUTION_DIR: Sources/OpenKey/win32/OpenKey
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x86, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build ${{ matrix.platform }}
+        run: msbuild -m -target:Rebuild -p:Configuration=Release -p:Platform=${{ matrix.platform }} ${{ env.SOLUTION_DIR }}
+      - name: The program starts
+        shell: pwsh
+        run: |
+          # it is a program with windows and a keyboard hook, so it is not run here: the file only has to be there and not tiny
+          $exe = if ("${{ matrix.platform }}" -eq "x64") { "$env:SOLUTION_DIR/x64/Release/OpenKey64.exe" } else { "$env:SOLUTION_DIR/Release/OpenKey32.exe" }
+          $size = (Get-Item $exe).Length
+          Write-Host "$exe $size bytes"
+          if ($size -lt 500000) { throw "$exe is too small, the dictionaries are missing from it" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenKey-${{ matrix.platform }}
+          path: |
+            ${{ env.SOLUTION_DIR }}/x64/Release/OpenKey64.exe
+            ${{ env.SOLUTION_DIR }}/Release/OpenKey32.exe
+
+  portable-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests of the portable code
+        run: scripts/test-portable.sh

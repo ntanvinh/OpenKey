@@ -12,6 +12,7 @@ You can fork, modify, improve this program. If you
 redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
+#include "FeatureWindows.h"
 
 static AppDelegate* _instance;
 
@@ -56,7 +57,8 @@ bool AppDelegate::isDialogMsg(MSG & msg) const {
 	return (mainDialog != NULL && IsDialogMessage(mainDialog->getHwnd(), &msg)) ||
 		(macroDialog != NULL && IsDialogMessage(macroDialog->getHwnd(), &msg)) || 
 		(convertDialog != NULL && IsDialogMessage(convertDialog->getHwnd(), &msg)) || 
-		(aboutDialog != NULL && IsDialogMessage(aboutDialog->getHwnd(), &msg));
+		(aboutDialog != NULL && IsDialogMessage(aboutDialog->getHwnd(), &msg)) ||
+		FeatureWindows::handleDialogMessage(msg);
 }
 
 void AppDelegate::checkUpdate() {

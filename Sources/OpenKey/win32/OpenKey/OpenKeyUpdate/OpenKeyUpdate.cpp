@@ -109,18 +109,64 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	res = URLDownloadToFile(NULL, updateUrl, path, 0, NULL);
 
 	if (res == S_OK) {
-		//remove old file
-		DeleteFile(L"OpenKey64.exe");
-		//extract zip file
-		WinExec("powershell.exe -NoP -NonI -Command \"Expand-Archive '.\\_OpenKeyUpdate.zip' '.\\_OpenKeyUpdate'\" ", SW_HIDE);
-		Sleep(5000);
-		MoveFile(L"_OpenKeyUpdate\\OpenKey64.exe", L"OpenKey64.exe");
+		//the program of this folder is the 64 bit one, the 32 bit one (a 32 bit Windows) or both: each gets its new file
+		bool has64 = GetFileAttributes(L"OpenKey64.exe") != INVALID_FILE_ATTRIBUTES;
+		bool has32 = GetFileAttributes(L"OpenKey32.exe") != INVALID_FILE_ATTRIBUTES;
+		if (!has64 && !has32)
+			has64 = true;
+
+		//1. extract, and wait until it is finished: nothing of the program is touched before the new files are known to be there
+		STARTUPINFO startup = { sizeof(startup) };
+		PROCESS_INFORMATION process = { 0 };
+		WCHAR command[] = L"powershell.exe -NoP -NonI -Command \"Expand-Archive -Force '.\\_OpenKeyUpdate.zip' '.\\_OpenKeyUpdate'\"";
+		bool extracted = false;
+		if (CreateProcess(NULL, command, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process)) {
+			DWORD waited = WaitForSingleObject(process.hProcess, 180000);
+			DWORD exitCode = 1;
+			GetExitCodeProcess(process.hProcess, &exitCode);
+			CloseHandle(process.hThread);
+			CloseHandle(process.hProcess);
+			extracted = waited == WAIT_OBJECT_0 && exitCode == 0;
+		}
+		bool complete = extracted &&
+			(!has64 || GetFileAttributes(L"_OpenKeyUpdate\\OpenKey64.exe") != INVALID_FILE_ATTRIBUTES) &&
+			(!has32 || GetFileAttributes(L"_OpenKeyUpdate\\OpenKey32.exe") != INVALID_FILE_ATTRIBUTES);
+
+		//2. replace: the old file is put aside first and comes back if the new one cannot take its place
+		bool replaced = complete;
+		const WCHAR* names[2] = { L"OpenKey64.exe", L"OpenKey32.exe" };
+		bool wanted[2] = { has64, has32 };
+		for (int k = 0; k < 2 && replaced; k++) {
+			if (!wanted[k])
+				continue;
+			WCHAR aside[MAX_PATH], fresh[MAX_PATH];
+			wsprintf(aside, TEXT("%s.old"), names[k]);
+			wsprintf(fresh, TEXT("_OpenKeyUpdate\\%s"), names[k]);
+			DeleteFile(aside);
+			if (!MoveFile(names[k], aside)) {
+				replaced = false;
+			} else if (!MoveFile(fresh, names[k])) {
+				MoveFile(aside, names[k]);
+				replaced = false;
+			}
+		}
+		if (replaced) {
+			DeleteFile(L"OpenKey64.exe.old");
+			DeleteFile(L"OpenKey32.exe.old");
+		}
+
+		//3. clean up
 		DeleteFile(path);
 		DeleteFile(L"_OpenKeyUpdate\\OpenKeyUpdate.exe");
 		DeleteFile(L"_OpenKeyUpdate\\OpenKey64.exe");
 		DeleteFile(L"_OpenKeyUpdate\\OpenKey32.exe");
+		DeleteFile(L"_OpenKeyUpdate\\LICENSE");
 		RemoveDirectory(L".\\_OpenKeyUpdate");
-		MessageBox(hDlg, _T("Bạn đã cập nhật OpenKey bản mới nhất thành công!"), _T("OpenKey Update"), MB_OK);
+		if (replaced) {
+			MessageBox(hDlg, _T("Bạn đã cập nhật OpenKey bản mới nhất thành công!"), _T("OpenKey Update"), MB_OK);
+		} else {
+			MessageBox(hDlg, _T("Không cập nhật được: tệp tải về không đủ hoặc không thay được chương trình cũ. Chương trình cũ vẫn như trước, hãy thử lại sau!"), _T("OpenKey Update"), MB_OK);
+		}
 		ExitProcess(0);
 	} else {
 		MessageBox(hDlg, _T("Có lỗi trong quá trình cập nhật, vui lòng thử lại sau!"), _T("OpenKey Update"), MB_OK);

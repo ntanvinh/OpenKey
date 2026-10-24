@@ -1,0 +1,8 @@
+// Resources of the features added by VOpenKey AI. Plain ASCII on purpose: OpenKey.rc is UTF-16 and is rewritten by Visual Studio.
+#include "FeatureIds.h"
+
+IDR_DICT_BASE        RCDATA "..\\..\\..\\engine\\dictionaries\\vi-base.txt"
+IDR_DICT_WIKTIONARY  RCDATA "..\\..\\..\\engine\\dictionaries\\vi-wiktionary.txt"
+IDR_SNIPPETS_DEFAULT RCDATA "..\\..\\..\\engine\\snippets\\default-snippets.json"
+IDR_LOCAL_MODELS     RCDATA "..\\..\\..\\engine\\ai\\local-models.json"
+IDR_MACRO_PRESETS    RCDATA "..\\..\\..\\engine\\dictionaries\\vi-macros.txt"
