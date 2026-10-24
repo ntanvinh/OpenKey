@@ -758,7 +758,10 @@ std::string StreamParser::textOfCompleteAnswer(const std::string& body, Protocol
             if (!content.isString())
                 return "";
             ThinkFilter filter;
-            return filter.feed(content.asString()) + filter.flush();
+            //two statements: the order of the two calls in one expression is not defined (gcc and clang differ)
+            std::string answer = filter.feed(content.asString());
+            answer += filter.flush();
+            return answer;
         }
         case Protocol::Gemini: {
             //the same shape as a piece of the stream

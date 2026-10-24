@@ -87,7 +87,7 @@ void moveSelection(int delta) {
     if (count == 0)
         return;
     int current = (int)SendMessageW(g_list, LB_GETCURSEL, 0, 0);
-    int next = std::max(0, std::min(count - 1, (current < 0 ? 0 : current) + delta));
+    int next = (std::max)(0, (std::min)(count - 1, (current < 0 ? 0 : current) + delta));
     SendMessageW(g_list, LB_SETCURSEL, next, 0);
     InvalidateRect(g_window, NULL, FALSE);
 }

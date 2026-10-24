@@ -135,7 +135,7 @@ void deleteSnippet() {
     SnippetService::store().remove((size_t)position);
     SnippetService::changed();
     int count = (int)SnippetService::store().snippets().size();
-    fillList(std::min(position, count - 1));
+    fillList((std::min)(position, count - 1));
     showSelected();
 }
 
