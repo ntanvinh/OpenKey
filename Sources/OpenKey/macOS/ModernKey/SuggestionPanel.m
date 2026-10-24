@@ -4,6 +4,7 @@
 //
 
 #import "SuggestionPanel.h"
+#import <QuartzCore/QuartzCore.h>
 
 //Corners are concentric: the bar is as round as an item plus the space around the item
 static const CGFloat kItemRadius = 6;
@@ -16,6 +17,8 @@ static const CGFloat kLabelGap = 6;       //between the key hint and the word
 static const CGFloat kScreenMargin = 6;
 static const CGFloat kDistanceFromText = 4;
 static const NSTimeInterval kFadeIn = 0.12;
+static const NSTimeInterval kHoverFade = 0.15;
+static const CGFloat kHoverAlpha = 0.15;   //the pointer is over the bar: it is almost gone, so the app behind can be read
 
 #pragma mark - The words
 
@@ -126,6 +129,8 @@ static NSImage* BarMask(void) {
 @implementation SuggestionPanel {
     SuggestionItemsView* _items;
     BOOL _firstWordUsesTab;
+    id _mouseMonitor;
+    BOOL _faded;
 }
 
 -(instancetype)init {
@@ -192,9 +197,56 @@ static NSImage* BarMask(void) {
     return [NSScreen mainScreen];
 }
 
--(void)show {
-    if (self.visible)
+//The bar ignores the mouse, so it is told where the pointer is by a global monitor (no permission needed for mouse moves)
+-(void)startWatchingPointer {
+    if (_mouseMonitor)
         return;
+    __weak SuggestionPanel* weakSelf = self;
+    _mouseMonitor = [NSEvent addGlobalMonitorForEventsMatchingMask:NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskScrollWheel
+                                                           handler:^(NSEvent* event) {
+        [weakSelf updateFadeForPointer];
+    }];
+}
+
+-(void)stopWatchingPointer {
+    if (_mouseMonitor)
+        [NSEvent removeMonitor:_mouseMonitor];
+    _mouseMonitor = nil;
+    _faded = NO;
+}
+
+-(void)updateFadeForPointer {
+    BOOL over = self.visible && NSPointInRect([NSEvent mouseLocation], self.frame);
+    if (over == _faded)
+        return;
+    _faded = over;
+    CGFloat alpha = over ? kHoverAlpha : 1;
+    if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
+        self.alphaValue = alpha;
+        return;
+    }
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext* context) {
+        context.duration = kHoverFade;
+        context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+        self.animator.alphaValue = alpha;
+    }];
+}
+
+-(void)orderOut:(id)sender {
+    [self stopWatchingPointer];
+    [super orderOut:sender];
+}
+
+-(void)dealloc {
+    [self stopWatchingPointer];
+}
+
+-(void)show {
+    [self startWatchingPointer];
+    if (self.visible) {
+        [self updateFadeForPointer]; //the bar may have moved or grown under a resting pointer
+        return;
+    }
     if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
         self.alphaValue = 1;
         [self orderFrontRegardless];
