@@ -60,11 +60,11 @@ function Shot($name) {
         $g.Dispose(); $bmp.Dispose()
     } catch { Write-Host "no screenshot: $_" }
 }
-$VK = @{ Shift = 0x10; Ctrl = 0x11; Alt = 0x12; Enter = 0x0D; Esc = 0x1B; Tab = 0x09; Space = 0x20; Down = 0x28; Back = 0x08 }
+$Keys = @{ Shift = 0x10; Ctrl = 0x11; Alt = 0x12; Enter = 0x0D; Esc = 0x1B; Tab = 0x09; Space = 0x20; Down = 0x28; Back = 0x08 }
 function Press($vk, [string[]]$mods = @()) {
-    foreach ($m in $mods) { [VokInput]::Key([uint16]$VK[$m], $true) }
+    foreach ($m in $mods) { [VokInput]::Key([uint16]$Keys[$m], $true) }
     [VokInput]::Key([uint16]$vk, $true); [VokInput]::Key([uint16]$vk, $false)
-    foreach ($m in ($mods | Sort-Object -Descending)) { [VokInput]::Key([uint16]$VK[$m], $false) }
+    foreach ($m in ($mods | Sort-Object -Descending)) { [VokInput]::Key([uint16]$Keys[$m], $false) }
     Pump 60
 }
 function TypeText([string]$text) {
@@ -102,6 +102,8 @@ try {
     Pump 2500
     if ($app.HasExited) { Report "program starts" "FAIL" "exited with code $($app.ExitCode)"; throw "stopped" }
     Report "program starts" "PASS" "pid $($app.Id)"
+    # the hidden window of the program (tray, message loop): present when the program got as far as its main loop
+    if ([VokInput]::FindWindow("OpenKeyVietnameseInputMethod", $null) -ne [IntPtr]::Zero) { Report "program runs its message loop" "PASS" "" } else { Report "program runs its message loop" "FAIL" "no window of class OpenKeyVietnameseInputMethod" }
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "vok-ui-test"; $form.Width = 700; $form.Height = 300; $form.TopMost = $true; $form.StartPosition = "CenterScreen"
@@ -129,7 +131,7 @@ try {
     Pump 500
     Shot "suggestion-bar"
     if (WindowOpen "VOpenKeyAISuggestionBar") { Report "suggestion bar shows" "PASS" "" } else { Report "suggestion bar shows" "FAIL" "no bar after 'xin ch'" }
-    Press $VK.Esc
+    Press $Keys.Esc
     if (WaitWindow "VOpenKeyAISuggestionBar" $false 1500) { Report "Esc hides the bar" "PASS" "" } else { Report "Esc hides the bar" "FAIL" "bar still visible" }
 
     # 3. snippets: Ctrl+Alt+S opens, Esc closes
@@ -137,7 +139,7 @@ try {
     Press 0x53 @("Ctrl", "Alt")
     if (WaitWindow "VOpenKeyAISnippetPalette" $true) { Report "snippet window opens" "PASS" "" } else { Report "snippet window opens" "FAIL" "" }
     Shot "snippets"
-    Press $VK.Esc
+    Press $Keys.Esc
     if (WaitWindow "VOpenKeyAISnippetPalette" $false) { Report "snippet window closes" "PASS" "" } else { Report "snippet window closes" "FAIL" "" }
 
     # 4. case list: select the text, Ctrl+Alt+C, choose the first row (upper case)
@@ -146,7 +148,7 @@ try {
     Press 0x43 @("Ctrl", "Alt")
     if (WaitWindow "VOpenKeyAICaseBar" $true 4000) {
         Shot "case-list"
-        Press $VK.Enter
+        Press $Keys.Enter
         Pump 1200
         if ($box.Text -ceq "XIN CHAO THE GIOI") { Report "case list changes the selection" "PASS" $box.Text } else { Report "case list changes the selection" "FAIL" ("got '{0}'" -f $box.Text) }
     } else { Report "case list opens" "FAIL" "" }
@@ -154,7 +156,7 @@ try {
     # 5. the AI assistant opens (no request is made)
     [void][VokInput]::SetForegroundWindow($form.Handle); Pump 300
     Press 0x41 @("Ctrl", "Alt")
-    if (WaitWindow "VOpenKeyAIAssistant" $true 4000) { Report "AI window opens" "PASS" "" ; Shot "ai"; Press $VK.Esc } else { Report "AI window opens" "FAIL" "" }
+    if (WaitWindow "VOpenKeyAIAssistant" $true 4000) { Report "AI window opens" "PASS" "" ; Shot "ai"; Press $Keys.Esc } else { Report "AI window opens" "FAIL" "" }
 }
 catch { if ($_.ToString() -ne "stopped") { Report "unexpected error" "FAIL" $_.ToString() } }
 finally {
