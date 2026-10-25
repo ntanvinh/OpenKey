@@ -283,8 +283,8 @@ void layout() {
     int bottom = height - pad - rowHeight - gap;
     MoveWindow(g_output, pad, y, width - pad * 2, (std::max)(px(60), bottom - y), TRUE);
     int buttonsTop = height - pad - rowHeight;
-    MoveWindow(g_insert, pad, buttonsTop, px(210), rowHeight, TRUE);
-    MoveWindow(g_copy, pad + px(210) + gap, buttonsTop, px(190), rowHeight, TRUE);
+    MoveWindow(g_insert, pad, buttonsTop, px(290), rowHeight, TRUE);
+    MoveWindow(g_copy, pad + px(290) + gap, buttonsTop, px(220), rowHeight, TRUE);
 }
 
 HWND child(const wchar_t* cls, const wchar_t* text, DWORD style, int id, DWORD exStyle = 0) {

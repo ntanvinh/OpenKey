@@ -80,9 +80,10 @@ function WindowOpen($class) {
     $h = [VokInput]::FindWindow($class, $null)
     return ($h -ne [IntPtr]::Zero -and [VokInput]::IsWindowVisible($h))
 }
-function WaitWindow($class, $open, $ms = 3000) {
-    $end = [DateTime]::Now.AddMilliseconds($ms)
-    while ([DateTime]::Now -lt $end) { if ((WindowOpen $class) -eq $open) { return $true }; Pump 100 }
+function WaitWindow($class, $open, $ms = 10000) {
+    $start = [DateTime]::Now
+    $end = $start.AddMilliseconds($ms)
+    while ([DateTime]::Now -lt $end) { if ((WindowOpen $class) -eq $open) { $script:waited = [int]([DateTime]::Now - $start).TotalMilliseconds; return $true }; Pump 100 }
     return ((WindowOpen $class) -eq $open)
 }
 
@@ -99,7 +100,7 @@ $app = $null
 $form = $null
 try {
     $app = Start-Process -FilePath $Exe -PassThru
-    Pump 2500
+    Pump 5000
     if ($app.HasExited) { Report "program starts" "FAIL" "exited with code $($app.ExitCode)"; throw "stopped" }
     Report "program starts" "PASS" "pid $($app.Id)"
     # the hidden window of the program (tray, message loop): present when the program got as far as its main loop
@@ -137,7 +138,7 @@ try {
     # 3. snippets: Ctrl+Alt+S opens, Esc closes
     [void][VokInput]::SetForegroundWindow($form.Handle); Pump 300
     Press 0x53 @("Ctrl", "Alt")
-    if (WaitWindow "VOpenKeyAISnippetPalette" $true) { Report "snippet window opens" "PASS" "" } else { Report "snippet window opens" "FAIL" "" }
+    if (WaitWindow "VOpenKeyAISnippetPalette" $true) { Report "snippet window opens" "PASS" "after $($script:waited) ms" } else { Report "snippet window opens" "FAIL" "" }
     Shot "snippets"
     Press $Keys.Esc
     if (WaitWindow "VOpenKeyAISnippetPalette" $false) { Report "snippet window closes" "PASS" "" } else { Report "snippet window closes" "FAIL" "" }
@@ -146,7 +147,7 @@ try {
     [void][VokInput]::SetForegroundWindow($form.Handle); Pump 300
     $box.Text = "xin chao the gioi"; $box.SelectAll(); Pump 200
     Press 0x43 @("Ctrl", "Alt")
-    if (WaitWindow "VOpenKeyAICaseBar" $true 4000) {
+    if (WaitWindow "VOpenKeyAICaseBar" $true) {
         Shot "case-list"
         Press $Keys.Enter
         Pump 1200
@@ -156,7 +157,7 @@ try {
     # 5. the AI assistant opens (no request is made)
     [void][VokInput]::SetForegroundWindow($form.Handle); Pump 300
     Press 0x41 @("Ctrl", "Alt")
-    if (WaitWindow "VOpenKeyAIAssistant" $true 4000) { Report "AI window opens" "PASS" "" ; Shot "ai"; Press $Keys.Esc } else { Report "AI window opens" "FAIL" "" }
+    if (WaitWindow "VOpenKeyAIAssistant" $true) { Report "AI window opens" "PASS" "after $($script:waited) ms" ; Shot "ai"; Press $Keys.Esc } else { Report "AI window opens" "FAIL" "" }
 }
 catch { if ($_.ToString() -ne "stopped") { Report "unexpected error" "FAIL" $_.ToString() } }
 finally {

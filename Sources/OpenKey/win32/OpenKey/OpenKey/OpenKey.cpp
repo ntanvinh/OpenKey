@@ -174,15 +174,17 @@ void OpenKeyInit() {
 
 	//init hook
 	HINSTANCE hInstance = GetModuleHandle(NULL);
-	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
-	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
-	hSystemEvent = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, winEventProcCallback, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
 
+	//before the hooks: loading the dictionaries takes a moment, and a keyboard hook that is installed but not answering costs the user keys
 	//suggestion bar, snippets and the other features of VOpenKey AI
 	FeatureActions::loadSettings();
 	FeatureActions::setRestoreHandler(restoreTypingWord);
 	FeatureActions::start(hInstance);
 	SuggestionController::start(hInstance);
+
+	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
+	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
+	hSystemEvent = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, winEventProcCallback, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
 }
 
 void saveSmartSwitchKeyData() {
