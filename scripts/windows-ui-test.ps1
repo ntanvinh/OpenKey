@@ -76,8 +76,9 @@ function TypeText([string]$text) {
     }
     Pump 200
 }
+# a plain $null becomes "" for a string parameter, and FindWindow then looks for a window whose title is empty
 function WindowOpen($class) {
-    $h = [VokInput]::FindWindow($class, $null)
+    $h = [VokInput]::FindWindow($class, [NullString]::Value)
     return ($h -ne [IntPtr]::Zero -and [VokInput]::IsWindowVisible($h))
 }
 function WaitWindow($class, $open, $ms = 10000) {
@@ -104,7 +105,7 @@ try {
     if ($app.HasExited) { Report "program starts" "FAIL" "exited with code $($app.ExitCode)"; throw "stopped" }
     Report "program starts" "PASS" "pid $($app.Id)"
     # the hidden window of the program (tray, message loop): present when the program got as far as its main loop
-    if ([VokInput]::FindWindow("OpenKeyVietnameseInputMethod", $null) -ne [IntPtr]::Zero) { Report "program runs its message loop" "PASS" "" } else { Report "program runs its message loop" "FAIL" "no window of class OpenKeyVietnameseInputMethod" }
+    if ([VokInput]::FindWindow("OpenKeyVietnameseInputMethod", [NullString]::Value) -ne [IntPtr]::Zero) { Report "program runs its message loop" "PASS" "" } else { Report "program runs its message loop" "FAIL" "no window of class OpenKeyVietnameseInputMethod" }
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "vok-ui-test"; $form.Width = 700; $form.Height = 300; $form.TopMost = $true; $form.StartPosition = "CenterScreen"
