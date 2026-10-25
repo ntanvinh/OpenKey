@@ -11,9 +11,22 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Exe,
-    [string]$Out = "ui-test-shots"
+    [string]$Out = "ui-test-shots",
+    [switch]$InHost
 )
 $ErrorActionPreference = "Stop"
+
+# The suggestion bar is off in terminals (Tab belongs to them), and powershell.exe counts as one. The test window therefore lives in a
+# copy of PowerShell with another name, like the text box of an ordinary program.
+if (-not $InHost) {
+    $source = (Get-Command powershell.exe -ErrorAction SilentlyContinue).Source
+    if (-not $source) { $source = Join-Path $PSHOME "pwsh.exe" }
+    $hostCopy = Join-Path $env:TEMP "vok-ui-host.exe"
+    Copy-Item $source $hostCopy -Force
+    $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"", "-Exe", "`"$Exe`"", "-Out", "`"$Out`"", "-InHost")
+    $child = Start-Process -FilePath $hostCopy -ArgumentList $argsList -NoNewWindow -Wait -PassThru
+    exit $child.ExitCode
+}
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
 Add-Type @"
@@ -112,6 +125,7 @@ try {
     $box = New-Object System.Windows.Forms.TextBox
     $box.Multiline = $true; $box.Dock = "Fill"; $box.Font = New-Object System.Drawing.Font("Segoe UI", 16)
     $form.Controls.Add($box)
+    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(2, 2)   # a pointer resting on a popup would choose its row
     $form.Show(); $form.Activate(); $box.Focus() | Out-Null
     [void][VokInput]::SetForegroundWindow($form.Handle)
     Pump 600
