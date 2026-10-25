@@ -10,10 +10,13 @@ on:
       - "Sources/OpenKey/win32/**"
       - "Sources/OpenKey/engine/**"
       - ".github/workflows/windows-build.yml"
+      - "scripts/windows-ui-test.ps1"
+      - "scripts/test-portable.sh"
   pull_request:
     paths:
       - "Sources/OpenKey/win32/**"
       - "Sources/OpenKey/engine/**"
+      - "scripts/windows-ui-test.ps1"
   workflow_dispatch:
 
 env:
