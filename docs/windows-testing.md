@@ -16,8 +16,12 @@ Three levels, from cheap to real. An agent can do the first two on a Mac, and th
    selection. It saves a screenshot per step as the artifact `ui-test-x86` / `ui-test-x64`.
    An agent starts it with `gh workflow run windows-build.yml --ref <branch>`, waits with `gh run watch`, reads the log with
    `gh run view --log` and looks at the pictures with `gh run download`. It needs the branch pushed, so the owner has to agree.
-   Whether the hosted runner gives an interactive desktop (the keyboard steps need one) is not known until the first run: the
-   script then says SKIP, never PASS.
+   Verified on 2026-10-25 (run 40193303430): the hosted runner (Windows Server 2025) has an interactive desktop, SendInput and
+   screenshots work, and all 9 steps pass for x86 and x64. Lessons from getting there: PowerShell variables ignore case (a
+   parameter `$vk` hid the table `$VK`), a `$null` passed to a string parameter of FindWindow becomes "" and matches no window,
+   the test window must not live in powershell.exe (terminals are excluded from suggestions; the script re-runs itself in a renamed
+   copy), and the mouse pointer must be out of the way (a pointer resting on the case list chooses its row). If the desktop is
+   ever missing the script says SKIP, never PASS.
 
 3. **A Windows machine or virtual machine** (Windows 11 in UTM or Parallels on the Mac, or any PC) with OpenSSH Server. Keyboard
    input only works in a logged-in desktop session, so the agent starts the script in that session, not in the SSH session:

@@ -35,3 +35,7 @@ Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
    github URLs, the licence headers. Check that nothing visible still says "OpenKey" (title bars, the main window, the About window).
 
 Automatic version of most of this list: `scripts/windows-ui-test.ps1`, see docs/windows-testing.md.
+
+Seen working on a real Windows (CI, Windows Server 2025, x86 and x64, 2026-10-25): program starts, Telex "Việt Nam", suggestion bar and
+Esc, snippet window, case list on a selection, AI window with the selection copied in. Still to try by hand: the rest of the list above
+(real browsers, Word, DPI 150%, dark theme, Alt+n accept, restore shortcut, a real AI request, update from a zip).
