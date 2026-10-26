@@ -19,8 +19,8 @@ static const CGFloat kDistanceFromText = 4;
 static const NSTimeInterval kFadeIn = 0.12;
 static const NSTimeInterval kHoverDelay = 1.2; //give the user time to read before the bar yields to the pointer
 static const NSTimeInterval kHoverFade = 0.25;
-static const CGFloat kHoverAlpha = 0.15;   //the pointer is over the bar: it is almost gone, so the app behind can be read
 static NSString* const kTransparencyKey = @"SuggestionTransparencyPercent";
+static NSString* const kHoverTransparencyKey = @"SuggestionHoverTransparencyPercent";
 static NSNotificationName const kTransparencyChanged = @"VOKSuggestionTransparencyChanged";
 
 #pragma mark - The words
@@ -142,7 +142,25 @@ static NSImage* BarMask(void) {
 }
 
 +(void)setTransparencyPercent:(NSInteger)percent {
-    [NSUserDefaults.standardUserDefaults setInteger:MAX(0, MIN(80, percent)) forKey:kTransparencyKey];
+    percent = MAX(0, MIN(80, percent));
+    NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
+    [defaults setInteger:percent forKey:kTransparencyKey];
+    id savedHoverPercent = [defaults objectForKey:kHoverTransparencyKey];
+    NSInteger hoverPercent = savedHoverPercent ? [savedHoverPercent integerValue] : 85;
+    if (hoverPercent <= percent)
+        [defaults setInteger:percent + 1 forKey:kHoverTransparencyKey];
+    [NSNotificationCenter.defaultCenter postNotificationName:kTransparencyChanged object:nil];
+}
+
++(NSInteger)hoverTransparencyPercent {
+    NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
+    NSInteger saved = [defaults objectForKey:kHoverTransparencyKey] ? [defaults integerForKey:kHoverTransparencyKey] : 85;
+    return MAX([self transparencyPercent] + 1, MIN(95, MAX(1, saved)));
+}
+
++(void)setHoverTransparencyPercent:(NSInteger)percent {
+    NSInteger minimum = self.transparencyPercent + 1;
+    [NSUserDefaults.standardUserDefaults setInteger:MAX(minimum, MIN(95, percent)) forKey:kHoverTransparencyKey];
     [NSNotificationCenter.defaultCenter postNotificationName:kTransparencyChanged object:nil];
 }
 
@@ -150,8 +168,12 @@ static NSImage* BarMask(void) {
     return 1 - SuggestionPanel.transparencyPercent / 100.0;
 }
 
+-(CGFloat)hoverAlpha {
+    return 1 - SuggestionPanel.hoverTransparencyPercent / 100.0;
+}
+
 -(void)transparencyChanged:(NSNotification*)notification {
-    self.alphaValue = _faded ? MIN(kHoverAlpha, self.preferredAlpha) : self.preferredAlpha;
+    self.alphaValue = _faded ? self.hoverAlpha : self.preferredAlpha;
 }
 
 -(instancetype)init {
@@ -265,7 +287,7 @@ static NSImage* BarMask(void) {
     if (faded == _faded)
         return;
     _faded = faded;
-    CGFloat alpha = faded ? MIN(kHoverAlpha, self.preferredAlpha) : self.preferredAlpha;
+    CGFloat alpha = faded ? self.hoverAlpha : self.preferredAlpha;
     if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
         self.alphaValue = alpha;
         return;

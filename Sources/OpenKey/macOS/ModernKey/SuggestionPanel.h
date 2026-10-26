@@ -15,6 +15,11 @@
 +(NSInteger)transparencyPercent;
 +(void)setTransparencyPercent:(NSInteger)percent;
 
+/// Saved transparency while the pointer is over the bar, 1–95 percent (default 85).
+/// Always remains at least one point more transparent than the normal appearance.
++(NSInteger)hoverTransparencyPercent;
++(void)setHoverTransparencyPercent:(NSInteger)percent;
+
 /// What the first word is chosen with: Tab (the default), or ⌥1 when the user turned Tab off. The others are ⌥2, ⌥3...
 @property (nonatomic) BOOL firstWordUsesTab;
 

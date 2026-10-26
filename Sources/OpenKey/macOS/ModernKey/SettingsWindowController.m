@@ -172,7 +172,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 @implementation SettingsWindowController {
     SettingsTabs* _tabs;
     NSStackView* _suggestionAppsSection;
-    NSTextField* _suggestionTransparencyValue;
+    NSTextField* _suggestionTransparencyValue, *_suggestionHoverTransparencyValue;
+    NSSlider* _suggestionHoverTransparencySlider;
     NSMutableArray<SettingsToggle*>* _toggles;
 
     NSSegmentedControl* _language;
@@ -654,22 +655,12 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSMutableArray* rows = [NSMutableArray array];
     for (SettingsToggle* toggle in @[enabled, compounds, nextWord, tab, learn])
         [rows addObject:[self rowForToggle:toggle]];
-    NSSlider* transparency = [NSSlider sliderWithValue:SuggestionPanel.transparencyPercent minValue:0 maxValue:80
-                                               target:self action:@selector(changeSuggestionTransparency:)];
-    transparency.continuous = YES;
-    transparency.accessibilityLabel = @"Độ trong suốt của thanh gợi ý";
-    transparency.toolTip = @"0% rõ nhất, 80% trong suốt nhất. Áp dụng ngay và tự động lưu.";
-    [transparency.widthAnchor constraintEqualToConstant:kCardWidth / 4].active = YES;
-    _suggestionTransparencyValue = VOKLabel([NSString stringWithFormat:@"%ld%%", (long)SuggestionPanel.transparencyPercent],
-                                           13, NSFontWeightRegular, NSColor.secondaryLabelColor);
-    _suggestionTransparencyValue.font = [NSFont monospacedDigitSystemFontOfSize:13 weight:NSFontWeightRegular];
-    [_suggestionTransparencyValue.widthAnchor constraintEqualToConstant:kRowMinHeight].active = YES;
-    _suggestionTransparencyValue.alignment = NSTextAlignmentRight;
-    NSStackView* transparencyControls = [NSStackView stackViewWithViews:@[transparency, _suggestionTransparencyValue]];
-    transparencyControls.spacing = kHeadingSpacing;
-    transparencyControls.alignment = NSLayoutAttributeCenterY;
-    [rows addObject:[self rowWithTitle:@"Độ trong suốt" detail:@"Kéo sang phải để thanh gợi ý trong suốt hơn."
-                              control:transparencyControls indent:0]];
+    [rows addObject:[self suggestionTransparencyRowWithTitle:@"Độ trong suốt mặc định"
+                                                       detail:@"Mức hiển thị của thanh khi con trỏ ở ngoài."
+                                                    hoverMode:NO]];
+    [rows addObject:[self suggestionTransparencyRowWithTitle:@"Độ trong suốt khi hover"
+                                                       detail:@"Thanh mờ hơn khi con trỏ nằm trên thanh."
+                                                    hoverMode:YES]];
     NSButton* folder = [NSButton buttonWithTitle:@"Mở thư mục…" target:self action:@selector(openDictionaryFolder:)];
     [rows addObject:[self buttonRowWithTitle:@"Từ điển" detail:@"Thả thêm file .txt vào thư mục để bổ sung từ và cụm từ." button:folder]];
     NSButton* reload = [NSButton buttonWithTitle:@"Tải lại" target:self action:@selector(reloadDictionaries:)];
@@ -680,10 +671,49 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
                            footer:@"Chỉ dùng được với bảng mã Unicode. Không hiện khi gõ mật khẩu."];
 }
 
+-(NSView*)suggestionTransparencyRowWithTitle:(NSString*)title detail:(NSString*)detail hoverMode:(BOOL)hoverMode {
+    NSInteger percent = hoverMode ? SuggestionPanel.hoverTransparencyPercent : SuggestionPanel.transparencyPercent;
+    NSSlider* slider = [NSSlider sliderWithValue:percent
+                                        minValue:hoverMode ? SuggestionPanel.transparencyPercent + 1 : 0
+                                        maxValue:hoverMode ? 95 : 80
+                                          target:self
+                                          action:hoverMode ? @selector(changeSuggestionHoverTransparency:) : @selector(changeSuggestionTransparency:)];
+    slider.continuous = YES;
+    slider.accessibilityLabel = title;
+    slider.toolTip = hoverMode ? @"Mức trong suốt khi con trỏ nằm trên thanh. Luôn cao hơn mức mặc định."
+                               : @"Mức trong suốt bình thường của thanh gợi ý.";
+    [slider.widthAnchor constraintEqualToConstant:kCardWidth / 4].active = YES;
+    NSTextField* value = VOKLabel([NSString stringWithFormat:@"%ld%%", (long)percent],
+                                  13, NSFontWeightRegular, NSColor.secondaryLabelColor);
+    value.font = [NSFont monospacedDigitSystemFontOfSize:13 weight:NSFontWeightRegular];
+    [value.widthAnchor constraintEqualToConstant:kRowMinHeight].active = YES;
+    value.alignment = NSTextAlignmentRight;
+    if (hoverMode) {
+        _suggestionHoverTransparencySlider = slider;
+        _suggestionHoverTransparencyValue = value;
+    } else {
+        _suggestionTransparencyValue = value;
+    }
+    NSStackView* controls = [NSStackView stackViewWithViews:@[slider, value]];
+    controls.spacing = kHeadingSpacing;
+    controls.alignment = NSLayoutAttributeCenterY;
+    return [self rowWithTitle:title detail:detail control:controls indent:0];
+}
+
 -(void)changeSuggestionTransparency:(NSSlider*)sender {
     [SuggestionPanel setTransparencyPercent:(NSInteger)lround(sender.doubleValue)];
     sender.integerValue = SuggestionPanel.transparencyPercent;
     _suggestionTransparencyValue.stringValue = [NSString stringWithFormat:@"%ld%%", (long)sender.integerValue];
+    _suggestionHoverTransparencySlider.minValue = SuggestionPanel.transparencyPercent + 1;
+    _suggestionHoverTransparencySlider.integerValue = SuggestionPanel.hoverTransparencyPercent;
+    _suggestionHoverTransparencyValue.stringValue = [NSString stringWithFormat:@"%ld%%", (long)SuggestionPanel.hoverTransparencyPercent];
+    _suggestionHoverTransparencyValue.accessibilityValue = _suggestionHoverTransparencyValue.stringValue;
+}
+
+-(void)changeSuggestionHoverTransparency:(NSSlider*)sender {
+    [SuggestionPanel setHoverTransparencyPercent:(NSInteger)lround(sender.doubleValue)];
+    sender.integerValue = SuggestionPanel.hoverTransparencyPercent;
+    _suggestionHoverTransparencyValue.stringValue = [NSString stringWithFormat:@"%ld%%", (long)sender.integerValue];
 }
 
 -(NSView*)sectionSuggestionApps {
