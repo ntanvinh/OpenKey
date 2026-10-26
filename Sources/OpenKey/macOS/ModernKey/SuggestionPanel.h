@@ -11,6 +11,10 @@
 
 @interface SuggestionPanel : NSPanel
 
+/// Saved transparency, 0–80 percent (default 0). Changes apply to visible bars immediately.
++(NSInteger)transparencyPercent;
++(void)setTransparencyPercent:(NSInteger)percent;
+
 /// What the first word is chosen with: Tab (the default), or ⌥1 when the user turned Tab off. The others are ⌥2, ⌥3...
 @property (nonatomic) BOOL firstWordUsesTab;
 

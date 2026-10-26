@@ -20,6 +20,8 @@ static const NSTimeInterval kFadeIn = 0.12;
 static const NSTimeInterval kHoverDelay = 1.2; //give the user time to read before the bar yields to the pointer
 static const NSTimeInterval kHoverFade = 0.25;
 static const CGFloat kHoverAlpha = 0.15;   //the pointer is over the bar: it is almost gone, so the app behind can be read
+static NSString* const kTransparencyKey = @"SuggestionTransparencyPercent";
+static NSNotificationName const kTransparencyChanged = @"VOKSuggestionTransparencyChanged";
 
 #pragma mark - The words
 
@@ -135,6 +137,23 @@ static NSImage* BarMask(void) {
     BOOL _faded;
 }
 
++(NSInteger)transparencyPercent {
+    return MAX(0, MIN(80, [NSUserDefaults.standardUserDefaults integerForKey:kTransparencyKey]));
+}
+
++(void)setTransparencyPercent:(NSInteger)percent {
+    [NSUserDefaults.standardUserDefaults setInteger:MAX(0, MIN(80, percent)) forKey:kTransparencyKey];
+    [NSNotificationCenter.defaultCenter postNotificationName:kTransparencyChanged object:nil];
+}
+
+-(CGFloat)preferredAlpha {
+    return 1 - SuggestionPanel.transparencyPercent / 100.0;
+}
+
+-(void)transparencyChanged:(NSNotification*)notification {
+    self.alphaValue = _faded ? MIN(kHoverAlpha, self.preferredAlpha) : self.preferredAlpha;
+}
+
 -(instancetype)init {
     self = [super initWithContentRect:NSMakeRect(0, 0, 120, kItemHeight + 2 * kPadding)
                             styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
@@ -166,6 +185,8 @@ static NSImage* BarMask(void) {
         _items = [[SuggestionItemsView alloc] initWithFrame:background.bounds];
         _items.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [background addSubview:_items];
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(transparencyChanged:)
+                                                   name:kTransparencyChanged object:nil];
     }
     return self;
 }
@@ -244,7 +265,7 @@ static NSImage* BarMask(void) {
     if (faded == _faded)
         return;
     _faded = faded;
-    CGFloat alpha = faded ? kHoverAlpha : 1;
+    CGFloat alpha = faded ? MIN(kHoverAlpha, self.preferredAlpha) : self.preferredAlpha;
     if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
         self.alphaValue = alpha;
         return;
@@ -262,6 +283,7 @@ static NSImage* BarMask(void) {
 }
 
 -(void)dealloc {
+    [NSNotificationCenter.defaultCenter removeObserver:self];
     [self stopWatchingPointer];
 }
 
@@ -272,7 +294,7 @@ static NSImage* BarMask(void) {
         return;
     }
     if ([[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]) {
-        self.alphaValue = 1;
+        self.alphaValue = self.preferredAlpha;
         [self orderFrontRegardless];
         [self updateFadeForPointer];
         return;
@@ -281,7 +303,7 @@ static NSImage* BarMask(void) {
     [self orderFrontRegardless];
     [NSAnimationContext runAnimationGroup:^(NSAnimationContext* context) {
         context.duration = kFadeIn;
-        self.animator.alphaValue = 1;
+        self.animator.alphaValue = self.preferredAlpha;
     }];
     [self updateFadeForPointer];
 }

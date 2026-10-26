@@ -1,11 +1,13 @@
 #import <Cocoa/Cocoa.h>
 #import <objc/runtime.h>
 #import "SuggestionController.h"
+#import "SuggestionPanel.h"
 #import "SettingsWindowController.h"
 #import "VOKUI.h"
 
 @interface SettingsWindowController (SuggestionAppsTesting)
 -(NSView*)sectionSuggestionApps;
+-(NSView*)sectionSuggestion;
 -(void)reloadSuggestionApps;
 -(void)removeSuggestionApp:(NSButton*)sender;
 -(void)toggleSuggestionAppExclusions:(NSSwitch*)sender;
@@ -21,6 +23,15 @@ static NSSwitch* FindSwitch(NSView* root) {
     if ([root isKindOfClass:NSSwitch.class]) return (NSSwitch*)root;
     for (NSView* child in root.subviews) {
         NSSwitch* found = FindSwitch(child);
+        if (found) return found;
+    }
+    return nil;
+}
+
+static NSSlider* FindSlider(NSView* root) {
+    if ([root isKindOfClass:NSSlider.class]) return (NSSlider*)root;
+    for (NSView* child in root.subviews) {
+        NSSlider* found = FindSlider(child);
         if (found) return found;
     }
     return nil;
@@ -131,6 +142,32 @@ int main(void) {
         [controller removeSuggestionApp:remove];
         CHECK([SuggestionController excludedApps].count == 0, "remove button updates saved list");
 
+        NSView* suggestionSection = [controller sectionSuggestion];
+        [suggestionSection.widthAnchor constraintEqualToConstant:520].active = YES;
+        NSSlider* slider = FindSlider(suggestionSection);
+        CHECK(slider != nil && slider.continuous, "native slider applies continuously");
+        CHECK(slider.accessibilityLabel.length > 0, "slider has accessible label");
+        CHECK(slider.minValue == 0 && slider.maxValue == 80, "slider matches supported range");
+        [content removeArrangedSubview:section];
+        [section removeFromSuperview];
+        [content addArrangedSubview:suggestionSection];
+        for (NSNumber* percent in @[@0, @50, @80]) {
+            slider.doubleValue = percent.doubleValue;
+            [slider sendAction:slider.action to:slider.target];
+            CHECK(SuggestionPanel.transparencyPercent == percent.integerValue, "slider action saves chosen percentage");
+            for (NSAppearanceName theme in @[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]) {
+                window.appearance = [NSAppearance appearanceNamed:theme];
+                [content setFrameSize:content.fittingSize];
+                [content layoutSubtreeIfNeeded];
+                CHECK(suggestionSection.fittingSize.width <= 521, "suggestion controls fit settings width");
+                NSBitmapImageRep* image = [content bitmapImageRepForCachingDisplayInRect:content.bounds];
+                [content cacheDisplayInRect:content.bounds toBitmapImageRep:image];
+                [[image representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
+                    writeToFile:[NSString stringWithFormat:@"/tmp/vopenkey-suggestion-transparency-%@-%@.png", percent, theme] atomically:YES];
+            }
+        }
+        NSView* reopened = [controller sectionSuggestion];
+        CHECK(FindSlider(reopened).integerValue == 80, "reopened settings restore saved percentage");
         [isolated removePersistentDomainForName:suite];
         method_setImplementation(defaults, original);
         NSLog(@"Suggestion app exclusions: %d failures", failures);

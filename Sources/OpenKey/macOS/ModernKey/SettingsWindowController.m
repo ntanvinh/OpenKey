@@ -26,6 +26,7 @@
 #import "SnippetPalette.h"
 #import "SnippetStore.h"
 #import "SuggestionController.h"
+#import "SuggestionPanel.h"
 #import "WordRestore.h"
 #import "VOKUI.h"
 
@@ -171,6 +172,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 @implementation SettingsWindowController {
     SettingsTabs* _tabs;
     NSStackView* _suggestionAppsSection;
+    NSTextField* _suggestionTransparencyValue;
     NSMutableArray<SettingsToggle*>* _toggles;
 
     NSSegmentedControl* _language;
@@ -652,6 +654,22 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSMutableArray* rows = [NSMutableArray array];
     for (SettingsToggle* toggle in @[enabled, compounds, nextWord, tab, learn])
         [rows addObject:[self rowForToggle:toggle]];
+    NSSlider* transparency = [NSSlider sliderWithValue:SuggestionPanel.transparencyPercent minValue:0 maxValue:80
+                                               target:self action:@selector(changeSuggestionTransparency:)];
+    transparency.continuous = YES;
+    transparency.accessibilityLabel = @"Độ trong suốt của thanh gợi ý";
+    transparency.toolTip = @"0% rõ nhất, 80% trong suốt nhất. Áp dụng ngay và tự động lưu.";
+    [transparency.widthAnchor constraintEqualToConstant:kCardWidth / 4].active = YES;
+    _suggestionTransparencyValue = VOKLabel([NSString stringWithFormat:@"%ld%%", (long)SuggestionPanel.transparencyPercent],
+                                           13, NSFontWeightRegular, NSColor.secondaryLabelColor);
+    _suggestionTransparencyValue.font = [NSFont monospacedDigitSystemFontOfSize:13 weight:NSFontWeightRegular];
+    [_suggestionTransparencyValue.widthAnchor constraintEqualToConstant:kRowMinHeight].active = YES;
+    _suggestionTransparencyValue.alignment = NSTextAlignmentRight;
+    NSStackView* transparencyControls = [NSStackView stackViewWithViews:@[transparency, _suggestionTransparencyValue]];
+    transparencyControls.spacing = kHeadingSpacing;
+    transparencyControls.alignment = NSLayoutAttributeCenterY;
+    [rows addObject:[self rowWithTitle:@"Độ trong suốt" detail:@"Kéo sang phải để thanh gợi ý trong suốt hơn."
+                              control:transparencyControls indent:0]];
     NSButton* folder = [NSButton buttonWithTitle:@"Mở thư mục…" target:self action:@selector(openDictionaryFolder:)];
     [rows addObject:[self buttonRowWithTitle:@"Từ điển" detail:@"Thả thêm file .txt vào thư mục để bổ sung từ và cụm từ." button:folder]];
     NSButton* reload = [NSButton buttonWithTitle:@"Tải lại" target:self action:@selector(reloadDictionaries:)];
@@ -660,6 +678,12 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey AI đã học từ bạn." button:forget]];
     return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows
                            footer:@"Chỉ dùng được với bảng mã Unicode. Không hiện khi gõ mật khẩu."];
+}
+
+-(void)changeSuggestionTransparency:(NSSlider*)sender {
+    [SuggestionPanel setTransparencyPercent:(NSInteger)lround(sender.doubleValue)];
+    sender.integerValue = SuggestionPanel.transparencyPercent;
+    _suggestionTransparencyValue.stringValue = [NSString stringWithFormat:@"%ld%%", (long)sender.integerValue];
 }
 
 -(NSView*)sectionSuggestionApps {
