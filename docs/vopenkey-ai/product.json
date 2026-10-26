@@ -1,5 +1,12 @@
 {
-  "schemaVersion": 1,
+  "slug": "vopenkey-ai",
+  "sortOrder": 999,
+  "icon": "./icon.png",
+  "kind": "app",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
   "name": {
     "en": "VOpenKey AI",
     "vi": "VOpenKey AI"
@@ -9,8 +16,8 @@
     "vi": "Gõ tiếng Việt, lỡ tay vẫn sửa được."
   },
   "description": {
-    "en": "VOpenKey AI is a macOS Vietnamese input method and writing companion for people who work in Vietnamese across apps. Recover words the input method changes unexpectedly, then use shortcuts for reusable snippets or an optional AI assistant. Choose Telex, VNI, or Simple Telex and tailor your typing rules.",
-    "vi": "VOpenKey AI là bộ gõ tiếng Việt kiêm trợ lý viết trên macOS, dành cho người thường làm việc bằng tiếng Việt ở nhiều ứng dụng. Nếu bộ gõ đổi nhầm một từ, bạn có thể khôi phục từ đó rồi tiếp tục gõ; snippet và trợ lý AI giúp xử lý nhanh những nội dung hay dùng. Bạn chọn Telex, VNI hoặc Simple Telex và tùy chỉnh quy tắc gõ theo thói quen."
+    "en": "Vietnamese input on Mac helps you recover words changed by typing, then write across apps with shortcuts for snippets and an optional AI assistant.",
+    "vi": "Bộ gõ tiếng Việt trên Mac giúp bạn khôi phục từ bị đổi nhầm, cùng snippet và trợ lý AI tùy chọn để viết nhanh trong nhiều ứng dụng."
   },
   "seo": {
     "keywords": {
@@ -29,19 +36,22 @@
       "vi": [
         "bộ gõ",
         "gõ tiếng Việt",
-        "go Telex",
+        "go tieng Viet",
+        "gõ Telex",
         "go VNI",
         "gõ tắt",
         "khôi phục từ",
+        "gợi ý từ",
         "goi y tu",
-        "AI soạn thảo",
-        "chuyển mã",
-        "sửa chính tả"
+        "AI soạn thảo"
       ]
     }
   },
   "features": [
     {
+      "image": "./screenshots/01-ai-writing-assistant.png",
+      "mode": "desktop",
+      "orientation": "landscape",
       "text": {
         "en": "Write With Your Chosen AI",
         "vi": "Soạn cùng AI bạn chọn"
@@ -49,23 +59,51 @@
       "description": {
         "en": "Draft, translate, or revise text from any app, then copy it or place it back into your work. Connect a hosted service, a local model, or a compatible signed-in command-line agent.",
         "vi": "Soạn, dịch hoặc chỉnh sửa nội dung ngay trong ứng dụng bạn đang dùng, rồi sao chép hoặc chèn kết quả trở lại. Bạn có thể kết nối dịch vụ trực tuyến, mô hình chạy trên máy hoặc công cụ AI dòng lệnh đã đăng nhập."
-      },
-      "mode": "desktop",
-      "orientation": "landscape"
+      }
     },
     {
+      "image": "./screenshots/02-local-ai-setup.png",
+      "mode": "desktop",
+      "orientation": "landscape",
       "text": {
-        "en": "Recover Words While Typing",
-        "vi": "Khôi phục từ khi đang gõ"
+        "en": "Run AI On Your Mac",
+        "vi": "Chạy AI ngay trên máy Mac"
       },
       "description": {
-        "en": "Restore non-Vietnamese words that were changed by Vietnamese input, or use a shortcut to recover a word that needs correction. Keep typing the rest of that word without conversion.",
-        "vi": "Tự trả lại từ không phải tiếng Việt bị bộ gõ chuyển đổi, hoặc dùng phím tắt để khôi phục từ cần sửa. Phần còn lại của từ sẽ được gõ nguyên văn."
-      },
-      "mode": "desktop",
-      "orientation": "landscape"
+        "en": "Check whether your Mac can handle a local model and get help installing and connecting it. With a local model, your prompt stays on your computer.",
+        "vi": "Kiểm tra máy Mac có chạy được mô hình AI cục bộ hay không, rồi được hướng dẫn cài đặt và kết nối. Khi dùng mô hình cục bộ, nội dung bạn nhập vẫn nằm trên máy."
+      }
     },
     {
+      "image": "./screenshots/03-signed-in-ai-agents.png",
+      "mode": "desktop",
+      "orientation": "landscape",
+      "text": {
+        "en": "Use AI You’re Signed Into",
+        "vi": "Dùng AI bạn đã đăng nhập"
+      },
+      "description": {
+        "en": "Use supported AI command-line tools already installed and signed in on your Mac, without entering a separate API key in VOpenKey AI. Choose a model and thinking level for writing tasks.",
+        "vi": "Dùng các công cụ AI dòng lệnh được hỗ trợ, đã cài và đăng nhập trên máy mà không cần nhập API key riêng vào VOpenKey AI. Bạn có thể chọn mô hình và mức suy nghĩ cho tác vụ viết."
+      }
+    },
+    {
+      "image": "./screenshots/04-ai-image-generation.png",
+      "mode": "desktop",
+      "orientation": "landscape",
+      "text": {
+        "en": "Create Images From Prompts",
+        "vi": "Tạo ảnh từ mô tả"
+      },
+      "description": {
+        "en": "When Codex CLI is selected, describe an image and view the generated result in the assistant. Copy it or insert it into the app where you are working.",
+        "vi": "Khi chọn Codex CLI, hãy mô tả hình ảnh để trợ lý tạo ảnh và hiển thị kết quả ngay trong cửa sổ. Bạn có thể sao chép ảnh hoặc chèn vào ứng dụng đang dùng."
+      }
+    },
+    {
+      "image": "./screenshots/05-prompt-snippet-library.png",
+      "mode": "desktop",
+      "orientation": "landscape",
       "text": {
         "en": "Reuse Prompts In Any App",
         "vi": "Dùng lại prompt mọi nơi"
@@ -73,11 +111,25 @@
       "description": {
         "en": "Find and insert your own snippets from a keyboard shortcut, including prompts for summarizing, translating, rewriting, and code review. Search works without Vietnamese diacritics, and snippets can include clipboard text, date, or time.",
         "vi": "Mở nhanh snippet cá nhân bằng phím tắt để dùng lại prompt tóm tắt, dịch, viết lại hay review code. Có thể tìm không dấu và chèn nội dung clipboard, ngày hoặc giờ vào snippet."
-      },
-      "mode": "desktop",
-      "orientation": "landscape"
+      }
     },
     {
+      "image": "./screenshots/06-restore-accidental-typing.png",
+      "mode": "desktop",
+      "orientation": "landscape",
+      "text": {
+        "en": "Recover Words While Typing",
+        "vi": "Khôi phục từ khi đang gõ"
+      },
+      "description": {
+        "en": "Restore non-Vietnamese words that were changed by Vietnamese input, or use a shortcut to recover a word that needs correction. Keep typing the rest of that word without conversion.",
+        "vi": "Tự trả lại từ không phải tiếng Việt bị bộ gõ chuyển đổi, hoặc dùng phím tắt để khôi phục từ cần sửa. Phần còn lại của từ sẽ được gõ nguyên văn."
+      }
+    },
+    {
+      "image": "./screenshots/07-contextual-word-suggestions.png",
+      "mode": "desktop",
+      "orientation": "landscape",
       "text": {
         "en": "See What You Can Type Next",
         "vi": "Gợi ý từ khi đang gõ"
@@ -85,13 +137,29 @@
       "description": {
         "en": "See context-aware Vietnamese word suggestions as you type, including phrases entered without diacritics. Choose a suggestion from the keyboard when it fits.",
         "vi": "Xem gợi ý từ tiếng Việt theo ngữ cảnh ngay khi gõ, kể cả cụm từ nhập không dấu. Chọn gợi ý phù hợp trực tiếp bằng bàn phím."
-      },
+      }
+    },
+    {
+      "image": "./screenshots/08-smooth-vietnamese-typing.png",
       "mode": "desktop",
-      "orientation": "landscape"
+      "orientation": "landscape",
+      "text": {
+        "en": "Type Vietnamese Without Underline Fuss",
+        "vi": "Giảm gạch chân khi gõ"
+      },
+      "description": {
+        "en": "Use the Backspace typing technique to address the underline behavior described in macOS’s built-in Vietnamese input, with an option to handle autocorrect issues in supported apps.",
+        "vi": "Gõ tiếng Việt bằng kỹ thuật Backspace để xử lý tình trạng gạch chân được README ghi nhận ở bộ gõ macOS, đồng thời có tùy chọn khắc phục lỗi autocorrect trong một số ứng dụng."
+      }
     }
   ],
-  "platforms": ["macOS"],
   "links": {
-    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg"
+    "appStore": "#",
+    "googlePlay": "#",
+    "website": "#",
+    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest",
+    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest",
+    "linux": "#",
+    "privacyPolicy": "https://github.com/ntanvinh/OpenKey/blob/HEAD/PRIVACY.md"
   }
 }
