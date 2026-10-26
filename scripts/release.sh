@@ -155,7 +155,7 @@ rm -rf "$BUILD_DIR" "$BUILD_DIR.log" "$ROOT/build/dmg"
 mkdir -p "$BUILD_DIR" "$DIST_DIR"
 
 # --- build and sign -------------------------------------------------------------------------------------------------
-APP="$(build_app Release "$BUILD_DIR" ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp")"
+APP="$(build_app Release "$BUILD_DIR" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp")"
 [ -d "$APP" ] || die "build did not produce $APP"
 
 say "Checking the signature"
