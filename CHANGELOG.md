@@ -1,5 +1,69 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.9 (build 87): (26/10/2026)
+- docs(windows): UI test verified on the CI runner, trail note
+- fix(windows-ui-test): test window in a renamed PowerShell (terminals are excluded from suggestions), pointer out of the way
+- fix(windows-ui-test): FindWindow got an empty title instead of none
+- fix(windows): load dictionaries before the hooks, wider AI buttons, patient UI test
+- ci(windows): run on changes of the UI test script too
+- fix(windows-ui-test): the key table was hidden by the parameter of the same name
+- fix(windows): make portable engine code build with mingw and MSVC
+- feat(windows): name VOpenKey AI everywhere, Esc hides the bar on macOS too, Windows UI test
+- feat(windows): port suggestion bar, snippets, case list and AI assistant
+- feat(macOS): add hover grace period to suggestion bar and bump to 3.7.7
+- feat(macOS): fade suggestion bar under the pointer and bump to 3.7.6
+- docs(marketing): polish 3.7.5 release notes wording
+- chore(marketing): add privacy policy, release notes and store listing links
+- chore(marketing): add store listing texts and refresh desktop screenshots
+- chore(marketing): add screenshot capture notes and refresh AI assistant image
+- chore(marketing): refresh desktop feature screenshots
+- feat(macOS): handle ⌘W in settings and add feature screenshots
+- chore: bump version to 3.7.5 (build 83)
+- feat(macOS): confirm abbreviations on the suggestion bar before replacing
+- feat(macOS): add auto-update from GitHub releases and fixed download link
+- feat(macOS): add AI wait progress UI and Codex picture button
+- feat(macOS): use Codex, Claude Code and Antigravity CLIs as the AI
+- feat(macOS): add case bar and bump to v3.6.7
+- refactor: complete VOpenKey AI rebrand, bump to 3.6.6
+- feat: add diagnostic logging for typing issues
+- fix: release v3.6.3 and correct mouse word restore
+- feat(macOS): add case bar text conversion feature
+- refactor: remove CaseBar feature and rebrand app to VOpenKey
+- feat(macOS): add case conversion bar for selected text
+- feat: release v3.5.7 build 69
+
+##### VOpenKey 3.7.8 (build 86): (26/10/2026)
+- docs(windows): UI test verified on the CI runner, trail note
+- fix(windows-ui-test): test window in a renamed PowerShell (terminals are excluded from suggestions), pointer out of the way
+- fix(windows-ui-test): FindWindow got an empty title instead of none
+- fix(windows): load dictionaries before the hooks, wider AI buttons, patient UI test
+- ci(windows): run on changes of the UI test script too
+- fix(windows-ui-test): the key table was hidden by the parameter of the same name
+- fix(windows): make portable engine code build with mingw and MSVC
+- feat(windows): name VOpenKey AI everywhere, Esc hides the bar on macOS too, Windows UI test
+- feat(windows): port suggestion bar, snippets, case list and AI assistant
+- feat(macOS): add hover grace period to suggestion bar and bump to 3.7.7
+- feat(macOS): fade suggestion bar under the pointer and bump to 3.7.6
+- docs(marketing): polish 3.7.5 release notes wording
+- chore(marketing): add privacy policy, release notes and store listing links
+- chore(marketing): add store listing texts and refresh desktop screenshots
+- chore(marketing): add screenshot capture notes and refresh AI assistant image
+- chore(marketing): refresh desktop feature screenshots
+- feat(macOS): handle ⌘W in settings and add feature screenshots
+- chore: bump version to 3.7.5 (build 83)
+- feat(macOS): confirm abbreviations on the suggestion bar before replacing
+- feat(macOS): add auto-update from GitHub releases and fixed download link
+- feat(macOS): add AI wait progress UI and Codex picture button
+- feat(macOS): use Codex, Claude Code and Antigravity CLIs as the AI
+- feat(macOS): add case bar and bump to v3.6.7
+- refactor: complete VOpenKey AI rebrand, bump to 3.6.6
+- feat: add diagnostic logging for typing issues
+- fix: release v3.6.3 and correct mouse word restore
+- feat(macOS): add case bar text conversion feature
+- refactor: remove CaseBar feature and rebrand app to VOpenKey
+- feat(macOS): add case conversion bar for selected text
+- feat: release v3.5.7 build 69
+
 ##### VOpenKey 3.7.7 (build 85): (24/10/2026)
 - feat(macOS): fade suggestion bar under the pointer and bump to 3.7.6
 - docs(marketing): polish 3.7.5 release notes wording

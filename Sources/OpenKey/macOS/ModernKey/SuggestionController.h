@@ -40,6 +40,14 @@ extern int vUseMacro;
 
 /// The settings or the frontmost application changed.
 +(void)reloadSettings;
+
+/// Editable bundle identifiers. On first use, includes popular standalone terminals.
++(NSArray<NSString*>*)excludedApps;
++(BOOL)appExclusionsEnabled;
++(void)setAppExclusionsEnabled:(BOOL)enabled;
++(void)setExcludedApps:(NSArray<NSString*>*)identifiers;
++(NSString*)defaultNameForExcludedApp:(NSString*)identifier;
++(BOOL)isAppIdentifierExcluded:(NSString*)identifier;
 /// Reads the dictionary files again, after files were added or edited.
 +(void)reloadDictionaries;
 /// Forgets everything learned from the user's typing, in memory and on disk.

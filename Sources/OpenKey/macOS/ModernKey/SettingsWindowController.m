@@ -4,6 +4,7 @@
 //
 
 #import "SettingsWindowController.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "AppDelegate.h"
 #import "AIAgentCLI.h"
 #import "AIClient.h"
@@ -169,6 +170,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 @implementation SettingsWindowController {
     SettingsTabs* _tabs;
+    NSStackView* _suggestionAppsSection;
     NSMutableArray<SettingsToggle*>* _toggles;
 
     NSSegmentedControl* _language;
@@ -235,7 +237,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         _tabs.tabStyle = NSTabViewControllerTabStyleToolbar;
         [self addPage:@"Bộ gõ" symbol:@"keyboard" sections:@[[self sectionTyping], [self sectionSpelling]]];
         [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionConvertShortcut], [self sectionQuickTyping]]];
-        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion], [self sectionCaseBar]]];
+        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion], [self sectionSuggestionApps], [self sectionCaseBar]]];
         [self addPage:@"Snippet" symbol:@"text.insert" sections:@[[self sectionSnippets]]];
         [self addPage:@"AI" symbol:@"sparkles" sections:@[[self sectionAI], [self sectionAILocal], [self sectionAIConnection]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
@@ -307,14 +309,16 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     //a page taller than the screen scrolls instead of making a window that does not fit
     CGFloat limit = [self pageHeightLimit];
     NSView* pageView = content;
-    if (size.height > limit) {
-        NSScrollView* scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, size.width, limit)];
+    // The editable app list can grow after this page is built.
+    if (size.height > limit || [title isEqualToString:@"Gợi ý"]) {
+        CGFloat viewportHeight = MIN(size.height, limit);
+        NSScrollView* scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, size.width, viewportHeight)];
         scroll.hasVerticalScroller = YES;
         scroll.autohidesScrollers = YES;
         scroll.drawsBackground = NO;
         scroll.documentView = content; //flipped, so it starts at its top
         pageView = scroll;
-        size.height = limit;
+        size.height = viewportHeight;
     }
 
     NSViewController* page = [[NSViewController alloc] init];
@@ -655,7 +659,119 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     NSButton* forget = [NSButton buttonWithTitle:@"Xóa…" target:self action:@selector(forgetLearnedWords:)];
     [rows addObject:[self buttonRowWithTitle:@"Dữ liệu đã học" detail:@"Quên mọi từ và cụm từ VOpenKey AI đã học từ bạn." button:forget]];
     return [self sectionWithTitle:@"Gợi ý khi gõ" rows:rows
-                           footer:@"Chỉ dùng được với bảng mã Unicode. Tự tắt trong Terminal và khi gõ mật khẩu."];
+                           footer:@"Chỉ dùng được với bảng mã Unicode. Không hiện khi gõ mật khẩu."];
+}
+
+-(NSView*)sectionSuggestionApps {
+    _suggestionAppsSection = [NSStackView stackViewWithViews:@[]];
+    _suggestionAppsSection.orientation = NSUserInterfaceLayoutOrientationVertical;
+    _suggestionAppsSection.spacing = 0;
+    VOKFillWidth(_suggestionAppsSection);
+    [self reloadSuggestionApps];
+    return _suggestionAppsSection;
+}
+
+-(void)reloadSuggestionApps {
+    for (NSView* view in _suggestionAppsSection.arrangedSubviews.copy)
+        [view removeFromSuperview];
+    NSMutableArray<NSView*>* rows = [NSMutableArray array];
+    NSArray<NSString*>* apps = [SuggestionController excludedApps];
+    NSSwitch* enabled = [[NSSwitch alloc] init];
+    enabled.state = [SuggestionController appExclusionsEnabled] ? NSControlStateValueOn : NSControlStateValueOff;
+    enabled.target = self;
+    enabled.action = @selector(toggleSuggestionAppExclusions:);
+    [enabled setAccessibilityLabel:@"Tự tắt gợi ý theo ứng dụng"];
+    [rows addObject:[self rowWithTitle:@"Tự tắt gợi ý theo ứng dụng"
+                               detail:@"Tắt thanh gợi ý khi chuyển sang các ứng dụng trong danh sách."
+                              control:enabled indent:0]];
+    BOOL expanded = [NSUserDefaults.standardUserDefaults boolForKey:@"SuggestionAppsExpanded"];
+    NSButton* disclosure = [NSButton buttonWithTitle:expanded ? @"Thu gọn" : @"Hiện danh sách"
+                                            target:self action:@selector(toggleSuggestionAppsExpanded:)];
+    VOKSetButtonSymbol(disclosure, expanded ? @"chevron.down" : @"chevron.right", 11);
+    [disclosure setAccessibilityLabel:expanded ? @"Thu gọn danh sách ứng dụng" : @"Mở danh sách ứng dụng"];
+    [rows addObject:[self buttonRowWithTitle:@"Danh sách ứng dụng"
+                                    detail:[NSString stringWithFormat:@"%lu ứng dụng", (unsigned long)apps.count]
+                                    button:disclosure]];
+    if (expanded) {
+        for (NSString* identifier in apps) {
+            NSURL* url = [NSWorkspace.sharedWorkspace URLForApplicationWithBundleIdentifier:identifier];
+            NSString* name = url ? [NSFileManager.defaultManager displayNameAtPath:url.path] : [SuggestionController defaultNameForExcludedApp:identifier];
+            if ([name hasSuffix:@".app"])
+                name = name.stringByDeletingPathExtension;
+            NSButton* remove = [NSButton buttonWithTitle:@"Bỏ khỏi danh sách" target:self action:@selector(removeSuggestionApp:)];
+            remove.identifier = identifier;
+            [remove setAccessibilityLabel:[NSString stringWithFormat:@"Bỏ %@ khỏi danh sách tự tắt gợi ý", name]];
+            [rows addObject:[self buttonRowWithTitle:name detail:identifier button:remove]];
+        }
+        NSButton* add = [NSButton buttonWithTitle:@"Thêm ứng dụng…" target:self action:@selector(addSuggestionApp:)];
+        [rows addObject:[self buttonRowWithTitle:apps.count ? @"Thêm ứng dụng" : @"Chưa có ứng dụng nào"
+                                        detail:apps.count ? @"Chọn ứng dụng cần tự tắt thanh gợi ý." : @"Thêm ứng dụng để tự tắt gợi ý khi chuyển sang ứng dụng đó."
+                                        button:add]];
+    }
+    NSView* section = [self sectionWithTitle:@"Tự tắt gợi ý trong ứng dụng" rows:rows
+                                     footer:expanded ? @"Mặc định có các terminal phổ biến. Tắt công tắc vẫn giữ danh sách. Bạn có thể chỉnh danh sách cả khi đang tắt." : nil];
+    [_suggestionAppsSection addArrangedSubview:section];
+    [section.widthAnchor constraintEqualToAnchor:_suggestionAppsSection.widthAnchor].active = YES;
+    NSScrollView* scroll = _suggestionAppsSection.enclosingScrollView;
+    if (scroll != nil) {
+        NSView* content = scroll.documentView;
+        NSView* stack = content.subviews.firstObject;
+        NSSize size = stack.fittingSize;
+        [content setFrameSize:NSMakeSize(content.frame.size.width, MAX(size.height, scroll.contentSize.height))];
+        [content layoutSubtreeIfNeeded];
+        [scroll reflectScrolledClipView:scroll.contentView];
+    }
+}
+
+-(void)toggleSuggestionAppExclusions:(NSSwitch*)sender {
+    [SuggestionController setAppExclusionsEnabled:sender.state == NSControlStateValueOn];
+}
+
+-(void)toggleSuggestionAppsExpanded:(id)sender {
+    NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
+    [defaults setBool:![defaults boolForKey:@"SuggestionAppsExpanded"] forKey:@"SuggestionAppsExpanded"];
+    [self reloadSuggestionApps];
+    // Rebuilding the rows replaces the disclosure button; keep keyboard navigation there.
+    NSButton* disclosure = VOKFindButton(_suggestionAppsSection, @selector(toggleSuggestionAppsExpanded:));
+    [self.window makeFirstResponder:disclosure];
+}
+
+-(void)removeSuggestionApp:(NSButton*)sender {
+    NSMutableArray* apps = [[SuggestionController excludedApps] mutableCopy];
+    [apps removeObject:sender.identifier];
+    [SuggestionController setExcludedApps:apps];
+    [self reloadSuggestionApps];
+}
+
+-(void)addSuggestionApp:(id)sender {
+    NSOpenPanel* panel = [NSOpenPanel openPanel];
+    panel.allowedContentTypes = @[UTTypeApplicationBundle];
+    panel.directoryURL = [NSURL fileURLWithPath:@"/Applications" isDirectory:YES];
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = YES;
+    panel.prompt = @"Thêm ứng dụng";
+    [panel beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse result) {
+        if (result != NSModalResponseOK)
+            return;
+        NSMutableArray* apps = [[SuggestionController excludedApps] mutableCopy];
+        NSMutableArray* invalid = [NSMutableArray array];
+        for (NSURL* url in panel.URLs) {
+            NSString* identifier = [NSBundle bundleWithURL:url].bundleIdentifier;
+            if (identifier.length > 0)
+                [apps addObject:identifier];
+            else
+                [invalid addObject:url.lastPathComponent];
+        }
+        [SuggestionController setExcludedApps:apps];
+        [self reloadSuggestionApps];
+        if (invalid.count > 0) {
+            NSAlert* alert = [[NSAlert alloc] init];
+            alert.messageText = @"Không thể thêm ứng dụng";
+            alert.informativeText = [NSString stringWithFormat:@"Ứng dụng không có mã định danh: %@. Hãy chọn lại một ứng dụng .app hợp lệ.", [invalid componentsJoinedByString:@", "]];
+            [alert addButtonWithTitle:@"Đóng"];
+            [alert beginSheetModalForWindow:self.window completionHandler:nil];
+        }
+    }];
 }
 
 -(NSView*)sectionCaseBar {

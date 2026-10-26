@@ -22,7 +22,7 @@ int vMacroConfirm = 1;
 
 extern int vMacroNeedsConfirm; //Engine.cpp
 
-static NSString* const kExcludedAppsKey = @"SuggestionExcludedApps"; //optional: extra bundle ids to leave alone
+static NSString* const kExcludedAppsKey = @"SuggestionExcludedApps"; //legacy extra bundle ids
 
 //Tab completes shell commands and moves between fields, these applications would lose that
 static NSArray<NSString*>* DefaultExcludedApps(void) {
@@ -181,7 +181,55 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 +(void)registerDefaults {
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"SuggestionNextWord": @1, @"SuggestionLearn": @1,
                                                               @"SuggestionCompounds": @1, @"SuggestionTab": @1,
-                                                              @"MacroConfirm": @1}];
+                                                              @"MacroConfirm": @1, @"SuggestionAppExclusionsEnabled": @YES}];
+}
+
+// Versioned separately: older releases treated SuggestionExcludedApps as additions
+// to an immutable default list. Preserve those additions on the first migration.
++(NSArray<NSString*>*)excludedApps {
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSArray* saved = [defaults arrayForKey:@"SuggestionExcludedAppsList"];
+    if (saved == nil) {
+        NSMutableOrderedSet* initial = [NSMutableOrderedSet orderedSetWithArray:DefaultExcludedApps()];
+        [initial addObjectsFromArray:[defaults arrayForKey:kExcludedAppsKey] ?: @[]];
+        saved = initial.array;
+        [defaults setObject:saved forKey:@"SuggestionExcludedAppsList"];
+    }
+    return saved;
+}
+
++(void)setExcludedApps:(NSArray<NSString*>*)identifiers {
+    NSMutableOrderedSet* unique = [NSMutableOrderedSet orderedSet];
+    for (NSString* identifier in identifiers) {
+        if ([identifier isKindOfClass:NSString.class] && identifier.length > 0)
+            [unique addObject:identifier];
+    }
+    [[NSUserDefaults standardUserDefaults] setObject:unique.array forKey:@"SuggestionExcludedAppsList"];
+    [self reloadSettings];
+}
+
++(NSString*)defaultNameForExcludedApp:(NSString*)identifier {
+    NSDictionary* names = @{
+        @"com.apple.Terminal": @"Terminal", @"com.googlecode.iterm2": @"iTerm2",
+        @"com.mitchellh.ghostty": @"Ghostty", @"dev.warp.Warp-Stable": @"Warp",
+        @"net.kovidgoyal.kitty": @"kitty", @"org.alacritty": @"Alacritty",
+        @"co.zeit.hyper": @"Hyper", @"com.github.wez.wezterm": @"WezTerm",
+    };
+    return names[identifier] ?: identifier;
+}
+
++(BOOL)appExclusionsEnabled {
+    NSNumber* enabled = [[NSUserDefaults standardUserDefaults] objectForKey:@"SuggestionAppExclusionsEnabled"];
+    return enabled == nil || enabled.boolValue;
+}
+
++(void)setAppExclusionsEnabled:(BOOL)enabled {
+    [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:@"SuggestionAppExclusionsEnabled"];
+    [self reloadSettings];
+}
+
++(BOOL)isAppIdentifierExcluded:(NSString*)identifier {
+    return [self appExclusionsEnabled] && identifier.length > 0 && [[self excludedApps] containsObject:identifier];
 }
 
 +(void)start {
@@ -248,12 +296,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 }
 
 -(BOOL)isExcluded:(NSRunningApplication*)app {
-    NSString* identifier = app.bundleIdentifier;
-    if (identifier.length == 0)
-        return NO;
-    if ([DefaultExcludedApps() containsObject:identifier])
-        return YES;
-    return [[[NSUserDefaults standardUserDefaults] arrayForKey:kExcludedAppsKey] containsObject:identifier];
+    return [SuggestionController isAppIdentifierExcluded:app.bundleIdentifier];
 }
 
 -(void)applicationActivated:(NSNotification*)notification {
@@ -281,8 +324,11 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 
 +(void)reloadSettings {
     SuggestionController* s = [self shared];
-    if (s->_started)
+    if (s->_started) {
+        s->_appExcluded = [s isExcluded:NSWorkspace.sharedWorkspace.frontmostApplication];
+        [s resetState];
         [s applySettings];
+    }
 }
 
 +(void)reloadDictionaries {
