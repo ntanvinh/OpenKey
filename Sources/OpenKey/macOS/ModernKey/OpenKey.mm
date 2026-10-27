@@ -1180,6 +1180,19 @@ extern "C" {
             }
         }
 
+        //a suggestion was just chosen and left its space: a closing mark (. , ) > ...) typed now takes that space's place, and a letter after the mark gets a space before it
+        if (type == kCGEventKeyDown && VOK_SUGGESTION_ACTIVE && !(OTHER_CONTROL_KEY) && !(_flag & kCGEventFlagMaskAlternate)) {
+            UniChar typedChar = 0;
+            UniCharCount typedLength = 0;
+            CGEventKeyboardGetUnicodeString(event, 1, &typedLength, &typedChar);
+            NSInteger adjustment = typedLength == 1 ? [SuggestionController spaceAdjustmentForCharacter:typedChar] : 0;
+            if (adjustment < 0) {
+                SendBackspace();
+            } else if (adjustment > 0) {
+                SendSuggestionText(@" ", 0); //the typing engine has no word here, the letter that follows starts a new one
+            }
+        }
+
         //handle keyboard
         if (type == kCGEventKeyDown) {
             //send event signal to Engine

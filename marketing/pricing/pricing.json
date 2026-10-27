@@ -1,0 +1,20 @@
+{
+  "$schema": "https://vappmanager.local/schema/pricing.pricing.v1.json",
+  "schemaVersion": 1,
+  "model": "free",
+  "payments": {
+    "kinds": [
+      "trusted-domestic",
+      "trusted-international"
+    ],
+    "reason": "A desktop app is not sold in a store: it unlocks on trust and the person pays afterwards.",
+    "trusted": {
+      "domestic": {
+        "bankId": "VPBank",
+        "accountNo": "0988181872",
+        "accountName": "NGUYEN TAN VINH",
+        "qrTemplate": "compact"
+      }
+    }
+  }
+}

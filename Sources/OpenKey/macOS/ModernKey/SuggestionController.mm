@@ -373,6 +373,11 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         [s resetState];
 }
 
++(NSInteger)spaceAdjustmentForCharacter:(UniChar)ch {
+    SuggestionController* s = [self shared];
+    return s->_started ? s->_session->spaceAdjustment(ch) : 0;
+}
+
 +(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw macro:(NSString*)macro {
     SuggestionController* s = [self shared];
     if (!s->_started || !s->_session->settings().enabled)

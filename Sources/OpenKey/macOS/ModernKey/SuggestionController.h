@@ -63,6 +63,9 @@ extern int vUseMacro;
 /// A key was handled by the typing engine. word is the word now on screen, empty if there is none;
 /// raw is the keys pressed for it, before Telex or VNI turned them into accents.
 /// macro is the full text of the word when it is an abbreviation that waits for the user (vPeekMacro), nil otherwise.
+/// -1: delete the space the last accepted suggestion added (the key is a closing mark), +1: type a space first (a letter right after
+/// such a mark), 0: nothing. Ask before the key is handled.
++(NSInteger)spaceAdjustmentForCharacter:(UniChar)ch;
 +(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw macro:(NSString* _Nullable)macro;
 
 /// Tab or ⌥1-5 was pressed. Returns YES when it chose a suggestion: swallow the key, delete `erase`

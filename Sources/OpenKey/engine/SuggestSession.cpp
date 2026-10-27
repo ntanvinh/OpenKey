@@ -54,7 +54,29 @@ void Session::hideNow() {
     }
 }
 
+bool Session::dropsAcceptedSpace(unsigned int c) {
+    switch (c) {
+        case '.': case ',': case ';': case ':': case '!': case '?': case ')': case ']': case '}': case '>':
+            return true;
+    }
+    return false;
+}
+
+int Session::spaceAdjustment(unsigned int c) {
+    if (!settings_.enabled)
+        return 0;
+    if (spacePending_ && dropsAcceptedSpace(c)) {
+        markJustTyped_ = true; //the keyProcessed of this very key must not forget it
+        return -1;
+    }
+    bool letter = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0xC0;
+    return markPending_ && letter ? 1 : 0;
+}
+
 void Session::reset() {
+    spacePending_ = false;
+    markPending_ = false;
+    markJustTyped_ = false;
     context_.clear();
     lastWord_.clear();
     typed_.clear();
@@ -63,6 +85,9 @@ void Session::reset() {
 
 void Session::keyProcessed(KeyKind kind, const std::string& currentWord, const std::string& rawWord,
                            const std::string& macroText) {
+    spacePending_ = false;
+    markPending_ = markJustTyped_;
+    markJustTyped_ = false;
     if (!settings_.enabled)
         return;
 
@@ -168,6 +193,7 @@ bool Session::accept(size_t slot, const std::string& currentWord, Acceptance& ou
     const std::string word = candidates_[slot].text;
     out.text = word + " ";
     out.eraseCount = codePointCount(currentWord);
+    spacePending_ = true;
 
     if (macroShown_ && slot == 0) { //an abbreviation is no word of the user: nothing to learn, and the text before it is over
         context_.clear();
