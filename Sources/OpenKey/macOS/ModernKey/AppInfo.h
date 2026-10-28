@@ -16,6 +16,7 @@
 #define VOK_DATA_DIR_NAME       @"VOpenKey"
 #define VOK_BUNDLE_ID           @"vn.io.lssoft.vopenkey"
 #define VOK_COMPANY             @"LSSoft"
+#define VOK_COMPANY_EMAIL       @"lssoft.adm@gmail.com"
 
 //the app this one is forked from, its settings are imported on first launch and it must not run at the same time
 #define VOK_LEGACY_BUNDLE_ID    @"com.tuyenmai.openkey"
