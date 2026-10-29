@@ -10,6 +10,7 @@
 #import "AppInfo.h"
 #import "AppUpdater.h"
 #import "CaseBar.h"
+#import "Donation.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
 #import "ShortcutRecorder.h"
@@ -66,6 +67,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _snippetItem;
     NSMenuItem* _aiItem;
     NSMenuItem* _caseItem;
+    NSMenuItem* _donateItem;
     NSArray<NSMenuItem*>* _inputTypeItems;
     NSArray<NSMenuItem*>* _codeTableItems;
 }
@@ -81,6 +83,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
                                                      name:SecureInputMonitorDidChangeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
                                                      name:AppUpdaterDidChangeNotification object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
+                                                     name:DonationDidChangeNotification object:nil];
         [self refresh];
     }
     return self;
@@ -152,6 +156,9 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     settings.keyEquivalent = @",";
     [_menu addItem:settings];
     [_menu addItem:MakeItem([NSString stringWithFormat:@"Giới thiệu %@", VOK_APP_NAME], @"info.circle", self, @selector(openAbout:))];
+    //goes away once the user says they donated (it stays in Settings)
+    _donateItem = MakeItem([NSString stringWithFormat:@"Ủng hộ %@", VOK_APP_NAME], @"heart", self, @selector(openDonate:));
+    [_menu addItem:_donateItem];
     [_menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem* quit = MakeItem([NSString stringWithFormat:@"Thoát %@", VOK_APP_NAME], @"power", NSApp, @selector(terminate:));
@@ -187,6 +194,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     for (NSMenuItem* item in _codeTableItems)
         item.state = item.tag == codeTable ? NSControlStateValueOn : NSControlStateValueOff;
     _suggestionItem.state = vSuggestEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+    _donateItem.hidden = Donation.acknowledged;
     //the shortcut is written at the right of the item; the event tap handles the keys, the menu only shows them
     BOOL snippetShortcut = vSnippetsEnabled && !VOKShortcutIsEmpty(vSnippetHotKey);
     _snippetItem.keyEquivalent = snippetShortcut ? VOKShortcutKeyEquivalent(vSnippetHotKey) : @"";
@@ -295,6 +303,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
 -(void)openSettings:(id)sender {
     [appDelegate onControlPanelSelected];
+}
+
+-(void)openDonate:(id)sender {
+    [appDelegate onDonateSelected];
 }
 
 -(void)openAbout:(id)sender {

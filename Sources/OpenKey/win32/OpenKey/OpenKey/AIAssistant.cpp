@@ -8,6 +8,9 @@
 #include "AISettings.h"
 #include "AISettingsDialog.h"
 #include "AIText.h"
+#include "../../../engine/AIPresets.h"
+#include "FeatureIds.h"
+#include "FeatureStorage.h"
 #include "FeatureTheme.h"
 #include "FeatureWindows.h"
 #include "TextInserter.h"
@@ -29,7 +32,9 @@ enum {
     kIdInsert,
     kIdCopy,
     kIdLabelInput,
-    kIdLabelOutput
+    kIdLabelOutput,
+    kIdPresetCaption,
+    kIdPresetFirst = 450         //one button for each ready-made conversion, in the order of engine/ai/ai-presets.json
 };
 
 enum State { Idle, Generating, Done, Failed };
@@ -51,6 +56,17 @@ std::wstring g_result;                //what the service wrote, line breaks as L
 std::wstring g_failure;
 time_t g_started = 0;
 bool g_pendingOpen = false;
+
+//the ready-made conversions (engine/AIPresets.h): a row of buttons under the box
+vpreset::Presets g_presets;
+HWND g_presetCaption = NULL;
+std::vector<HWND> g_presetButtons;
+std::vector<int> g_presetWidths;
+std::vector<std::wstring> g_presetTips;
+int g_presetCaptionWidth = 0;
+int g_activePreset = -1;              //the one that the next "Tạo" applies; -1 none. Cleared when the text is edited and when the window opens.
+bool g_poemRequest = false;           //the request that is going on is for a poem: its rhymes and syllables are the AI's word, not checked here
+bool g_hintShown = false;             //the status line asks for a text: it goes as soon as one is typed
 
 int px(int at96) {
     return FeatureTheme::scale(at96, g_dpi);
@@ -120,7 +136,33 @@ void showModel() {
 }
 
 void setStatus(const std::wstring& text) {
+    g_hintShown = false;
     SetWindowTextW(g_status, text.c_str());
+}
+
+//the window asks for a text: the line is taken back when the user types one, so that it does not stay under a box that is no longer empty
+void setHint(const std::wstring& text) {
+    setStatus(text);
+    g_hintShown = true;
+}
+
+//a request of only blanks asks for nothing
+bool hasText() {
+    std::wstring text = textOf(g_input);
+    for (size_t i = 0; i < text.size(); i++) {
+        if (!(text[i] == L' ' || text[i] == L'\n' || text[i] == L'\t' || text[i] == L'\r'))
+            return true;
+    }
+    return false;
+}
+
+//a button of a conversion is down while it is the one that applies, and works when there is a text to convert and no answer on its way
+void updatePresetButtons() {
+    bool enabled = hasText() && g_state != Generating;
+    for (size_t i = 0; i < g_presetButtons.size(); i++) {
+        EnableWindow(g_presetButtons[i], enabled);
+        SendMessageW(g_presetButtons[i], BM_SETCHECK, (int)i == g_activePreset ? BST_CHECKED : BST_UNCHECKED, 0);
+    }
 }
 
 void updateButtons() {
@@ -130,6 +172,7 @@ void updateButtons() {
     EnableWindow(g_insert, haveResult && !generating);
     EnableWindow(g_copy, haveResult && !generating);
     EnableWindow(g_provider, !generating);
+    updatePresetButtons();
 }
 
 void showFailure(const std::wstring& message) {
@@ -167,12 +210,9 @@ void ask() {
     if (g_state == Generating)
         return;
     std::wstring prompt = fromEdit(textOf(g_input));
-    //a request of only blanks asks for nothing
-    bool anything = false;
-    for (size_t i = 0; i < prompt.size(); i++)
-        anything = anything || !(prompt[i] == L' ' || prompt[i] == L'\n' || prompt[i] == L'\t' || prompt[i] == L'\r');
-    if (!anything) {
-        setStatus(L"Hãy gõ yêu cầu trước, ví dụ \"Viết email xin nghỉ phép\".");
+    if (!hasText()) {
+        setHint(g_activePreset >= 0 ? L"Hãy nhập hoặc dán đoạn văn cần chuyển đổi trước."
+                                    : L"Hãy gõ yêu cầu trước, ví dụ \"Viết email xin nghỉ phép\".");
         SetFocus(g_input);
         return;
     }
@@ -187,7 +227,15 @@ void ask() {
     g_result.clear();
     SetWindowTextW(g_output, L"");
     g_started = time(NULL);
-    unsigned id = AIClient::generate(config, wideStringToUtf8(prompt), g_window, reason);
+    //a conversion that was chosen goes in front of the text; it is not written in the box, the button that is down says which one it is
+    std::string request = wideStringToUtf8(prompt);
+    g_poemRequest = false;
+    if (g_activePreset >= 0 && (size_t)g_activePreset < g_presets.list.size()) {
+        const vpreset::Preset& preset = g_presets.list[(size_t)g_activePreset];
+        request = vpreset::buildPrompt(g_presets, preset, request);
+        g_poemRequest = preset.poem;
+    }
+    unsigned id = AIClient::generate(config, request, g_window, reason);
     if (id == 0) {
         showFailure(reason);
         return;
@@ -206,6 +254,21 @@ void stop() {
     g_state = g_result.empty() ? Idle : Done;
     setStatus(g_result.empty() ? L"Đã dừng." : L"Đã dừng. Phần đã viết được giữ lại.");
     updateButtons();
+}
+
+//A click on a conversion: chooses it and asks at once. Nothing happens while an answer is on its way.
+void applyPreset(int index) {
+    if (g_state == Generating || index < 0 || (size_t)index >= g_presets.list.size())
+        return;
+    if (!hasText()) {
+        setHint(L"Hãy nhập hoặc dán đoạn văn cần chuyển đổi trước.");
+        SetFocus(g_input);
+        return;
+    }
+    g_activePreset = index;
+    updatePresetButtons();
+    SetFocus(g_input);          //the button that was clicked is about to be turned off while the answer comes, and Esc must still stop it
+    ask();
 }
 
 std::wstring g_pasteText;
@@ -250,6 +313,28 @@ void copyResult() {
     SetTimer(g_window, kTimerCopied, 2000, NULL);
 }
 
+//The ready-made conversions: buttons in rows that break where the width of the window ends (a row of controls does not wrap by itself).
+//With `move` false it only measures. Returns the height the rows need.
+int layoutPresets(int x, int y, int width, bool move) {
+    if (g_presetButtons.empty())
+        return 0;
+    int gap = px(6), rowHeight = px(26);
+    int rowY = y, cx = x + g_presetCaptionWidth + gap, rowStart = cx;
+    if (move)
+        MoveWindow(g_presetCaption, x, rowY + px(4), g_presetCaptionWidth, px(20), TRUE);
+    for (size_t i = 0; i < g_presetButtons.size(); i++) {
+        int w = g_presetWidths[i];
+        if (cx > rowStart && cx + w > x + width) {      //it does not fit: the next row, from the left edge
+            rowY += rowHeight + px(4);
+            cx = rowStart = x;
+        }
+        if (move)
+            MoveWindow(g_presetButtons[i], cx, rowY, w, rowHeight, TRUE);
+        cx += w + gap;
+    }
+    return rowY + rowHeight - y;
+}
+
 void layout() {
     RECT client;
     GetClientRect(g_window, &client);
@@ -269,9 +354,14 @@ void layout() {
 
     MoveWindow(g_labelInput, pad, y, width - pad * 2, px(20), TRUE);
     y += px(20);
-    int inputHeight = (std::max)(px(90), (height - y - px(190)) / 2);
+    int stripHeight = layoutPresets(pad, 0, width - pad * 2, false);
+    int inputHeight = (std::max)(px(90), (height - y - px(190) - (stripHeight > 0 ? stripHeight + gap : 0)) / 2);
     MoveWindow(g_input, pad, y, width - pad * 2, inputHeight, TRUE);
     y += inputHeight + gap;
+    if (stripHeight > 0) {
+        layoutPresets(pad, y, width - pad * 2, true);
+        y += stripHeight + gap;
+    }
 
     int askWidth = px(150);
     MoveWindow(g_ask, pad, y, askWidth, rowHeight + px(4), TRUE);
@@ -329,8 +419,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         return 0;
     case WM_GETMINMAXINFO: {
         MINMAXINFO* info = (MINMAXINFO*)lParam;
-        info->ptMinTrackSize.x = px(520);
-        info->ptMinTrackSize.y = px(480);
+        info->ptMinTrackSize.x = px(600);      //wide enough for the conversions to fit in three rows
+        info->ptMinTrackSize.y = px(580);
         return 0;
     }
     case WM_ERASEBKGND: {
@@ -364,6 +454,14 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             insertResult();
         } else if (id == kIdCopy) {
             copyResult();
+        } else if (id >= kIdPresetFirst && id < kIdPresetFirst + (int)g_presetButtons.size() && HIWORD(wParam) == BN_CLICKED) {
+            applyPreset(id - kIdPresetFirst);
+        } else if (id == kIdInput && HIWORD(wParam) == EN_CHANGE) {
+            //the text is no longer the one the conversion was chosen for: what is typed now is a request of its own
+            g_activePreset = -1;
+            updatePresetButtons();
+            if (g_hintShown && g_state == Idle)
+                setStatus(L"");
         } else if (id == kIdSettings) {
             AISettingsDialog::show();
         } else if (id == kIdProvider && HIWORD(wParam) == CBN_SELCHANGE) {
@@ -403,7 +501,9 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 KillTimer(window, kTimerSeconds);
                 if (done->error.ok()) {
                     g_state = Done;
-                    setStatus(L"Xong. Ctrl+Shift+Enter để chèn vào chỗ đang gõ, Ctrl+Shift+C để sao chép.");
+                    //the rhymes and the number of syllables of a poem are the AI's word: the window does not count them
+                    setStatus(g_poemRequest ? L"Xong. Số tiếng và vần của thơ chưa được kiểm tra, hãy đọc lại. Ctrl+Shift+Enter để chèn, Ctrl+Shift+C để sao chép."
+                                            : L"Xong. Ctrl+Shift+Enter để chèn vào chỗ đang gõ, Ctrl+Shift+C để sao chép.");
                     updateButtons();
                 } else {
                     //what came before the error stays readable
@@ -420,9 +520,55 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     case WM_DESTROY:
         FeatureWindows::unregisterDialog(window);
         g_window = NULL;
+        g_presetButtons.clear();
+        g_presetWidths.clear();
+        g_presetTips.clear();
+        g_presetCaption = NULL;
         return 0;
     }
     return DefWindowProcW(window, message, wParam, lParam);
+}
+
+//The row of ready-made conversions, from the file of the program; without a usable file there is no row and the window is what it was.
+void buildPresets() {
+    g_presetButtons.clear();
+    g_presetWidths.clear();
+    g_presetTips.clear();
+    g_presetCaption = NULL;
+    g_activePreset = -1;
+    if (!vpreset::parse(FeatureStorage::resourceText(IDR_AI_PRESETS), g_presets) || g_presets.list.empty())
+        return;
+    g_presetCaption = child(L"STATIC", L"Chuyển đổi nhanh:", SS_NOPREFIX, kIdPresetCaption);
+    HDC dc = GetDC(g_window);
+    HGDIOBJ old = SelectObject(dc, g_font);
+    SIZE size = {0, 0};
+    GetTextExtentPoint32W(dc, L"Chuyển đổi nhanh:", 17, &size);
+    g_presetCaptionWidth = size.cx + px(6);
+    for (size_t i = 0; i < g_presets.list.size(); i++) {
+        std::wstring title = utf8ToWideString(g_presets.list[i].title);
+        HWND button = child(L"BUTTON", title.c_str(), WS_TABSTOP | BS_CHECKBOX | BS_PUSHLIKE, kIdPresetFirst + (int)i);
+        GetTextExtentPoint32W(dc, title.c_str(), (int)title.size(), &size);
+        g_presetButtons.push_back(button);
+        g_presetWidths.push_back(size.cx + px(24));
+        g_presetTips.push_back(utf8ToWideString(g_presets.list[i].summary));
+    }
+    SelectObject(dc, old);
+    ReleaseDC(g_window, dc);
+    //what each does, as a tip (the list of the tips is complete before the first is given out: it must not move)
+    HWND tip = CreateWindowExW(0, TOOLTIPS_CLASSW, NULL, WS_POPUP | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                               g_window, NULL, GetModuleHandleW(NULL), NULL);
+    if (!tip)
+        return;
+    SendMessageW(tip, TTM_SETMAXTIPWIDTH, 0, px(320));
+    for (size_t i = 0; i < g_presetButtons.size(); i++) {
+        TOOLINFOW info = {0};
+        info.cbSize = sizeof(info);
+        info.hwnd = g_window;
+        info.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+        info.uId = (UINT_PTR)g_presetButtons[i];
+        info.lpszText = const_cast<wchar_t*>(g_presetTips[i].c_str());
+        SendMessageW(tip, TTM_ADDTOOLW, 0, (LPARAM)&info);
+    }
 }
 
 bool create() {
@@ -449,7 +595,7 @@ bool create() {
     g_backgroundBrush = CreateSolidBrush(theme.background);
 
     g_window = CreateWindowExW(WS_EX_TOPMOST, kClassName, L"Trợ lý AI - VOpenKey AI", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
-                               CW_USEDEFAULT, CW_USEDEFAULT, px(680), px(620), NULL, NULL, instance, NULL);
+                               CW_USEDEFAULT, CW_USEDEFAULT, px(700), px(700), NULL, NULL, instance, NULL);
     if (!g_window)
         return false;
     FeatureWindows::registerDialog(g_window);
@@ -462,6 +608,7 @@ bool create() {
     g_input = child(L"EDIT", L"", WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, kIdInput, WS_EX_CLIENTEDGE);
     SendMessageW(g_input, EM_SETLIMITTEXT, 200000, 0);
     SetWindowLongPtrW(g_input, GWLP_USERDATA, SetWindowLongPtrW(g_input, GWLP_WNDPROC, (LONG_PTR)editProc));
+    buildPresets();
     g_ask = child(L"BUTTON", L"Tạo (Ctrl+Enter)", WS_TABSTOP | BS_DEFPUSHBUTTON, kIdAsk);
     g_status = child(L"STATIC", L"", 0, kIdStatus);
     g_labelOutput = child(L"STATIC", L"Kết quả", 0, kIdLabelOutput);
@@ -490,6 +637,7 @@ void openAfterRelease() {
 
     stopRequest();
     g_state = Idle;
+    g_activePreset = -1;
     g_result.clear();
     g_failure.clear();
     fillProviders();
@@ -499,13 +647,13 @@ void openAfterRelease() {
     setStatus(L"");
     if (g_hadSelection) {
         SetWindowTextW(g_context, (L"Đang chọn " + std::to_wstring(selection.size()) +
-                                   L" ký tự. Gõ yêu cầu ở dòng đầu, ví dụ \"Dịch sang tiếng Anh\". Câu trả lời sẽ thay chữ đã chọn.").c_str());
+                                   L" ký tự. Gõ yêu cầu ở dòng đầu, ví dụ \"Dịch sang tiếng Anh\", hoặc bấm một kiểu chuyển đổi. Câu trả lời sẽ thay chữ đã chọn.").c_str());
         SendMessageW(g_input, EM_SETSEL, 0, 0); //the cursor in front of the selection, to write the instruction
         //a line of its own for the instruction
         SendMessageW(g_input, EM_REPLACESEL, FALSE, (LPARAM)L"\r\n");
         SendMessageW(g_input, EM_SETSEL, 0, 0);
     } else {
-        SetWindowTextW(g_context, L"Gõ điều bạn muốn viết. Câu trả lời sẽ được chèn vào chỗ bạn đang gõ.");
+        SetWindowTextW(g_context, L"Gõ điều bạn muốn viết, hoặc dán một đoạn văn rồi bấm một kiểu chuyển đổi. Câu trả lời sẽ được chèn vào chỗ bạn đang gõ.");
     }
     updateButtons();
 
@@ -544,6 +692,7 @@ void hide() {
         return;
     stopRequest();
     g_state = Idle;
+    g_activePreset = -1;
     ShowWindow(g_window, SW_HIDE);
     clearTexts(); //nothing typed or received is kept
 }

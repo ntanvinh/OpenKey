@@ -24,7 +24,7 @@ Effective date: 22 October 2026 · Developer: LSSoft · Contact: <https://lssoft
 
 ### The AI assistant (macOS, optional)
 
-It runs only when you press its shortcut and then send a request. What is sent is the text in its box: the selected text you started from plus your instruction. Where it goes depends on the provider you pick in Settings:
+It runs only when you press its shortcut and then send a request. What is sent is the text in its box: the selected text you started from plus your instruction. When you press one of its ready-made conversions (Fix mistakes, Polite, Translate to English…) a fixed sentence that says what to do is sent in front of that text; nothing else is added. Where it goes depends on the provider you pick in Settings:
 
 - **A cloud service** (OpenAI, Google Gemini, Anthropic, DeepSeek, Alibaba Cloud Model Studio, OpenRouter, or an address you type), with an API key you provide. The key is sent only to that service, as a request header, and is kept in your Keychain, not synced to other devices. That service handles your text under its own terms and privacy policy.
 - **A server on your own computer** (Ollama, LM Studio): the text stays on your computer.
@@ -37,6 +37,7 @@ The assistant's box is cleared when you close it. LSSoft has no server for this 
 - **Update check (macOS, on by default, can be turned off in Settings).** At launch and every 6 hours the app asks GitHub for the newest release of the project (`api.github.com`, and `github.com` as a fallback). GitHub sees what any web request shows, such as your IP address; the app adds no identifier and sends none of your text. The app downloads a new version from the project's GitHub release by itself unless you turn automatic installation off, and installs it only if it is signed with the developer's own Developer ID certificate.
 - **Update check (Windows, off by default).** If you turn it on, the app reads `version.json` from the project's GitHub repository, and downloads the new version from its GitHub release only when you confirm.
 - **Local AI setup (macOS, only when you press the button).** The app downloads the Ollama installer from GitHub; Ollama then downloads the model you choose from its own registry.
+- **Donate window (macOS and Windows).** The QR code is made on your computer (on Windows it is a picture inside the program) and the app sends nothing when it shows it. "Mở PayPal" opens the project's PayPal page in your browser. "Tôi đã ủng hộ" is only a setting on this computer that hides the Donate menu item; the app does not check any payment and tells nobody.
 - Links you click (the releases page, a provider's API-key page, the About links) open in your browser.
 
 ### What we do not do
@@ -73,7 +74,7 @@ If the app changes how it handles data, this page is updated with a new date. Qu
 
 ### Trợ lý AI (macOS, tùy chọn)
 
-Trợ lý chỉ chạy khi bạn nhấn phím tắt rồi gửi yêu cầu. Nội dung gửi đi là chữ trong hộp của nó: phần chữ bạn chọn lúc bắt đầu cộng với yêu cầu của bạn. Nơi nhận phụ thuộc nhà cung cấp bạn chọn trong Cài đặt:
+Trợ lý chỉ chạy khi bạn nhấn phím tắt rồi gửi yêu cầu. Nội dung gửi đi là chữ trong hộp của nó: phần chữ bạn chọn lúc bắt đầu cộng với yêu cầu của bạn. Khi bạn bấm một kiểu chuyển đổi có sẵn (Sửa lỗi, Lịch sự, Dịch sang Anh…), một câu cố định nói rõ việc cần làm được gửi kèm ngay trước chữ đó; không thêm gì khác. Nơi nhận phụ thuộc nhà cung cấp bạn chọn trong Cài đặt:
 
 - **Dịch vụ đám mây** (OpenAI, Google Gemini, Anthropic, DeepSeek, Alibaba Cloud Model Studio, OpenRouter, hoặc địa chỉ bạn tự nhập), dùng API key của bạn. Key chỉ được gửi tới đúng dịch vụ đó, trong phần đầu của yêu cầu, và nằm trong Keychain, không đồng bộ sang thiết bị khác. Dịch vụ đó xử lý chữ của bạn theo điều khoản và chính sách riêng tư của chính họ.
 - **Máy chủ ngay trên máy bạn** (Ollama, LM Studio): chữ không rời khỏi máy.
@@ -86,6 +87,7 @@ Hộp của trợ lý được xóa sạch khi bạn đóng nó. LSSoft không c
 - **Kiểm tra bản mới (macOS, bật sẵn, tắt được trong Cài đặt).** Khi mở app và cứ 6 giờ một lần, app hỏi GitHub về bản phát hành mới nhất của dự án (`api.github.com`, dự phòng là `github.com`). GitHub thấy những gì mọi yêu cầu web đều để lộ, như địa chỉ IP của bạn; app không thêm mã định danh nào và không gửi chữ của bạn. App tự tải bản mới từ GitHub Releases của dự án trừ khi bạn tắt cài đặt tự động, và chỉ cài khi bản đó được ký bằng chính chứng chỉ Developer ID của nhà phát triển.
 - **Kiểm tra bản mới (Windows, tắt sẵn).** Nếu bạn bật, app đọc `version.json` từ kho GitHub của dự án, và chỉ tải bản mới từ GitHub Releases khi bạn đồng ý.
 - **Cài AI chạy trên máy (macOS, chỉ khi bạn bấm nút).** App tải trình cài Ollama từ GitHub; sau đó Ollama tự tải mô hình bạn chọn từ kho của nó.
+- **Cửa sổ Ủng hộ (macOS và Windows).** Mã QR được tạo ngay trên máy bạn (trên Windows là một hình nằm sẵn trong chương trình) và app không gửi gì khi hiện nó. "Mở PayPal" mở trang PayPal của dự án trong trình duyệt. "Tôi đã ủng hộ" chỉ là một tùy chọn trên máy tính này để ẩn mục Ủng hộ khỏi menu; app không kiểm tra giao dịch nào và không báo cho ai.
 - Các liên kết bạn bấm (trang phát hành, trang lấy API key của nhà cung cấp, liên kết trong mục Giới thiệu) mở trong trình duyệt.
 
 ### Những điều chúng tôi không làm

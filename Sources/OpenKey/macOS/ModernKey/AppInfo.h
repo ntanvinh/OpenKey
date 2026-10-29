@@ -33,4 +33,16 @@
 #define VOK_RELEASE_FILE_NAME   @"VOpenKey"
 #define VOK_TEAM_ID             @"39SH232CQ4"
 
+//Who donations go to (Donation, DonationWindow): the same payee as marketing/pricing/pricing.json, which tests/donation_test.m compares
+//with these values. The QR code is a static VietQR for this account; PayPal is the way to pay from abroad.
+#define VOK_DONATE_BANK_NAME    @"VPBank"
+//the NAPAS code of that bank (api.vietqr.io/v2/banks): the QR code is only made while the bank above is the one this code belongs to
+#define VOK_DONATE_BANK_BIN     @"970432"
+#define VOK_DONATE_ACCOUNT_NO   @"0988181872"
+#define VOK_DONATE_ACCOUNT_NAME @"NGUYEN TAN VINH"
+//what the donor's bank shows as the transfer note: ASCII only, a QR field cannot hold more than 99 characters
+#define VOK_DONATE_NOTE         @"VOpenKey AI donate"
+#define VOK_DONATE_PAYPAL_URL   @"https://paypal.me/ntanvinh"
+#define VOK_DONATE_PAYPAL_NAME  @"Vinh Nguyen"
+
 #endif /* AppInfo_h */

@@ -6,6 +6,7 @@
 #import "AIAssistant.h"
 #import "AIAgentCLI.h"
 #import "AIKeychain.h"
+#import "AIPresets.h"
 #import "AILightbox.h"
 #import "AIProgress.h"
 #import "AIOllamaRuntime.h"
@@ -105,6 +106,10 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     AIGlowView* _glow;
     NSButton* _gearButton;
     NSButton* _speedButton;
+    NSStackView* _presetStrip;              //the ready-made conversions under the box: a caption, then one button per preset
+    NSArray<NSButton*>* _presetButtons;
+    AIPreset* _activePreset;                //the one the next "Tạo" applies; cleared when the text is edited and when the window opens
+    BOOL _inputHintShown;                   //the status line asks for a text: it goes as soon as one is typed
     NSButton* _imageButton;
     NSButton* _revealButton;
     NSButton* _saveImageButton;
@@ -304,7 +309,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _contextLabel.hidden = YES;
 
     //the request
-    _inputPlaceholder = VOKLabel(@"Bạn muốn viết gì? Ví dụ: “Viết email xin nghỉ phép ngày mai”, hoặc chọn một đoạn văn rồi bấm phím tắt để nhờ dịch, sửa, tóm tắt.",
+    _inputPlaceholder = VOKLabel(@"Bạn muốn viết gì? Ví dụ: “Viết email xin nghỉ phép ngày mai”. Hoặc dán một đoạn văn (hay chọn nó rồi bấm phím tắt) và bấm một kiểu chuyển đổi bên dưới: sửa lỗi, đổi giọng, dịch, làm thơ…",
                                  13, NSFontWeightRegular, [NSColor placeholderTextColor]);
     _inputPlaceholder.preferredMaxLayoutWidth = kWidth - 2 * kInset - 22;
     NSTextView* inputView = nil;
@@ -320,6 +325,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _input.automaticSpellingCorrectionEnabled = NO;
     _input.automaticLinkDetectionEnabled = NO;
     [_input setAccessibilityLabel:@"Yêu cầu"];
+
+    _presetStrip = [self buildPresetStripWithWidth:kWidth - 2 * kInset];
 
     _infoLabel = [self labelWithSize:11 color:[NSColor secondaryLabelColor]];
     _infoLabel.lineBreakMode = NSLineBreakByTruncatingTail;       //a long line (the name of a program, its model, its level) is cut, the button stays
@@ -415,7 +422,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     bottom.alignment = NSLayoutAttributeCenterY;
     bottom.spacing = 8;
 
-    _stack = [NSStackView stackViewWithViews:@[header, _contextLabel, _inputScroll, askRow, _outputScroll, statusRow, bottom]];
+    _stack = [NSStackView stackViewWithViews:@[header, _contextLabel, _inputScroll, _presetStrip, askRow, _outputScroll, statusRow, bottom]];
     _stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     _stack.alignment = NSLayoutAttributeLeading;
     _stack.spacing = 10;
@@ -439,6 +446,62 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_stack layoutSubtreeIfNeeded];
     NSSize size = NSMakeSize(kWidth, _stack.fittingSize.height);
     [_panel setContentSize:size];
+}
+
+//The ready-made conversions: small buttons in rows that break where the width of the window ends (a stack view does not wrap by
+//itself, and the width of the window never changes, so the rows are cut once, here). The one that was chosen is filled with the accent
+//colour. A caption says what they are.
+-(NSStackView*)buildPresetStripWithWidth:(CGFloat)width {
+    const CGFloat gap = 6;
+    //one line, not a wrapping label: a wrapping label has no width of its own and was laid out as narrow as one word
+    NSTextField* caption = [NSTextField labelWithString:@"Chuyển đổi nhanh:"];
+    caption.font = [NSFont systemFontOfSize:11];
+    caption.textColor = [NSColor secondaryLabelColor];
+    caption.translatesAutoresizingMaskIntoConstraints = NO;
+    NSMutableArray<NSButton*>* buttons = [NSMutableArray array];
+    for (AIPreset* preset in [AIPresets all]) {
+        NSButton* button = [NSButton buttonWithTitle:preset.title target:self action:@selector(presetPressed:)];
+        button.bezelStyle = NSBezelStyleRounded;
+        button.controlSize = NSControlSizeSmall;
+        button.font = [NSFont systemFontOfSize:11];
+        [button setButtonType:NSButtonTypePushOnPushOff];
+        button.identifier = preset.identifier;
+        button.toolTip = VOKTooltip(preset.summary);
+        button.translatesAutoresizingMaskIntoConstraints = NO;
+        [button setAccessibilityLabel:[@"Chuyển đổi: " stringByAppendingString:preset.title]];
+        [button setAccessibilityHelp:preset.summary];
+        [buttons addObject:button];
+    }
+    _presetButtons = buttons;
+
+    //The width a view takes in a row is its intrinsic one (that of its alignment rect: the bezel and the shadow of a rounded button stand
+    //outside it, and a stack view does not count them)
+    CGFloat (^widthInRow)(NSView*) = ^CGFloat(NSView* view) { return ceil(view.intrinsicContentSize.width); };
+    NSMutableArray<NSStackView*>* rows = [NSMutableArray array];
+    NSMutableArray<NSView*>* line = [NSMutableArray arrayWithObject:caption];
+    CGFloat used = widthInRow(caption);
+    for (NSButton* button in buttons) {
+        CGFloat need = widthInRow(button);
+        if (line.count > 0 && used + gap + need > width) {
+            [rows addObject:[NSStackView stackViewWithViews:line]];
+            line = [NSMutableArray array];
+            used = -gap;
+        }
+        [line addObject:button];
+        used += gap + need;
+    }
+    if (line.count > 0)
+        [rows addObject:[NSStackView stackViewWithViews:line]];
+    for (NSStackView* row in rows) {
+        row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+        row.alignment = NSLayoutAttributeCenterY;
+        row.spacing = gap;
+    }
+    NSStackView* strip = [NSStackView stackViewWithViews:rows];
+    strip.orientation = NSUserInterfaceLayoutOrientationVertical;
+    strip.alignment = NSLayoutAttributeLeading;
+    strip.spacing = 4;
+    return strip;
 }
 
 //A message that wraps changes the height of the window: it grows or shrinks downwards, the top stays where it is
@@ -488,6 +551,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self cancelRequest];
     [_result setString:@""];
     [self forgetText];
+    _activePreset = nil;
     _statusLabel.stringValue = @"";
     _state = AIAssistantStateIdle;
 
@@ -501,7 +565,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         _input.selectedRange = NSMakeRange(0, 0);
         [_input.undoManager removeAllActions];                    //typing starts from the text that was put in, not from nothing
         NSString* where = application.localizedName.length > 0 ? [NSString stringWithFormat:@" trong %@", application.localizedName] : @"";
-        _contextLabel.stringValue = [NSString stringWithFormat:@"Đã lấy %lu ký tự đang chọn%@%@. Gõ yêu cầu ở dòng đầu; kết quả sẽ thay thế vùng chọn.",
+        _contextLabel.stringValue = [NSString stringWithFormat:@"Đã lấy %lu ký tự đang chọn%@%@. Gõ yêu cầu ở dòng đầu hoặc bấm một kiểu chuyển đổi; kết quả sẽ thay thế vùng chọn.",
                                      (unsigned long)chosen.length, where, cut ? @" (đã cắt bớt, quá dài)" : @""];
         _contextLabel.hidden = NO;
     } else {
@@ -546,8 +610,10 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     //what was typed and what came back is not kept: not even in the undo history, where ⌘Z would bring it back
     [self forgetText];
     [_result setString:@""];
+    _activePreset = nil;
     _state = AIAssistantStateIdle;
     [self updatePlaceholders];
+    [self updatePresetButtons];
     BOOL wasVisible = _panel.visible;
     [_panel orderOut:nil];
     sHasKeyboard = NO;
@@ -879,9 +945,12 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 -(void)ask {
     NSString* prompt = [_input.string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (prompt.length == 0) {
-        [self showMessage:@"Hãy nhập yêu cầu trước." error:NO];
+        [self showInputHint:_activePreset != nil ? @"Hãy nhập hoặc chọn đoạn văn cần chuyển đổi trước." : @"Hãy nhập yêu cầu trước."];
         return;
     }
+    //a conversion that was chosen goes in front of the text; it is not written in the box, the button that is lit says which one it is
+    if (_activePreset != nil)
+        prompt = [AIPresets promptForPreset:_activePreset draft:prompt];
     AIProvider* provider = _provider ?: AISettings.provider;
     NSError* problem = nil;
     AIConfiguration* configuration = [AISettings configurationForProvider:provider error:&problem];
@@ -953,6 +1022,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
 //Codex makes it with its imagegen skill, which has to be named in the request or the picture is a poor one; the file is kept by Codex.
 -(void)askForImage {
+    _activePreset = nil;       //a picture is made from the description in the box, not from a conversion
+    [self updatePresetButtons];
     NSString* request = [_input.string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (request.length == 0) {
         [self showMessage:@"Hãy mô tả bức ảnh bạn muốn trước." error:NO];
@@ -1106,7 +1177,9 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
             [strong showFailure:error];
         } else {
             strong->_state = AIAssistantStateDone;
-            [strong showMessage:@"Xong. ⇧⌘↩ để dùng kết quả." error:NO];
+            //the rhyme and the number of syllables of a poem are the AI's word: the window does not count them
+            [strong showMessage:strong->_activePreset.isPoem ? @"Xong. Số tiếng và vần của thơ chưa được kiểm tra, hãy đọc lại. ⇧⌘↩ để dùng kết quả."
+                                                             : @"Xong. ⇧⌘↩ để dùng kết quả." error:NO];
         }
         [strong updateInterface];
     }];
@@ -1121,7 +1194,14 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self updateInterface];
 }
 
+//The window asks for a text. The line is taken back when the user types one, so that it does not stay under a box that is no longer empty.
+-(void)showInputHint:(NSString*)hint {
+    [self showMessage:hint error:NO];
+    _inputHintShown = YES;
+}
+
 -(void)showMessage:(NSString*)message error:(BOOL)error {
+    _inputHintShown = NO;
     _statusLabel.stringValue = message;
     _statusLabel.textColor = error ? [NSColor systemRedColor] : [NSColor secondaryLabelColor];
     _settingsButton.hidden = YES;
@@ -1144,6 +1224,43 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _settingsButton.hidden = !settingsCanHelp;
     [self resizeToFit];
     [self updateInterface];
+}
+
+#pragma mark Conversions
+
+-(NSArray<NSButton*>*)presetButtons { [self buildIfNeeded]; return _presetButtons; }
+-(AIPreset*)activePreset { return _activePreset; }
+
+//a button of a conversion is lit while it is the one that applies, and works when there is a text to convert and no answer on its way
+-(void)updatePresetButtons {
+    BOOL hasText = [_input.string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length > 0;
+    BOOL generating = _state == AIAssistantStateGenerating;
+    NSArray<AIPreset*>* all = [AIPresets all];
+    for (NSUInteger i = 0; i < _presetButtons.count && i < all.count; i++) {
+        NSButton* button = _presetButtons[i];
+        BOOL chosen = _activePreset != nil && [_activePreset.identifier isEqualToString:all[i].identifier];
+        button.state = chosen ? NSControlStateValueOn : NSControlStateValueOff;
+        button.bezelColor = chosen ? [NSColor controlAccentColor] : nil;
+        button.enabled = hasText && !generating;
+    }
+}
+
+-(void)presetPressed:(NSButton*)sender {
+    [self applyPresetWithIdentifier:sender.identifier];
+}
+
+-(void)applyPresetWithIdentifier:(NSString*)identifier {
+    AIPreset* preset = [AIPresets presetWithIdentifier:identifier];
+    BOOL hasText = [_input.string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length > 0;
+    if (preset == nil || _state == AIAssistantStateGenerating)
+        return;
+    if (!hasText) {
+        [self showInputHint:@"Hãy nhập hoặc chọn đoạn văn cần chuyển đổi trước."];
+        return;
+    }
+    _activePreset = preset;
+    [self updatePresetButtons];
+    [self ask];
 }
 
 #pragma mark Using the answer
@@ -1226,6 +1343,11 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
 -(void)textDidChange:(NSNotification*)notification {
     [self updatePlaceholders];
+    //the text is no longer the one the conversion was chosen for: what is typed now is a request of its own
+    _activePreset = nil;
+    [self updatePresetButtons];
+    if (_inputHintShown && _state == AIAssistantStateIdle)
+        [self showMessage:@"" error:NO];
 }
 
 -(void)updateInterface {
@@ -1245,6 +1367,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     else
         [self setKeyEquivalent:@"\r" mask:NSEventModifierFlagCommand forButton:_actionButton];
     _copyButton.enabled = hasResult;
+    [self updatePresetButtons];
     _insertButton.title = _resultImagePNG != nil ? @"Chèn ảnh" : (_hadSelection ? @"Thay thế vùng chọn" : @"Chèn");
     _insertButton.enabled = hasResult && !generating;
     [self setKeyEquivalent:@"\r" mask:NSEventModifierFlagCommand | NSEventModifierFlagShift forButton:_insertButton];

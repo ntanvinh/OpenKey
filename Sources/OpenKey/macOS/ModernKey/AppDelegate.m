@@ -21,6 +21,7 @@
 #import "StatusMenuController.h"
 #import "AppInfo.h"
 #import "AboutPanel.h"
+#import "DonationWindow.h"
 #import "AppPermissions.h"
 #import "PermissionWindowController.h"
 #import "SuggestionController.h"
@@ -404,6 +405,10 @@ extern bool convertToolDontAlertWhenCompleted;
 
 -(void) onAboutSelected {
     [AboutPanel show];
+}
+
+-(void)onDonateSelected {
+    [DonationWindow show];
 }
 
 #pragma mark -Short key event

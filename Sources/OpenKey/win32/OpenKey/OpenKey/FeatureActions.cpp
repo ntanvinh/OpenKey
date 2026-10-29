@@ -13,6 +13,7 @@
 #include "AIAssistant.h"
 #include "AISettings.h"
 #include "AISettingsDialog.h"
+#include "DonationDialog.h"
 
 extern int convertToolHotKey;
 
@@ -102,6 +103,7 @@ void run(Action action) {
     case RestoreWord: restoreWord(); break;
     case OpenAIAssistant: AIAssistant::toggle(); break;
     case OpenAISettings: AISettingsDialog::show(); break;
+    case OpenDonation: DonationDialog::show(); break;
     case None: break;
     }
 }
@@ -121,6 +123,7 @@ void loadSettings() {
     APP_GET_DATA(vRestoreHotKey, 0x352);
     APP_GET_DATA(vAIEnabled, 1);
     APP_GET_DATA(vAIHotKey, 0x341);
+    APP_GET_DATA(vDonationAcknowledged, 0);
     AISettings::load();
     //a shortcut saved as 0 is "none" for the engine of macOS: here too
     int* all[] = {&vSnippetHotKey, &vCaseBarHotKey, &vRestoreHotKey, &vAIHotKey};

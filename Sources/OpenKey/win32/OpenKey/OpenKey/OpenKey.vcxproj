@@ -165,6 +165,8 @@
     <ClInclude Include="..\..\..\engine\Vietnamese.h" />
     <ClInclude Include="..\..\..\engine\AIProtocol.h" />
     <ClInclude Include="..\..\..\engine\MacroPresets.h" />
+    <ClInclude Include="..\..\..\engine\AIPresets.h" />
+    <ClInclude Include="..\..\..\engine\DonationInfo.h" />
     <ClInclude Include="..\..\..\engine\MiniJson.h" />
     <ClInclude Include="..\..\..\engine\SnippetSearch.h" />
     <ClInclude Include="..\..\..\engine\SnippetStore.h" />
@@ -187,6 +189,7 @@
     <ClInclude Include="SuggestionKeys.h" />
     <ClInclude Include="TextInserter.h" />
     <ClInclude Include="AIAssistant.h" />
+    <ClInclude Include="DonationDialog.h" />
     <ClInclude Include="AIClient.h" />
     <ClInclude Include="AIKeyStore.h" />
     <ClInclude Include="AISettings.h" />
@@ -214,6 +217,7 @@
     <ClCompile Include="..\..\..\engine\Vietnamese.cpp" />
     <ClCompile Include="..\..\..\engine\AIProtocol.cpp" />
     <ClCompile Include="..\..\..\engine\MacroPresets.cpp" />
+    <ClCompile Include="..\..\..\engine\AIPresets.cpp" />
     <ClCompile Include="..\..\..\engine\MiniJson.cpp" />
     <ClCompile Include="..\..\..\engine\SnippetSearch.cpp" />
     <ClCompile Include="..\..\..\engine\SnippetStore.cpp" />
@@ -233,6 +237,7 @@
     <ClCompile Include="SuggestionController.cpp" />
     <ClCompile Include="TextInserter.cpp" />
     <ClCompile Include="AIAssistant.cpp" />
+    <ClCompile Include="DonationDialog.cpp" />
     <ClCompile Include="AIClient.cpp" />
     <ClCompile Include="AIKeyStore.cpp" />
     <ClCompile Include="AISettings.cpp" />

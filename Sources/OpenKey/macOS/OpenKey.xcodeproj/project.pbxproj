@@ -35,6 +35,9 @@
 		5EC0DE10062DD235675C302D /* StatusMenuController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1033724A4EF33C253D /* StatusMenuController.m */; };
 		5EC0DE10695C72BB713E6B27 /* SettingsWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE105D7FC0B71EC81B27 /* SettingsWindowController.m */; };
 		5EC0DE10B11639488171E80C /* AboutPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE100726B5EE2214140E /* AboutPanel.m */; };
+		5EC0DE10D3CC7F5E5448D712 /* AIPresets.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1065431BAA9B20569D /* AIPresets.m */; };
+		5EC0DE1080788A4F4E60974A /* DonationWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE100DEB1E950EDF4D1F /* DonationWindow.m */; };
+		5EC0DE104A3230845A6DB3D3 /* Donation.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE102463CE88339B8976 /* Donation.m */; };
 		2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 2389467C21FDDB920030A13B /* OpenKeyManager.m */; };
 		5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1020261013000A0002 /* SecureInputMonitor.m */; };
 		5EC0DE1020261020000A0003 /* AppUpdater.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1020261020000A0002 /* AppUpdater.m */; };
@@ -167,6 +170,12 @@
 		5EC0DE105D7FC0B71EC81B27 /* SettingsWindowController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SettingsWindowController.m; sourceTree = "<group>"; };
 		5EC0DE10C6C84D5167A489C2 /* AboutPanel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutPanel.h; sourceTree = "<group>"; };
 		5EC0DE100726B5EE2214140E /* AboutPanel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutPanel.m; sourceTree = "<group>"; };
+		5EC0DE1053365554D6C334E4 /* AIPresets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AIPresets.h; sourceTree = "<group>"; };
+		5EC0DE1065431BAA9B20569D /* AIPresets.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AIPresets.m; sourceTree = "<group>"; };
+		5EC0DE1084E2C6869EB1ED71 /* DonationWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DonationWindow.h; sourceTree = "<group>"; };
+		5EC0DE100DEB1E950EDF4D1F /* DonationWindow.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DonationWindow.m; sourceTree = "<group>"; };
+		5EC0DE1010321DE14B2BBB13 /* Donation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Donation.h; sourceTree = "<group>"; };
+		5EC0DE102463CE88339B8976 /* Donation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Donation.m; sourceTree = "<group>"; };
 		2389467E21FDDC3F0030A13B /* OpenKeyManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenKeyManager.h; sourceTree = "<group>"; };
 		5EC0DE1020261014000A0001 /* AppInfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppInfo.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0001 /* SecureInputMonitor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecureInputMonitor.h; sourceTree = "<group>"; };
@@ -431,6 +440,12 @@
 				5EC0DE105D7FC0B71EC81B27 /* SettingsWindowController.m */,
 				5EC0DE10C6C84D5167A489C2 /* AboutPanel.h */,
 				5EC0DE100726B5EE2214140E /* AboutPanel.m */,
+				5EC0DE1053365554D6C334E4 /* AIPresets.h */,
+				5EC0DE1065431BAA9B20569D /* AIPresets.m */,
+				5EC0DE1084E2C6869EB1ED71 /* DonationWindow.h */,
+				5EC0DE100DEB1E950EDF4D1F /* DonationWindow.m */,
+				5EC0DE1010321DE14B2BBB13 /* Donation.h */,
+				5EC0DE102463CE88339B8976 /* Donation.m */,
 				2389467E21FDDC3F0030A13B /* OpenKeyManager.h */,
 				2389467C21FDDB920030A13B /* OpenKeyManager.m */,
 				5EC0DE1020261014000A0001 /* AppInfo.h */,
@@ -695,6 +710,9 @@
 				5EC0DE10062DD235675C302D /* StatusMenuController.m in Sources */,
 				5EC0DE10695C72BB713E6B27 /* SettingsWindowController.m in Sources */,
 				5EC0DE10B11639488171E80C /* AboutPanel.m in Sources */,
+				5EC0DE10D3CC7F5E5448D712 /* AIPresets.m in Sources */,
+				5EC0DE1080788A4F4E60974A /* DonationWindow.m in Sources */,
+				5EC0DE104A3230845A6DB3D3 /* Donation.m in Sources */,
 				2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */,
 				5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */,
 				5EC0DE1020261020000A0003 /* AppUpdater.m in Sources */,
@@ -868,7 +886,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 93;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -878,7 +896,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.14;
+				MARKETING_VERSION = 3.7.15;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -896,7 +914,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 93;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -906,7 +924,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.14;
+				MARKETING_VERSION = 3.7.15;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

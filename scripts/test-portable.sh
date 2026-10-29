@@ -23,6 +23,8 @@ run snippet_search_test snippet_search_test.cpp ../SnippetSearch.cpp ../Suggest.
 run snippet_store_test snippet_store_test.cpp ../SnippetStore.cpp ../SnippetSearch.cpp ../MiniJson.cpp ../Suggest.cpp
 run minijson_test minijson_test.cpp ../MiniJson.cpp
 run macro_presets_test macro_presets_test.cpp ../MacroPresets.cpp
+run ai_presets_test ai_presets_test.cpp ../AIPresets.cpp ../MiniJson.cpp
+run donation_info_test donation_info_test.cpp ../MiniJson.cpp
 run ai_protocol_test ai_protocol_test.cpp ../AIProtocol.cpp ../MiniJson.cpp
 run restore_test restore_test.cpp ../Engine.cpp ../Vietnamese.cpp ../Macro.cpp ../SmartSwitchKey.cpp ../ConvertTool.cpp
 run suggestion_keys_test ../../win32/OpenKey/tests/suggestion_keys_test.cpp -I../../win32/OpenKey/OpenKey
