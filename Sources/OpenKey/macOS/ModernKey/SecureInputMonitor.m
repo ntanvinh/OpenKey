@@ -8,6 +8,7 @@
 #import "SecureInputMonitor.h"
 #import <Carbon/Carbon.h>
 #import "Diagnostics.h"
+#import "SuggestionController.h"
 
 extern int vLanguage;
 extern int vInputType;
@@ -161,6 +162,8 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
         _noSourceAvailable = NO;
         //keys typed while macOS hides them were never seen, what OpenKey remembers of the current word is stale
         RequestNewSession();
+        //and the suggestion bar of the field before would stay up over a password field, which no key can take away any more
+        [SuggestionController reset];
     }
 
     NSString* holderName = nil;

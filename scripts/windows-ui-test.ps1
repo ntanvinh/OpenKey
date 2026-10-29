@@ -39,6 +39,7 @@ public static class VokInput {
     [StructLayout(LayoutKind.Sequential)] struct INPUT { public uint type; public INPUTUNION u; }
     [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint n, INPUT[] inputs, int size);
     [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string title);
+    [DllImport("user32.dll")] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -172,7 +173,15 @@ try {
     # 5. the AI assistant opens (no request is made)
     [void][VokInput]::SetForegroundWindow($form.Handle); Pump 300
     Press 0x41 @("Ctrl", "Alt")
-    if (WaitWindow "VOpenKeyAIAssistant" $true) { Report "AI window opens" "PASS" "after $($script:waited) ms" ; Shot "ai"; Press $Keys.Esc } else { Report "AI window opens" "FAIL" "" }
+    if (WaitWindow "VOpenKeyAIAssistant" $true) {
+        Report "AI window opens" "PASS" "after $($script:waited) ms"
+        # the ready-made conversions are buttons of the window: 14 of them and the 4 that were always there (settings, ask, insert, copy)
+        $ai = [VokInput]::FindWindow("VOpenKeyAIAssistant", [NullString]::Value)
+        $buttons = 0; $c = [IntPtr]::Zero
+        while ($true) { $c = [VokInput]::FindWindowEx($ai, $c, "Button", [NullString]::Value); if ($c -eq [IntPtr]::Zero) { break }; $buttons++ }
+        if ($buttons -ge 18) { Report "AI window has the 14 conversion buttons" "PASS" "$buttons buttons" } else { Report "AI window has the 14 conversion buttons" "FAIL" "only $buttons buttons" }
+        Shot "ai"; Press $Keys.Esc
+    } else { Report "AI window opens" "FAIL" "" }
 }
 catch { if ($_.ToString() -ne "stopped") { Report "unexpected error" "FAIL" $_.ToString() } }
 finally {

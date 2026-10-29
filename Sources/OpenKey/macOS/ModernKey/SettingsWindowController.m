@@ -1699,6 +1699,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     [self updateCheckButton];
     [rows addObject:[self buttonRowWithTitle:@"Giới thiệu" detail:[NSString stringWithFormat:@"Phát triển bởi %@, fork từ OpenKey.", VOK_COMPANY]
                                       button:[NSButton buttonWithTitle:[NSString stringWithFormat:@"Giới thiệu %@", VOK_APP_NAME] target:self action:@selector(openAbout:)]]];
+    [rows addObject:[self buttonRowWithTitle:@"Ủng hộ" detail:[NSString stringWithFormat:@"Góp sức để %@ tiếp tục phát triển: chuyển khoản VietQR hoặc PayPal.", VOK_APP_NAME]
+                                      button:[NSButton buttonWithTitle:@"Ủng hộ…" target:self action:@selector(openDonate:)]]];
     [rows addObject:[self buttonRowWithTitle:@"Khôi phục mặc định" detail:@"Đưa mọi tùy chọn về như lúc mới cài."
                                       button:[NSButton buttonWithTitle:@"Khôi phục…" target:self action:@selector(resetToDefaults:)]]];
     return [self sectionWithTitle:@"Về VOpenKey AI" rows:rows];
@@ -1859,6 +1861,10 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
 
 -(void)openAbout:(id)sender {
     [appDelegate onAboutSelected];
+}
+
+-(void)openDonate:(id)sender {
+    [appDelegate onDonateSelected];
 }
 
 -(void)resetToDefaults:(id)sender {

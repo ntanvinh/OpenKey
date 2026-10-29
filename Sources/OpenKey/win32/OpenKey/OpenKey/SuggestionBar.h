@@ -13,6 +13,7 @@ class SuggestionBar {
 public:
     static const UINT kMessageRefresh = WM_APP + 41;  //posted by the controller: work out the suggestions now
     static const UINT kMessageCaret = WM_APP + 42;    //a worker found the caret of an application (see SuggestionController)
+    static const UINT kMessageField = WM_APP + 43;    //a worker found out whether the field holds a secret (see SuggestionController)
 
     /// Creates the (hidden) window. Call once, from the thread that runs the message loop.
     static bool create(HINSTANCE instance);

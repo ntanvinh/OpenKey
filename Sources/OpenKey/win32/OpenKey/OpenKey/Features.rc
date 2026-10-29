@@ -6,3 +6,5 @@ IDR_DICT_WIKTIONARY  RCDATA "..\\..\\..\\engine\\dictionaries\\vi-wiktionary.txt
 IDR_SNIPPETS_DEFAULT RCDATA "..\\..\\..\\engine\\snippets\\default-snippets.json"
 IDR_LOCAL_MODELS     RCDATA "..\\..\\..\\engine\\ai\\local-models.json"
 IDR_MACRO_PRESETS    RCDATA "..\\..\\..\\engine\\dictionaries\\vi-macros.txt"
+IDR_AI_PRESETS       RCDATA "..\\..\\..\\engine\\ai\\ai-presets.json"
+IDB_DONATION_QR      BITMAP "..\\..\\..\\engine\\donation\\donation-qr.bmp"

@@ -84,11 +84,10 @@ static NSRect FrameOfElement(AXUIElementRef element) {
 
 @implementation CaretLocator
 
-+(CaretLocation*)locateInProcess:(pid_t)pid word:(NSString*)word {
-    CaretLocation* none = [[CaretLocation alloc] init];
++(AXUIElementRef)copyFocusedElementInProcess:(pid_t)pid {
     AXUIElementRef application = AXUIElementCreateApplication(pid);
     if (application == NULL)
-        return none;
+        return NULL;
     AXUIElementSetMessagingTimeout(application, 0.25);
 
     //Chromium and Electron only describe their text fields once asked to
@@ -102,14 +101,21 @@ static NSRect FrameOfElement(AXUIElementRef element) {
         }
     }
 
-    CaretLocation* location = none;
     CFTypeRef focused = NULL;
-    if (AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute, &focused) == kAXErrorSuccess && focused) {
-        AXUIElementSetMessagingTimeout((AXUIElementRef)focused, 0.25);
-        location = [self locateInElement:(AXUIElementRef)focused word:word retries:6];
-        CFRelease(focused);
-    }
+    if (AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute, &focused) != kAXErrorSuccess)
+        focused = NULL;
     CFRelease(application);
+    if (focused != NULL)
+        AXUIElementSetMessagingTimeout((AXUIElementRef)focused, 0.25);
+    return (AXUIElementRef)focused;
+}
+
++(CaretLocation*)locateInProcess:(pid_t)pid word:(NSString*)word {
+    AXUIElementRef focused = [self copyFocusedElementInProcess:pid];
+    if (focused == NULL)
+        return [[CaretLocation alloc] init];
+    CaretLocation* location = [self locateInElement:focused word:word retries:6];
+    CFRelease(focused);
     return location;
 }
 

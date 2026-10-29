@@ -147,10 +147,34 @@ static NSColor* LogoTint(void) {
     credit.translatesAutoresizingMaskIntoConstraints = NO;
     [parts addObject:credit];
 
+    //the website of the company, a link in a text view like the credits: a label does not open links reliably
+    NSMutableParagraphStyle* centered = [[NSMutableParagraphStyle alloc] init];
+    centered.alignment = NSTextAlignmentCenter;
+    NSAttributedString* site = [[NSAttributedString alloc] initWithString:@"lssoft.io.vn" attributes:@{
+        NSFontAttributeName: [NSFont systemFontOfSize:12],
+        NSForegroundColorAttributeName: [NSColor secondaryLabelColor],
+        NSParagraphStyleAttributeName: centered,
+        NSLinkAttributeName: [NSURL URLWithString:@"https://lssoft.io.vn"]}];
+    NSTextView* website = [self textViewWithAttributedString:site width:kWindowWidth - 2 * kSideMargin - 2 * kBrandPadding];
+    [website setAccessibilityLabel:@"Website lssoft.io.vn"];
+    [parts addObject:website];
+
+    //the contact email: shown as text, and a mailto link that opens the mail client
+    NSAttributedString* mail = [[NSAttributedString alloc] initWithString:VOK_COMPANY_EMAIL attributes:@{
+        NSFontAttributeName: [NSFont systemFontOfSize:12],
+        NSForegroundColorAttributeName: [NSColor secondaryLabelColor],
+        NSParagraphStyleAttributeName: centered,
+        NSLinkAttributeName: [NSURL URLWithString:[@"mailto:" stringByAppendingString:VOK_COMPANY_EMAIL]]}];
+    NSTextView* email = [self textViewWithAttributedString:mail width:kWindowWidth - 2 * kSideMargin - 2 * kBrandPadding];
+    [email setAccessibilityLabel:[@"Email " stringByAppendingString:VOK_COMPANY_EMAIL]];
+    [parts addObject:email];
+
     NSStackView* stack = [NSStackView stackViewWithViews:parts];
     stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     stack.alignment = NSLayoutAttributeCenterX;
     stack.spacing = 12;
+    [stack setCustomSpacing:4 afterView:credit];
+    [stack setCustomSpacing:4 afterView:website];
     stack.translatesAutoresizingMaskIntoConstraints = NO;
 
     //the padding is made of constraints: a stack view ignores its vertical edge insets when its views are centred

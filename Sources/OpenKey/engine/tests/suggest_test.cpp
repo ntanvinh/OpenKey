@@ -157,6 +157,23 @@ int main(int argc, char** argv) {
         CHECK(c.size() == 3);   // xin (dictionary), xinh and xỉn from the fallback; "sai" does not start with "xi"
         CHECK(top(c) == "xin");
     }
+    // ---- 6b. closing mark after an accepted suggestion
+    {
+        Engine e; e.loadText(kDict); FakeHost host; Session s(e, host);
+        Settings st; st.enabled = true; s.setSettings(st);
+        Acceptance a;
+        s.keyProcessed(KeyKind::Other, "xin"); s.keyProcessed(KeyKind::Space, ""); s.refresh();
+        CHECK(s.accept(0, "", a));
+        CHECK(s.spaceAdjustment('a') == 0);            // a letter straight after the accepted space: nothing to do
+        CHECK(s.spaceAdjustment('.') == -1);
+        s.keyProcessed(KeyKind::Other, "");            // the mark itself
+        CHECK(!s.acceptedSpacePending());
+        CHECK(s.spaceAdjustment('x') == 1 && s.spaceAdjustment('A') == 1);
+        CHECK(s.spaceAdjustment('.') == 0 && s.spaceAdjustment('1') == 0 && s.spaceAdjustment(' ') == 0);
+        s.keyProcessed(KeyKind::Other, "x");           // the letter: the chance is over
+        CHECK(s.spaceAdjustment('y') == 0);
+    }
+
     // ---- 7. session behaviour
     {
         Engine e;
@@ -190,9 +207,14 @@ int main(int argc, char** argv) {
         printf("session xin chào_ -> %s\n", join(host.shown).c_str());
         CHECK(top(host.shown) == "c\xC3\xA1" "c");
         CHECK(s.context().size() == 2);
+        CHECK(s.acceptedSpacePending());               // the space typed by accept() may be replaced by a closing mark
+        CHECK(Session::dropsAcceptedSpace('.') && Session::dropsAcceptedSpace(',') && Session::dropsAcceptedSpace(')') &&
+              Session::dropsAcceptedSpace('>'));
+        CHECK(!Session::dropsAcceptedSpace('a') && !Session::dropsAcceptedSpace(' ') && !Session::dropsAcceptedSpace('-'));
 
         // type "c", Tab replaces it
         s.keyProcessed(KeyKind::Other, "c"); s.refresh();
+        CHECK(!s.acceptedSpacePending());              // any key after the accepted space ends the chance
         CHECK(host.visible);                           // context exists: one letter is enough
         CHECK(top(host.shown) == "c\xC3\xA1" "c");
         CHECK(!s.accept(0, "cx", a));                  // out of date: word changed since the bar was computed

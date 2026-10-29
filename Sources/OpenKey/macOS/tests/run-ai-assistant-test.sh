@@ -23,7 +23,7 @@ clang++ -std=c++17 -fobjc-arc -Wall -g -I"$MAC" -I"$ENGINE" -c "$MAC/SnippetInse
 for f in SnippetSearch Suggest; do
     clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
 done
-for f in AIProvider AIKeychain AISettings AIClient AIAgentCLI AIAgentProcess AIAgentRunner AIProgress AILightbox AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIAssistant VOKUI; do
+for f in AIProvider AIKeychain AISettings AIClient AIAgentCLI AIAgentProcess AIAgentRunner AIProgress AILightbox AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIPresets AIAssistant VOKUI; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/ai_assistant_test.m" -o ai_assistant_test.o
@@ -37,7 +37,7 @@ PORT=$(head -1 port.txt)
 
 # in the background, writing to a file, and given up on after two minutes: see run-ai-selection-test.sh
 FREE=$(python3 -I -c "import socket; s = socket.socket(); s.bind(('127.0.0.1', 0)); print(s.getsockname()[1])")
-nohup ./ai_assistant_test "$PORT" "$HERE/fake_ollama.py" "$FREE" "$WORK" "$HERE/fake_agent_cli.py" > output.txt 2>&1 &
+VOK_PRESETS_JSON="${HERE:h:h}/engine/ai/ai-presets.json" nohup ./ai_assistant_test "$PORT" "$HERE/fake_ollama.py" "$FREE" "$WORK" "$HERE/fake_agent_cli.py" > output.txt 2>&1 &
 TEST=$!
 for i in {1..240}; do
     kill -0 $TEST 2>/dev/null || break

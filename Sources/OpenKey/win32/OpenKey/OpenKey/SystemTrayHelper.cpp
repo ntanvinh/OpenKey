@@ -14,6 +14,7 @@ redistribute your new version, it MUST be open source.
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
 #include "FeatureActions.h"
+#include "DonationDialog.h"
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
@@ -43,6 +44,7 @@ redistribute your new version, it MUST be open source.
 #define POPUP_FEATURES 984
 #define POPUP_AI 985
 #define POPUP_AI_SETTINGS 986
+#define POPUP_DONATE 987
 
 #define POPUP_CONTROL_PANEL 1000
 #define POPUP_ABOUT_OPENKEY 1010
@@ -81,9 +83,20 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_AI, _T("Mở trợ lý AI")},
 	{POPUP_AI_SETTINGS, _T("Cài đặt AI...")},
 	{POPUP_CONTROL_PANEL, _T("Bảng điều khiển...")},
+	{POPUP_DONATE, _T("Ủng hộ VOpenKey AI")},
 	{POPUP_ABOUT_OPENKEY, _T("Giới thiệu VOpenKey AI")},
 	{POPUP_OPENKEY_EXIT, _T("Thoát")},
 };
+
+//The "Ủng hộ" item goes away once the user said they donated, and comes back when they take it back. Done every time the menu is
+//about to open, so that nothing has to tell the menu when the setting changes.
+static void syncDonateItem() {
+	bool present = GetMenuState(popupMenu, POPUP_DONATE, MF_BYCOMMAND) != (UINT)-1;
+	if (DonationDialog::acknowledged() && present)
+		RemoveMenu(popupMenu, POPUP_DONATE, MF_BYCOMMAND);
+	else if (!DonationDialog::acknowledged() && !present)
+		InsertMenu(popupMenu, POPUP_ABOUT_OPENKEY, MF_BYCOMMAND | MF_STRING, POPUP_DONATE, menuData[POPUP_DONATE]);
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	static UINT taskbarCreated;
@@ -106,6 +119,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			POINT curPoint;
 			GetCursorPos(&curPoint);
 			SetForegroundWindow(hWnd);
+			syncDonateItem();
 			UINT commandId = TrackPopupMenu(
 				popupMenu,
 				TPM_RETURNCMD | TPM_NONOTIFY,
@@ -145,6 +159,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				break;
 			case POPUP_AI_SETTINGS:
 				FeatureActions::postDelayed(FeatureActions::OpenAISettings, 50);
+				break;
+			case POPUP_DONATE:
+				FeatureActions::postDelayed(FeatureActions::OpenDonation, 150);
 				break;
 			case POPUP_FEATURES:
 				FeatureActions::postDelayed(FeatureActions::OpenFeatureSettings, 50);
@@ -265,6 +282,7 @@ void SystemTrayHelper::createPopupMenu() {
 	AppendMenu(popupMenu, MF_SEPARATOR, 0, 0);
 
 	AppendMenu(popupMenu, MF_STRING, POPUP_CONTROL_PANEL, menuData[POPUP_CONTROL_PANEL]);
+	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_DONATE, menuData[POPUP_DONATE]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_ABOUT_OPENKEY, menuData[POPUP_ABOUT_OPENKEY]);
 	AppendMenu(popupMenu, MF_SEPARATOR, 0, 0);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_OPENKEY_EXIT, menuData[POPUP_OPENKEY_EXIT]);

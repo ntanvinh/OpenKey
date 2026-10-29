@@ -6,10 +6,16 @@
 //
 // No real AI service is contacted and no real key is used. The window is shown for a moment; the clipboard of the test is not the
 // clipboard of the user.
+//
+// VOK_PRESETS_JSON=<engine/ai/ai-presets.json> also compares that file (which the Windows program reads) with AIPresets.m.
+// VOK_ONLY=presets runs only the part about the ready-made conversions. VOK_SNAPSHOT_DIR=<folder> also writes pictures of the window
+// there (light and dark). Never run two copies of this test at once: they share one defaults domain, and each would send its requests
+// to the fake server of the other.
 #import <Cocoa/Cocoa.h>
 #import <Carbon/Carbon.h>
 #import "AIAssistant.h"
 #import "AIAgentCLI.h"
+#import "AIPresets.h"
 #import "AIProgress.h"
 #import "AILightbox.h"
 #import "AIKeychain.h"
@@ -63,6 +69,15 @@ static NSString* gPasted;
 static NSData* gPastedImage;
 static int gPastes;
 
+//A clipboard that rejects writes, so a failed copy must keep the answer available.
+@interface RejectingPasteboard : NSObject
+@end
+@implementation RejectingPasteboard
+-(NSInteger)clearContents { return 0; }
+-(BOOL)setString:(NSString*)string forType:(NSPasteboardType)type { return NO; }
+-(BOOL)writeObjects:(NSArray<id<NSPasteboardWriting>>*)objects { return NO; }
+@end
+
 static AIAssistant* MakeAssistant(NSPasteboard* board) {
     SnippetInserter* inserter = [[SnippetInserter alloc] init];
     inserter.pasteboard = board;
@@ -88,6 +103,7 @@ static void TestOpening(AIAssistant* assistant) {
     CHECK(!assistant.contextLabel.hidden && [assistant.contextLabel.stringValue containsString:@"17 ký tự"]);
     CHECK([assistant.insertButton.title isEqualToString:@"Thay thế vùng chọn"]);
     CHECK([assistant.actionButton.title isEqualToString:@"Tạo"]);
+    CHECK([assistant.copyButton.title isEqualToString:@"Sao chép và đóng"]);
     CHECK(!assistant.insertButton.isEnabled && !assistant.copyButton.isEnabled);       // nothing to use yet
     CHECK(assistant.state == AIAssistantStateIdle && assistant.resultText.length == 0);
     CHECK([assistant.providerPopUp.selectedItem.title isEqualToString:@"Ollama (chạy trên máy)"]);
@@ -149,6 +165,196 @@ static void TestAsking(AIAssistant* assistant) {
     [assistant hideAssistant];
 }
 
+//A picture of the window for somebody to look at (VOK_SNAPSHOT_DIR): drawn from its views, not from the screen, on a grey ground, as
+//the blur behind it cannot be drawn without showing it
+static void Snapshot(AIAssistant* assistant, NSString* name, BOOL dark) {
+    const char* folder = getenv("VOK_SNAPSHOT_DIR");
+    if (folder == NULL || folder[0] == 0)
+        return;
+    NSView* content = assistant.panel.contentView;
+    assistant.panel.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+    [content layoutSubtreeIfNeeded];
+    NSBitmapImageRep* cached = [content bitmapImageRepForCachingDisplayInRect:content.bounds];
+    //drawn explicitly in this appearance: the one a previous picture left current would colour the text of the next one
+    [content.effectiveAppearance performAsCurrentDrawingAppearance:^{ [content cacheDisplayInRect:content.bounds toBitmapImageRep:cached]; }];
+    NSBitmapImageRep* out = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:cached.pixelsWide pixelsHigh:cached.pixelsHigh
+                                                                bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
+                                                               colorSpaceName:NSCalibratedRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
+    out.size = content.bounds.size;
+    [NSGraphicsContext saveGraphicsState];
+    [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithBitmapImageRep:out]];
+    [[NSColor colorWithSRGBRed:dark ? 0.22 : 0.93 green:dark ? 0.22 : 0.93 blue:dark ? 0.23 : 0.93 alpha:1] setFill];
+    NSRectFill(NSMakeRect(0, 0, content.bounds.size.width, content.bounds.size.height));
+    [cached drawInRect:NSMakeRect(0, 0, content.bounds.size.width, content.bounds.size.height)];
+    [NSGraphicsContext restoreGraphicsState];
+    NSString* file = [NSString stringWithFormat:@"%@-%@.png", name, dark ? @"dark" : @"light"];
+    [[out representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:[@(folder) stringByAppendingPathComponent:file] atomically:YES];
+    assistant.panel.appearance = nil;
+}
+
+//The Windows program reads its conversions from engine/ai/ai-presets.json; this program has the same words in AIPresets.m. A word changed in one
+//and not in the other would make the two programs ask the AI different things, so the file is compared with the code (VOK_PRESETS_JSON).
+static void TestPresetsFileMatches(void) {
+    const char* path = getenv("VOK_PRESETS_JSON");
+    if (path == NULL)
+        return;
+    printf("-- the file of the presets of the Windows program\n");
+    NSData* data = [NSData dataWithContentsOfFile:@(path)];
+    NSDictionary* file = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    CHECK(file != nil);
+    NSArray* list = file[@"presets"];
+    NSArray<AIPreset*>* all = [AIPresets all];
+    CHECK(list.count == all.count);
+    for (NSUInteger i = 0; i < list.count && i < all.count; i++) {
+        CHECK([list[i][@"id"] isEqualToString:all[i].identifier]);
+        CHECK([list[i][@"title"] isEqualToString:all[i].title]);
+        CHECK([list[i][@"summary"] isEqualToString:all[i].summary]);
+        CHECK([list[i][@"instruction"] isEqualToString:all[i].instruction]);
+        CHECK([list[i][@"poem"] boolValue] == all[i].isPoem);
+        //the request: the template of the file with the instruction and the text put in is the prompt of this program
+        NSString* made = [[file[@"promptTemplate"] stringByReplacingOccurrencesOfString:@"{instruction}" withString:all[i].instruction]
+                          stringByReplacingOccurrencesOfString:@"{text}" withString:@"xin chao"];
+        CHECK([made isEqualToString:[AIPresets promptForPreset:all[i] draft:@"  xin chao \n"]]);
+    }
+}
+
+//the ready-made conversions: the buttons under the box, what one click sends, when it is lit and when it goes out
+static void TestPresets(AIAssistant* assistant) {
+    printf("-- presets\n");
+    UseServer(@"normal");
+    NSArray<AIPreset*>* all = [AIPresets all];
+
+    //the list itself: one button each, nothing repeated, no empty instruction, the poems are the ones that say so
+    CHECK(all.count == 14);
+    NSMutableSet* identifiers = [NSMutableSet set];
+    NSMutableSet* titles = [NSMutableSet set];
+    NSMutableArray* poems = [NSMutableArray array];
+    for (AIPreset* preset in all) {
+        [identifiers addObject:preset.identifier];
+        [titles addObject:preset.title];
+        CHECK(preset.title.length > 0 && preset.summary.length > 0 && preset.instruction.length > 20);
+        if (preset.isPoem)
+            [poems addObject:preset.identifier];
+        CHECK([AIPresets presetWithIdentifier:preset.identifier] == preset);
+    }
+    CHECK(identifiers.count == all.count && titles.count == all.count);
+    CHECK([poems isEqualToArray:@[@"poetry", @"rhyme", @"lucBat", @"tuTuyet"]]);
+    CHECK([AIPresets presetWithIdentifier:@"nope"] == nil);
+    NSString* sample = [AIPresets promptForPreset:[AIPresets presetWithIdentifier:@"polite"] draft:@"\n\n  xin chào anh  \n"];
+    CHECK([sample hasPrefix:[AIPresets presetWithIdentifier:@"polite"].instruction]);
+    CHECK([sample hasSuffix:@"\nxin chào anh"]);                                    //the text, trimmed, comes last
+    CHECK([sample containsString:@"không phải yêu cầu"]);
+
+    //an empty box: the buttons are there, off; a click (not possible with the mouse, possible from code) only says what is missing
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(assistant.presetButtons.count == all.count && assistant.activePreset == nil);
+    for (NSUInteger i = 0; i < all.count; i++) {
+        NSButton* button = assistant.presetButtons[i];
+        CHECK([button.title isEqualToString:all[i].title] && !button.isEnabled && button.state == NSControlStateValueOff);
+        CHECK(button.toolTip.length > 0 && [button.accessibilityLabel hasPrefix:@"Chuyển đổi: "]);
+    }
+    [assistant applyPresetWithIdentifier:@"fix"];
+    CHECK(assistant.state == AIAssistantStateIdle && assistant.activePreset == nil);
+    CHECK([assistant.statusLabel.stringValue containsString:@"chọn đoạn văn"]);
+    [assistant ask];                                                                 //⌘↩ on an empty box says it too
+    CHECK(assistant.state == AIAssistantStateIdle && [assistant.statusLabel.stringValue containsString:@"Hãy nhập"]);
+
+    //typing a text turns them on (the notification is what the text view sends when the user types)
+    [assistant.inputView insertText:@"xin chao ban, toi muon xin nghi phep" replacementRange:NSMakeRange(NSNotFound, 0)];
+    for (NSButton* button in assistant.presetButtons)
+        CHECK(button.isEnabled);
+    CHECK(assistant.statusLabel.stringValue.length == 0);                            //the request for a text is taken back
+
+    Snapshot(assistant, @"ai-presets-typed", NO);
+    Snapshot(assistant, @"ai-presets-typed", YES);
+    //the buttons fit in the width of the window, in rows, without one over another
+    [assistant.panel.contentView layoutSubtreeIfNeeded];
+    NSView* strip = assistant.presetButtons[0].superview.superview;
+    NSMutableSet* rows = [NSMutableSet set];
+    for (NSButton* button in assistant.presetButtons) {
+        //the alignment rect is what the layout works with: the bezel and shadow of a button stand outside it
+        NSRect frame = [button.superview convertRect:[button alignmentRectForFrame:button.frame] toView:strip];
+        //inside the strip, and as wide as the button wants to be: a row that is too long squeezes its last buttons to a sliver
+        BOOL inside = NSMaxX(frame) <= strip.bounds.size.width + 0.5 && NSMinX(frame) >= -0.5 && frame.size.width >= button.intrinsicContentSize.width - 0.5;
+        if (!inside)
+            printf("   %s is at %s, the strip is %.0f wide\n", button.title.UTF8String, NSStringFromRect(frame).UTF8String, strip.bounds.size.width);
+        CHECK(inside);
+        [rows addObject:@((NSInteger)round(NSMidY(frame)))];
+    }
+    CHECK(rows.count >= 2 && rows.count <= 3);
+
+    //one click: chosen, lit, and asked at once. What the server gets is the instruction and the text; the box is left as it was.
+    NSString* typed = assistant.inputView.string;
+    NSButton* polite = assistant.presetButtons[1];
+    CHECK([polite.title isEqualToString:@"Lịch sự"]);
+    [polite performClick:nil];
+    CHECK(assistant.state == AIAssistantStateGenerating && [assistant.activePreset.identifier isEqualToString:@"polite"]);
+    CHECK(polite.state == NSControlStateValueOn);
+    for (NSButton* button in assistant.presetButtons)
+        CHECK(!button.isEnabled);                                                  //while the answer is on its way
+    [assistant applyPresetWithIdentifier:@"fix"];                                  //ignored meanwhile
+    CHECK([assistant.activePreset.identifier isEqualToString:@"polite"]);
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([assistant.resultText isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+    CHECK([assistant.inputView.string isEqualToString:typed]);
+    NSString* expected = [AIPresets promptForPreset:[AIPresets presetWithIdentifier:@"polite"] draft:typed];
+    CHECK([LastRequest()[@"body"][@"messages"][1][@"content"] isEqualToString:expected]);
+    CHECK([[LastRequest()[@"body"][@"messages"][1][@"content"] description] containsString:@"xin nghi phep"]);
+    CHECK([assistant.statusLabel.stringValue isEqualToString:@"Xong. ⇧⌘↩ để dùng kết quả."]);   //not a poem: no warning
+    CHECK(polite.state == NSControlStateValueOn && polite.isEnabled);
+    Snapshot(assistant, @"ai-presets-answer", NO);
+    Snapshot(assistant, @"ai-presets-answer", YES);
+    for (NSUInteger i = 0; i < all.count; i++)
+        if (i != 1)
+            CHECK(assistant.presetButtons[i].state == NSControlStateValueOff && assistant.presetButtons[i].isEnabled);
+
+    //"Tạo lại" asks the same conversion again, even with the text changed by the program
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([LastRequest()[@"body"][@"messages"][1][@"content"] isEqualToString:expected]);
+
+    //another conversion takes over
+    [assistant applyPresetWithIdentifier:@"toEnglish"];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([assistant.activePreset.identifier isEqualToString:@"toEnglish"] && polite.state == NSControlStateValueOff);
+    CHECK([[LastRequest()[@"body"][@"messages"][1][@"content"] description] hasPrefix:@"Dịch sang tiếng Anh"]);
+
+    //the user edits the text: no conversion applies any more, and what is sent is the box as it is
+    [assistant.inputView insertText:@"!" replacementRange:NSMakeRange(assistant.inputView.string.length, 0)];
+    CHECK(assistant.activePreset == nil);
+    for (NSButton* button in assistant.presetButtons)
+        CHECK(button.state == NSControlStateValueOff);
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([LastRequest()[@"body"][@"messages"][1][@"content"] isEqualToString:assistant.inputView.string]);
+
+    //a poem: the answer says its rhymes were not checked
+    [assistant applyPresetWithIdentifier:@"lucBat"];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([assistant.statusLabel.stringValue containsString:@"chưa được kiểm tra"]);
+    CHECK([[LastRequest()[@"body"][@"messages"][1][@"content"] description] containsString:@"Luật lục bát"]);
+    [assistant hideAssistant];
+    CHECK(assistant.activePreset == nil);
+
+    //a selection from another application: it is in the box after a blank line, and it is what gets converted
+    [assistant presentWithSelection:@"Xin chào" application:nil];
+    for (NSButton* button in assistant.presetButtons)
+        CHECK(button.isEnabled);
+    [assistant applyPresetWithIdentifier:@"toEnglish"];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([LastRequest()[@"body"][@"messages"][1][@"content"] isEqualToString:
+           [AIPresets promptForPreset:[AIPresets presetWithIdentifier:@"toEnglish"] draft:@"Xin chào"]]);
+    CHECK([assistant.insertButton.title isEqualToString:@"Thay thế vùng chọn"]);       //the answer replaces the selection
+    [assistant hideAssistant];
+
+    //opening the window again: nothing is chosen
+    [assistant presentWithSelection:@"Một đoạn" application:nil];
+    CHECK(assistant.activePreset == nil);
+    for (NSButton* button in assistant.presetButtons)
+        CHECK(button.state == NSControlStateValueOff);
+    [assistant hideAssistant];
+}
+
 static void TestUsingTheAnswer(AIAssistant* assistant, NSPasteboard* board) {
     printf("-- using the answer\n");
     UseServer(@"normal");
@@ -157,12 +363,42 @@ static void TestUsingTheAnswer(AIAssistant* assistant, NSPasteboard* board) {
     [assistant ask];
     WaitForState(assistant, AIAssistantStateDone);
 
+    //A rejected clipboard write preserves the window and the answer for retry.
+    SnippetInserter* inserter = [assistant valueForKey:@"inserter"];
+    inserter.pasteboard = (NSPasteboard*)[[RejectingPasteboard alloc] init];
+    [assistant.copyButton performClick:nil];
+    CHECK(assistant.panel.visible && assistant.state == AIAssistantStateDone);
+    CHECK([assistant.resultText isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Không sao chép được"]);
+    inserter.pasteboard = board;
+
     //copy
     [board clearContents];
     [board setString:@"cũ" forType:NSPasteboardTypeString];
-    [assistant copyResult];
+    [assistant.copyButton performClick:nil];
     CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
-    CHECK([assistant.statusLabel.stringValue containsString:@"Đã sao chép"]);
+    CHECK(!assistant.panel.visible && assistant.state == AIAssistantStateIdle);
+    CHECK(assistant.resultText.length == 0 && assistant.inputView.string.length == 0 && assistant.outputView.string.length == 0);
+    CHECK(!assistant.inputView.undoManager.canUndo && !assistant.outputView.undoManager.canUndo);
+    Spin(0.2);
+    CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+
+    [assistant presentWithSelection:@"Xin chào" application:nil];
+    assistant.inputView.string = @"Dịch";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    NSEvent* copyKey = [NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint
+                                 modifierFlags:NSEventModifierFlagCommand | NSEventModifierFlagShift
+                                     timestamp:0 windowNumber:assistant.panel.windowNumber context:nil
+                                    characters:@"C" charactersIgnoringModifiers:@"c" isARepeat:NO keyCode:8];
+    CHECK([assistant.panel performKeyEquivalent:copyKey]);
+    CHECK(!assistant.panel.visible);
+    CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+
+    [assistant presentWithSelection:@"Xin chào" application:nil];
+    assistant.inputView.string = @"Dịch";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
 
     //put it in the application: the window goes, the text is pasted as it is, the clipboard comes back
     [board clearContents];
@@ -814,16 +1050,6 @@ static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
     CHECK([AgentLog()[@"stdin_head"] isEqualToString:@"Use $imagegen skill to create picture một chú mèo cam đang ngủ, in flat style."]);
     CHECK([ValueAfterFlag(AgentLog()[@"args"], @"-m") isEqualToString:@"fake-mini"]);                                  //the model and the level of the window
 
-    //copied: the picture is on the clipboard, as PNG and as TIFF
-    [board clearContents];
-    [board setString:@"của người dùng" forType:NSPasteboardTypeString];
-    [assistant copyResult];
-    CHECK([[board dataForType:NSPasteboardTypePNG] isEqualToData:[NSData dataWithContentsOfURL:picture]] && [board dataForType:NSPasteboardTypeTIFF].length > 0);
-    CHECK([assistant.statusLabel.stringValue containsString:@"Đã sao chép ảnh"] && !assistant.revealButton.hidden);
-    CHECK(assistant.copyConfirmed && [assistant.copyButton.title isEqualToString:@"Đã sao chép"] && assistant.copyButton.image != nil);   //the green check
-    Spin(2.4);
-    CHECK(!assistant.copyConfirmed && [assistant.copyButton.title isEqualToString:@"Sao chép"] && assistant.copyButton.image == nil);        //and it goes
-
     //saved: in Downloads (a folder of the test), under a name of its own, never over a file
     NSURL* downloads = [NSURL fileURLWithPath:[gWorkFolder stringByAppendingPathComponent:@"Downloads"]];
     [AILightbox setDownloadsFolderForTesting:downloads];
@@ -874,6 +1100,27 @@ static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
     [assistant askForImage];
     WaitForState(assistant, AIAssistantStateDone);
 
+    //Image writes can fail too; keep the generated image for another try.
+    SnippetInserter* inserter = [assistant valueForKey:@"inserter"];
+    inserter.pasteboard = (NSPasteboard*)[[RejectingPasteboard alloc] init];
+    [assistant copyResult];
+    CHECK(assistant.panel.visible && assistant.resultImageURL != nil && assistant.imageView.image != nil);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Không sao chép được"]);
+    inserter.pasteboard = board;
+
+    //copied: the picture is on the clipboard, as PNG and as TIFF
+    [board clearContents];
+    [board setString:@"của người dùng" forType:NSPasteboardTypeString];
+    [assistant copyResult];
+    CHECK([[board dataForType:NSPasteboardTypePNG] isEqualToData:[NSData dataWithContentsOfURL:picture]] && [board dataForType:NSPasteboardTypeTIFF].length > 0);
+    CHECK(!assistant.panel.visible && assistant.resultImageURL == nil && assistant.imageView.image == nil);
+    CHECK(assistant.state == AIAssistantStateIdle && assistant.resultText.length == 0);
+
+    //Reopen and generate again to check insertion independently of copy-and-close.
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"một chú mèo cam đang ngủ";
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
     //put into the application: pasted as a PNG, the window goes, the clipboard comes back
     [board clearContents];
     [board setString:@"của người dùng" forType:NSPasteboardTypeString];
@@ -973,9 +1220,19 @@ int main(int argc, char** argv) {
         __block int boundaries = 0;
         [AIAssistant setTypingBoundaryHandler:^{ boundaries++; }];
 
+        //VOK_ONLY=presets runs that part alone, to work on it without waiting for the whole test
+        if (getenv("VOK_ONLY") != NULL && strcmp(getenv("VOK_ONLY"), "presets") == 0) {
+            TestPresetsFileMatches();
+            TestPresets(assistant);
+            [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:[NSProcessInfo processInfo].processName];
+            printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
+            return failures ? 1 : 0;
+        }
         TestOpening(assistant);
         CHECK(boundaries >= 2);                                              // told when it opened and closed
         TestAsking(assistant);
+        TestPresetsFileMatches();
+        TestPresets(assistant);
         TestUsingTheAnswer(assistant, board);
         TestStopping(assistant);
         TestFailures(assistant);

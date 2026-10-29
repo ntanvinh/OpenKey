@@ -13,6 +13,7 @@
 #include "../../../engine/MacroPresets.h"
 #include "ShortcutField.h"
 #include "AISettingsDialog.h"
+#include "DonationDialog.h"
 #include "SnippetEditor.h"
 #include "SnippetService.h"
 #include "SuggestionController.h"
@@ -30,7 +31,8 @@ enum {
     kIdSnippetEditor = 363,
     kIdStatus = 364,
     kIdAISettings = 365,
-    kIdMacroPresets = 366
+    kIdMacroPresets = 366,
+    kIdDonate = 367
 };
 
 struct CheckSpec {
@@ -160,6 +162,8 @@ void build() {
     ShortcutField::attach(g_aiShortcut, &vAIHotKey, L"vAIHotKey", setStatus);
     y += px(36);
     control(L"BUTTON", L"Cài đặt AI...", WS_TABSTOP | BS_PUSHBUTTON, px(24), y, px(170), px(28), kIdAISettings);
+    //on the same row: the window is as high as a small screen allows already
+    control(L"BUTTON", L"Ủng hộ VOpenKey AI...", WS_TABSTOP | BS_PUSHBUTTON, px(24) + px(170) + px(8), y, px(200), px(28), kIdDonate);
     y += px(40);
     //the check box of a setting that is the last of the list (snippet) is built above, the one of macros sits with the bar
     g_status = control(L"STATIC", L"", 0, px(16), y + px(4), width - px(32), px(40), kIdStatus);
@@ -242,6 +246,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             AISettingsDialog::show();
         } else if (id == kIdSnippetEditor) {
             SnippetEditor::show();
+        } else if (id == kIdDonate) {
+            DonationDialog::show();
         } else if (id == IDCANCEL) {
             ShowWindow(window, SW_HIDE);
         }

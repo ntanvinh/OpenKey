@@ -28,7 +28,8 @@ enum Action {
     OpenAIAssistant = 4,
     OpenSnippetEditor = 5,
     OpenFeatureSettings = 6,
-    OpenAISettings = 7
+    OpenAISettings = 7,
+    OpenDonation = 8
 };
 
 struct HotKey {

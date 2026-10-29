@@ -103,6 +103,21 @@ public:
 
     bool isShowing() const { return showing_; }
 
+    /**
+     * True while the space that accept() typed is the last thing typed (no key since). A closing mark typed now
+     * should replace that space, not follow it: platform glue asks this before the key is handled and, when
+     * dropsAcceptedSpace(ch) is true for the key's character, sends one backspace first.
+     */
+    bool acceptedSpacePending() const { return spacePending_; }
+    static bool dropsAcceptedSpace(unsigned int codePoint);
+
+    /**
+     * Call for every key that types one character, BEFORE the key is handled. Returns -1 when the space typed by accept()
+     * must be deleted first (the key is a closing mark), +1 when a space must be typed first (a letter right after such a
+     * mark: "chao.Xin" becomes "chao. Xin"), 0 for nothing. The platform does it, then handles the key as usual.
+     */
+    int spaceAdjustment(unsigned int codePoint);
+
     /** For logs and tests: how many suggestions the bar holds now, and the word it was made for. */
     size_t candidateCount() const { return candidates_.size(); }
     const std::string& shownFor() const { return shownFor_; }
@@ -128,6 +143,9 @@ private:
     bool macroShown_ = false;          //candidate 0 is that abbreviation
     Mode mode_ = Mode::Idle;
     bool dirty_ = false;
+    bool markJustTyped_ = false;       //spaceAdjustment() took the accepted space away for a closing mark
+    bool markPending_ = false;         //the last key was that closing mark: a letter next needs a space before it
+    bool spacePending_ = false;        //accept() typed a space and no key came after it
 
     std::vector<Candidate> candidates_;
     std::string shownFor_;

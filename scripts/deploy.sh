@@ -30,5 +30,5 @@ require_command git "Install Xcode Command Line Tools: xcode-select --install."
 require_command xcodebuild "Install Xcode 15 or later from the Mac App Store or developer.apple.com."
 require_command xcrun "Install Xcode 15 or later from the Mac App Store or developer.apple.com."
 
-say "Running the project release flow: patch version, build, notarize, publish with notes, attach Windows build, and announce"
-exec /bin/bash scripts/release.sh patch --yes
+say "Releasing the version already set by dev.sh: build, notarize, publish with notes, attach Windows build, and announce without bumping"
+exec /bin/bash scripts/release.sh current --yes

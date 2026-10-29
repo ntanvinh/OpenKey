@@ -196,6 +196,9 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     case SuggestionBar::kMessageCaret:
         SuggestionController::caretFound((unsigned)wParam);
         return 0;
+    case SuggestionBar::kMessageField:
+        SuggestionController::fieldChecked((unsigned)wParam);
+        return 0;
     case WM_SETTINGCHANGE: //light or dark may have changed
         InvalidateRect(window, NULL, FALSE);
         return 0;

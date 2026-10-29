@@ -8,6 +8,7 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import "AppInfo.h"
 #import "CaretLocator.h"
+#import "SensitiveField.h"
 #import "SuggestionPanel.h"
 #import "Diagnostics.h"
 #include <memory>
@@ -81,6 +82,9 @@ void BarHost::hideCandidates() {
 
     BOOL _started;
     BOOL _appExcluded;
+    BOOL _fieldSecret;           //the field being typed in holds a secret (a password...): nothing is suggested or learned
+    BOOL _inWord;                //a word is being typed, so the field was asked about already
+    NSUInteger _fieldCheck;      //the number of the last question about the field, a late answer to an earlier one is ignored
     BOOL _refreshScheduled;
     NSTimer* _saveTimer;
 
@@ -302,6 +306,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 -(void)applicationActivated:(NSNotification*)notification {
     NSRunningApplication* app = notification.userInfo[NSWorkspaceApplicationKey];
     _appExcluded = [self isExcluded:app];
+    _fieldSecret = NO; //another application: its field is asked about when the first word is typed
     [self resetState];
     [self applySettings];
     [self saveLearning];
@@ -311,7 +316,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     vsuggest::Settings settings;
     //The bar is also there for abbreviations alone (words off). Where it cannot be (Terminal...) they are replaced at once, as before.
     BOOL askAboutMacros = vUseMacro && vMacroConfirm && !_appExcluded;
-    settings.enabled = (vSuggestEnabled && !_appExcluded) || askAboutMacros;
+    settings.enabled = ((vSuggestEnabled && !_appExcluded) || askAboutMacros) && !_fieldSecret;
     settings.words = vSuggestEnabled && !_appExcluded;
     settings.nextWord = vSuggestNextWord;
     settings.learn = vSuggestLearn;
@@ -362,6 +367,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
 }
 
 -(void)resetState {
+    _inWord = NO; //after a click or another break the next word may be in another field
     if (_session)
         _session->reset();
     [self hideBar];
@@ -373,14 +379,48 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         [s resetState];
 }
 
++(NSInteger)spaceAdjustmentForCharacter:(UniChar)ch {
+    SuggestionController* s = [self shared];
+    return s->_started ? s->_session->spaceAdjustment(ch) : 0;
+}
+
 +(void)keyProcessed:(VOKSuggestionKey)key word:(NSString*)word raw:(NSString*)raw macro:(NSString*)macro {
     SuggestionController* s = [self shared];
-    if (!s->_started || !s->_session->settings().enabled)
+    if (!s->_started)
+        return;
+    [s checkFieldWhenWordStarts:word];
+    if (!s->_session->settings().enabled)
         return;
     vsuggest::KeyKind kind = key == VOKSuggestionKeySpace ? vsuggest::KeyKind::Space :
                              (key == VOKSuggestionKeyDelete ? vsuggest::KeyKind::Delete : vsuggest::KeyKind::Other);
     s->_session->keyProcessed(kind, word.UTF8String ?: "", raw.UTF8String ?: "", macro.UTF8String ?: "");
     [s scheduleRefresh];
+}
+
+//Does the field the word is typed into hold a secret? macOS hides the keys of a real password field from us, but not those of a
+//password that was made visible, or of a field that only its name gives away. Asked once per word, when its first letter comes (what
+//follows a Tab or a click is a new word), on the queue of Accessibility: never in the way of the key. It is asked before the bar
+//asks for the place of the caret on that same queue, so a bar for the first letter is gone before it was ever shown.
+-(void)checkFieldWhenWordStarts:(NSString*)word {
+    BOOL inWord = word.length > 0;
+    BOOL starts = inWord && !_inWord;
+    _inWord = inWord;
+    if (!starts || !VOK_SUGGESTION_ACTIVE || _appExcluded)
+        return;
+
+    NSUInteger check = ++_fieldCheck;
+    pid_t pid = [NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier;
+    dispatch_async(_accessibilityQueue, ^{
+        SensitiveFieldVerdict verdict = [SensitiveField verdictForFocusedFieldInProcess:pid];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            BOOL secret = verdict == SensitiveFieldSensitive; //no answer counts as an ordinary field: typing is never held back by a guess
+            if (check != self->_fieldCheck || secret == self->_fieldSecret)
+                return;
+            self->_fieldSecret = secret;
+            VOKDiag(@"suggest", @"the field is %@", secret ? @"a secret (a password...): no suggestions, nothing learned" : @"an ordinary field");
+            [self applySettings]; //a session that is switched off puts the bar away and forgets the words
+        });
+    });
 }
 
 //the suggestions are worked out after the key has been let through, so typing is never held up by them

@@ -32,6 +32,10 @@
 
 @interface CaretLocator : NSObject
 
+/// The element of the application that has the keyboard, retained (CFRelease it), NULL when there is none or the application does
+/// not answer in time. Asks Chromium and Electron to describe their text fields, once per process. Off the main thread.
++(AXUIElementRef)copyFocusedElementInProcess:(pid_t)pid CF_RETURNS_RETAINED;
+
 /// Asks the frontmost application. Takes up to a fraction of a second when the application is slow to catch up: call it
 /// off the main thread. `word` is what has been typed of the current word, empty right after a space.
 +(CaretLocation*)locateInProcess:(pid_t)pid word:(NSString*)word;
