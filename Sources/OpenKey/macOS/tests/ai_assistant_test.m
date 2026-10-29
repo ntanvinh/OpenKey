@@ -69,6 +69,15 @@ static NSString* gPasted;
 static NSData* gPastedImage;
 static int gPastes;
 
+//A clipboard that rejects writes, so a failed copy must keep the answer available.
+@interface RejectingPasteboard : NSObject
+@end
+@implementation RejectingPasteboard
+-(NSInteger)clearContents { return 0; }
+-(BOOL)setString:(NSString*)string forType:(NSPasteboardType)type { return NO; }
+-(BOOL)writeObjects:(NSArray<id<NSPasteboardWriting>>*)objects { return NO; }
+@end
+
 static AIAssistant* MakeAssistant(NSPasteboard* board) {
     SnippetInserter* inserter = [[SnippetInserter alloc] init];
     inserter.pasteboard = board;
@@ -94,6 +103,7 @@ static void TestOpening(AIAssistant* assistant) {
     CHECK(!assistant.contextLabel.hidden && [assistant.contextLabel.stringValue containsString:@"17 ký tự"]);
     CHECK([assistant.insertButton.title isEqualToString:@"Thay thế vùng chọn"]);
     CHECK([assistant.actionButton.title isEqualToString:@"Tạo"]);
+    CHECK([assistant.copyButton.title isEqualToString:@"Sao chép và đóng"]);
     CHECK(!assistant.insertButton.isEnabled && !assistant.copyButton.isEnabled);       // nothing to use yet
     CHECK(assistant.state == AIAssistantStateIdle && assistant.resultText.length == 0);
     CHECK([assistant.providerPopUp.selectedItem.title isEqualToString:@"Ollama (chạy trên máy)"]);
@@ -353,12 +363,42 @@ static void TestUsingTheAnswer(AIAssistant* assistant, NSPasteboard* board) {
     [assistant ask];
     WaitForState(assistant, AIAssistantStateDone);
 
+    //A rejected clipboard write preserves the window and the answer for retry.
+    SnippetInserter* inserter = [assistant valueForKey:@"inserter"];
+    inserter.pasteboard = (NSPasteboard*)[[RejectingPasteboard alloc] init];
+    [assistant.copyButton performClick:nil];
+    CHECK(assistant.panel.visible && assistant.state == AIAssistantStateDone);
+    CHECK([assistant.resultText isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Không sao chép được"]);
+    inserter.pasteboard = board;
+
     //copy
     [board clearContents];
     [board setString:@"cũ" forType:NSPasteboardTypeString];
-    [assistant copyResult];
+    [assistant.copyButton performClick:nil];
     CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
-    CHECK([assistant.statusLabel.stringValue containsString:@"Đã sao chép"]);
+    CHECK(!assistant.panel.visible && assistant.state == AIAssistantStateIdle);
+    CHECK(assistant.resultText.length == 0 && assistant.inputView.string.length == 0 && assistant.outputView.string.length == 0);
+    CHECK(!assistant.inputView.undoManager.canUndo && !assistant.outputView.undoManager.canUndo);
+    Spin(0.2);
+    CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+
+    [assistant presentWithSelection:@"Xin chào" application:nil];
+    assistant.inputView.string = @"Dịch";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
+    NSEvent* copyKey = [NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint
+                                 modifierFlags:NSEventModifierFlagCommand | NSEventModifierFlagShift
+                                     timestamp:0 windowNumber:assistant.panel.windowNumber context:nil
+                                    characters:@"C" charactersIgnoringModifiers:@"c" isARepeat:NO keyCode:8];
+    CHECK([assistant.panel performKeyEquivalent:copyKey]);
+    CHECK(!assistant.panel.visible);
+    CHECK([[board stringForType:NSPasteboardTypeString] isEqualToString:@"Xin chào các bạn ❤️ đẹp"]);
+
+    [assistant presentWithSelection:@"Xin chào" application:nil];
+    assistant.inputView.string = @"Dịch";
+    [assistant ask];
+    WaitForState(assistant, AIAssistantStateDone);
 
     //put it in the application: the window goes, the text is pasted as it is, the clipboard comes back
     [board clearContents];
@@ -1010,16 +1050,6 @@ static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
     CHECK([AgentLog()[@"stdin_head"] isEqualToString:@"Use $imagegen skill to create picture một chú mèo cam đang ngủ, in flat style."]);
     CHECK([ValueAfterFlag(AgentLog()[@"args"], @"-m") isEqualToString:@"fake-mini"]);                                  //the model and the level of the window
 
-    //copied: the picture is on the clipboard, as PNG and as TIFF
-    [board clearContents];
-    [board setString:@"của người dùng" forType:NSPasteboardTypeString];
-    [assistant copyResult];
-    CHECK([[board dataForType:NSPasteboardTypePNG] isEqualToData:[NSData dataWithContentsOfURL:picture]] && [board dataForType:NSPasteboardTypeTIFF].length > 0);
-    CHECK([assistant.statusLabel.stringValue containsString:@"Đã sao chép ảnh"] && !assistant.revealButton.hidden);
-    CHECK(assistant.copyConfirmed && [assistant.copyButton.title isEqualToString:@"Đã sao chép"] && assistant.copyButton.image != nil);   //the green check
-    Spin(2.4);
-    CHECK(!assistant.copyConfirmed && [assistant.copyButton.title isEqualToString:@"Sao chép"] && assistant.copyButton.image == nil);        //and it goes
-
     //saved: in Downloads (a folder of the test), under a name of its own, never over a file
     NSURL* downloads = [NSURL fileURLWithPath:[gWorkFolder stringByAppendingPathComponent:@"Downloads"]];
     [AILightbox setDownloadsFolderForTesting:downloads];
@@ -1070,6 +1100,27 @@ static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
     [assistant askForImage];
     WaitForState(assistant, AIAssistantStateDone);
 
+    //Image writes can fail too; keep the generated image for another try.
+    SnippetInserter* inserter = [assistant valueForKey:@"inserter"];
+    inserter.pasteboard = (NSPasteboard*)[[RejectingPasteboard alloc] init];
+    [assistant copyResult];
+    CHECK(assistant.panel.visible && assistant.resultImageURL != nil && assistant.imageView.image != nil);
+    CHECK([assistant.statusLabel.stringValue containsString:@"Không sao chép được"]);
+    inserter.pasteboard = board;
+
+    //copied: the picture is on the clipboard, as PNG and as TIFF
+    [board clearContents];
+    [board setString:@"của người dùng" forType:NSPasteboardTypeString];
+    [assistant copyResult];
+    CHECK([[board dataForType:NSPasteboardTypePNG] isEqualToData:[NSData dataWithContentsOfURL:picture]] && [board dataForType:NSPasteboardTypeTIFF].length > 0);
+    CHECK(!assistant.panel.visible && assistant.resultImageURL == nil && assistant.imageView.image == nil);
+    CHECK(assistant.state == AIAssistantStateIdle && assistant.resultText.length == 0);
+
+    //Reopen and generate again to check insertion independently of copy-and-close.
+    [assistant presentWithSelection:nil application:nil];
+    assistant.inputView.string = @"một chú mèo cam đang ngủ";
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
     //put into the application: pasted as a PNG, the window goes, the clipboard comes back
     [board clearContents];
     [board setString:@"của người dùng" forType:NSPasteboardTypeString];

@@ -8,7 +8,7 @@
 //  - If something was selected in the application, it is already in the box when the window opens, with the cursor in front of
 //    it to write the instruction ("Dịch sang tiếng Anh"). The answer then replaces the selection.
 //  - Type the request, ⌘↩ to ask. The answer is written in the window as the service produces it; ⎋ stops it.
-//  - ⇧⌘↩ puts the answer into the application (it replaces the selection, or goes where the cursor was), ⇧⌘C copies it.
+//  - ⇧⌘↩ puts the answer into the application (it replaces the selection, or goes where the cursor was), ⇧⌘C copies it and closes the window.
 //  - When the AI is a program on this Mac that is signed in by itself (Codex, Claude Code, Antigravity), the model and the thinking
 //    level can be chosen here too, in the header. They start as a light model at the fast level, which is enough to write.
 //  - While the AI works the window moves and talks (AIProgress): a light runs round the place of the answer and sentences change as the
@@ -95,8 +95,6 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 @property (nonatomic, readonly) NSURL* resultImageURL;
 /// "Lưu": saves the picture in the Downloads folder.
 @property (nonatomic, readonly) NSButton* saveImageButton;
-/// The copy button shows a green check for a moment after something was copied.
-@property (nonatomic, readonly) BOOL copyConfirmed;
 /// The buttons of the ready-made conversions, in the order of +[AIPresets all], and the one that is chosen (nil when none is).
 @property (nonatomic, readonly) NSArray<NSButton*>* presetButtons;
 @property (nonatomic, readonly) AIPreset* activePreset;
@@ -120,6 +118,6 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 -(void)askForImage;     //the button "Tạo ảnh", ⌥⌘↩
 -(void)stop;            //the button "Dừng", ⎋ while generating
 -(void)insertResult;    //⇧⌘↩
--(void)copyResult;      //⇧⌘C
+-(void)copyResult;      //⇧⌘C: copy to the clipboard and close on success
 
 @end

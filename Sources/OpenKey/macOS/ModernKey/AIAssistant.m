@@ -113,8 +113,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     NSButton* _imageButton;
     NSButton* _revealButton;
     NSButton* _saveImageButton;
-    NSUInteger _copyFeedback;
-    BOOL _copyConfirmed;
     NSImageView* _imageView;
     NSURL* _resultImageURL;                 //the picture that was made (a file in the folder of Codex), and its data as a PNG for the clipboard
     NSData* _resultImagePNG;
@@ -212,7 +210,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 -(NSButton*)imageButton { [self buildIfNeeded]; return _imageButton; }
 -(NSButton*)revealButton { [self buildIfNeeded]; return _revealButton; }
 -(NSButton*)saveImageButton { [self buildIfNeeded]; return _saveImageButton; }
--(BOOL)copyConfirmed { return _copyConfirmed; }
 -(NSImageView*)imageView { [self buildIfNeeded]; return _imageView; }
 -(NSURL*)resultImageURL { return _resultImageURL; }
 -(AIAssistantState)state { return _state; }
@@ -412,8 +409,13 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
     //what to do with it
     _hintLabel = [self labelWithSize:10 color:[NSColor tertiaryLabelColor]];
-    _hintLabel.stringValue = @"⌘↩ Tạo   ⌥⌘↩ Tạo ảnh   ⇧⌘↩ Chèn   ⇧⌘C Sao chép   esc Đóng";
-    _copyButton = [self buttonWithTitle:@"Sao chép" action:@selector(copyPressed:)];
+    _hintLabel.stringValue = @"⌘↩ Tạo   ⌥⌘↩ Tạo ảnh   ⇧⌘↩ Chèn   ⇧⌘C Sao chép và đóng   esc Đóng";
+    _hintLabel.maximumNumberOfLines = 2;
+    _hintLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    [_hintLabel setContentCompressionResistancePriority:250 forOrientation:NSLayoutConstraintOrientationHorizontal];
+    _copyButton = [self buttonWithTitle:@"Sao chép và đóng" action:@selector(copyPressed:)];
+    _copyButton.toolTip = @"Sao chép kết quả vào clipboard và đóng cửa sổ (⇧⌘C)";
+    [_copyButton setAccessibilityHelp:_copyButton.toolTip];
     _insertButton = [self buttonWithTitle:@"Chèn" action:@selector(insertPressed:)];
     NSView* spacer4 = [[NSView alloc] init];
     [spacer4 setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
@@ -622,7 +624,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 }
 
 -(void)forgetText {
-    [self resetCopyButton];
     [self forgetImage];
     _input.string = @"";
     _output.string = @"";
@@ -962,7 +963,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_result setString:@""];
     _output.string = @"";
     [self forgetImage];
-    [self resetCopyButton];
     _imageRequest = NO;
     _state = AIAssistantStateGenerating;
     [self beginProgress];
@@ -1044,7 +1044,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_result setString:@""];
     _output.string = @"";
     [self forgetImage];
-    [self resetCopyButton];
     _imageRequest = YES;
     _state = AIAssistantStateGenerating;
     [self beginProgress];
@@ -1122,30 +1121,6 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     }
     [self showMessage:[NSString stringWithFormat:@"Đã lưu vào Downloads: %@", url.lastPathComponent] error:NO];
     _statusLabel.textColor = [NSColor systemGreenColor];
-}
-
-//the green check on the copy button, for a moment
--(void)flashCopyButton {
-    NSUInteger mine = ++_copyFeedback;
-    _copyConfirmed = YES;
-    NSImage* check = VOKSymbol(@"checkmark.circle.fill", 12, NSFontWeightSemibold);
-    _copyButton.image = check;
-    _copyButton.imagePosition = NSImageLeading;
-    _copyButton.contentTintColor = [NSColor systemGreenColor];
-    _copyButton.title = @"Đã sao chép";
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (mine != self->_copyFeedback)
-            return;
-        [self resetCopyButton];
-    });
-}
-
--(void)resetCopyButton {
-    _copyFeedback++;
-    _copyConfirmed = NO;
-    _copyButton.image = nil;
-    _copyButton.contentTintColor = nil;
-    _copyButton.title = @"Sao chép";
 }
 
 -(void)revealImage:(id)sender {
@@ -1289,28 +1264,26 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 
 -(void)copyResult {
     NSPasteboard* board = _inserter.pasteboard;
+    BOOL copied = NO;
     if (_resultImagePNG != nil) {
-        [board clearContents];
         NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
         [item setData:_resultImagePNG forType:NSPasteboardTypePNG];
         NSData* tiff = [[[NSImage alloc] initWithData:_resultImagePNG] TIFFRepresentation];
         if (tiff != nil)
             [item setData:tiff forType:NSPasteboardTypeTIFF];
-        [board writeObjects:@[item]];
-        [self showMessage:@"Đã sao chép ảnh." error:NO];
-        _statusLabel.textColor = [NSColor systemGreenColor];
-        _revealButton.hidden = NO;
-        [self flashCopyButton];
-        return;
+        [board clearContents];
+        copied = [board writeObjects:@[item]];
+    } else {
+        NSString* text = [self answerToUse];
+        if (text.length == 0)
+            return;
+        [board clearContents];
+        copied = [board setString:text forType:NSPasteboardTypeString];
     }
-    NSString* text = [self answerToUse];
-    if (text.length == 0)
-        return;
-    [board clearContents];
-    [board setString:text forType:NSPasteboardTypeString];
-    [self showMessage:@"Đã sao chép." error:NO];
-    _statusLabel.textColor = [NSColor systemGreenColor];
-    [self flashCopyButton];
+    if (copied)
+        [self hideAssistant];
+    else
+        [self showMessage:@"Không sao chép được vào clipboard. Hãy thử lại bằng nút Sao chép và đóng (⇧⌘C)." error:YES];
 }
 
 -(void)openSettings:(id)sender {
