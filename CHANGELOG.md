@@ -1,5 +1,38 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.18 (build 96): (29/10/2026)
+- feat(macOS): copy and close the AI assistant window in one action
+- feat: add donate window and ready-made AI conversions on macOS and Windows
+- feat(macOS): show company website and email links in the About panel
+- feat(macOS): closing mark replaces the space left by an accepted suggestion
+- chore: bump version to 3.7.12 (build 90) and deploy the current version
+- feat(scripts): add deploy.sh to build and publish a release to GitHub
+- chore: bump version to 3.7.11 (build 89)
+- feat(macOS): separate default and hover transparency for suggestion bar
+- feat(macOS): add transparency slider for the suggestion bar
+- feat(macOS): editable suggestion app exclusions with master switch
+- docs(windows): UI test verified on the CI runner, trail note
+- fix(windows-ui-test): test window in a renamed PowerShell (terminals are excluded from suggestions), pointer out of the way
+- fix(windows-ui-test): FindWindow got an empty title instead of none
+- fix(windows): load dictionaries before the hooks, wider AI buttons, patient UI test
+- ci(windows): run on changes of the UI test script too
+- fix(windows-ui-test): the key table was hidden by the parameter of the same name
+- fix(windows): make portable engine code build with mingw and MSVC
+- feat(windows): name VOpenKey AI everywhere, Esc hides the bar on macOS too, Windows UI test
+- feat(windows): port suggestion bar, snippets, case list and AI assistant
+- feat(macOS): add hover grace period to suggestion bar and bump to 3.7.7
+- feat(macOS): fade suggestion bar under the pointer and bump to 3.7.6
+- docs(marketing): polish 3.7.5 release notes wording
+- chore(marketing): add privacy policy, release notes and store listing links
+- chore(marketing): add store listing texts and refresh desktop screenshots
+- chore(marketing): add screenshot capture notes and refresh AI assistant image
+- chore(marketing): refresh desktop feature screenshots
+- feat(macOS): handle ⌘W in settings and add feature screenshots
+- chore: bump version to 3.7.5 (build 83)
+- feat(macOS): confirm abbreviations on the suggestion bar before replacing
+- feat(macOS): add auto-update from GitHub releases and fixed download link
+- ... và 10 thay đổi khác.
+
 ##### VOpenKey 3.7.17 (build 95): (29/10/2026)
 - feat: add donate window and ready-made AI conversions on macOS and Windows
 - feat(macOS): show company website and email links in the About panel

@@ -51,6 +51,7 @@
 		5EC0DE1320261016000A0003 /* RememberedAppsController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1320261016000A0002 /* RememberedAppsController.m */; };
 		5EC0DE1420261017000A0003 /* MacroPresets.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1420261017000A0002 /* MacroPresets.mm */; };
 		5EC0DE1620261019000A0002 /* CaretLocator.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1620261019000A0001 /* CaretLocator.m */; };
+		5EC0DE2920261029000A0002 /* SensitiveField.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE2920261029000A0001 /* SensitiveField.m */; };
 		5EC0DE1420261017000A0005 /* vi-macros.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1420261017000A0004 /* vi-macros.txt */; };
 		23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23963B4F22040C720097189E /* ServiceManagement.framework */; };
 		5EC0DE1520261018000A0002 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE1520261018000A0001 /* UniformTypeIdentifiers.framework */; };
@@ -201,6 +202,8 @@
 		5EC0DE1620261019000A0001 /* CaretLocator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CaretLocator.m; sourceTree = "<group>"; };
 		5EC0DE1720261020000A0001 /* SuggestionKeys.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SuggestionKeys.h; sourceTree = "<group>"; };
 		5EC0DE1620261019000A0003 /* CaretLocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CaretLocator.h; sourceTree = "<group>"; };
+		5EC0DE2920261029000A0001 /* SensitiveField.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SensitiveField.m; sourceTree = "<group>"; };
+		5EC0DE2920261029000A0003 /* SensitiveField.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SensitiveField.h; sourceTree = "<group>"; };
 		5EC0DE1420261017000A0004 /* vi-macros.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = vi-macros.txt; path = dictionaries/vi-macros.txt; sourceTree = "<group>"; };
 		23963B4F22040C720097189E /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		2397059323143266002DDEA7 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -461,6 +464,8 @@
 				5EC0DE1420261017000A0002 /* MacroPresets.mm */,
 				5EC0DE1620261019000A0003 /* CaretLocator.h */,
 				5EC0DE1620261019000A0001 /* CaretLocator.m */,
+				5EC0DE2920261029000A0003 /* SensitiveField.h */,
+				5EC0DE2920261029000A0001 /* SensitiveField.m */,
 				5EC0DE1720261020000A0001 /* SuggestionKeys.h */,
 				5EC0DE1120261014000A0007 /* SuggestionPanel.h */,
 				5EC0DE1120261014000A0008 /* SuggestionPanel.m */,
@@ -720,6 +725,7 @@
 				5EC0DE1320261016000A0003 /* RememberedAppsController.m in Sources */,
 				5EC0DE1420261017000A0003 /* MacroPresets.mm in Sources */,
 				5EC0DE1620261019000A0002 /* CaretLocator.m in Sources */,
+				5EC0DE2920261029000A0002 /* SensitiveField.m in Sources */,
 				5EC0DE1120261014000A0003 /* Suggest.cpp in Sources */,
 				5EC0DE1120261014000A0006 /* SuggestSession.cpp in Sources */,
 				5EC0DE1120261014000A0009 /* SuggestionPanel.m in Sources */,
@@ -886,7 +892,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 95;
+				CURRENT_PROJECT_VERSION = 96;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -896,7 +902,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.17;
+				MARKETING_VERSION = 3.7.18;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -914,7 +920,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 95;
+				CURRENT_PROJECT_VERSION = 96;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -924,7 +930,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.17;
+				MARKETING_VERSION = 3.7.18;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
