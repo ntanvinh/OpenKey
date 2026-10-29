@@ -72,8 +72,33 @@ need_gh() {
     command -v gh >/dev/null || die "this needs the GitHub CLI (brew install gh) and 'gh auth login'"
     gh auth status >/dev/null 2>&1 || die "gh is not logged in: run 'gh auth login'"
 }
+# Releases are made from master. When the work is on another branch (and committed), bring it to master first: switch to master and
+# merge the branch into it, so that "publish" works from wherever the project happens to be checked out. A merge that does not go
+# through cleanly is undone and the release stops before anything was changed.
+switch_to_master() {
+    local branch; branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)"
+    [ "$branch" = master ] && return 0
+    [ "$branch" != HEAD ] || die "releases are made from the master branch, and HEAD is detached: git checkout master"
+    [ -z "$(git -C "$ROOT" status --porcelain)" ] || die "you are on '$branch', not master, and there are uncommitted changes: commit or stash them first"
+    if [ "$DRY_RUN" = 1 ]; then
+        warn "you are on '$branch': a real release would switch to master and merge '$branch' into it"
+        return 0
+    fi
+    say "On '$branch': switching to master and merging '$branch' into it"
+    git -C "$ROOT" worktree prune
+    git -C "$ROOT" fetch origin master --quiet || die "cannot reach GitHub to check master"
+    git -C "$ROOT" checkout -q master 2>/dev/null \
+        || die "cannot switch to master (another worktree may hold it, see: git worktree list)"
+    git -C "$ROOT" merge --ff-only -q origin/master 2>/dev/null || true
+    if ! git -C "$ROOT" merge --no-edit -q "$branch" >/dev/null 2>&1; then
+        git -C "$ROOT" merge --abort 2>/dev/null
+        git -C "$ROOT" checkout -q "$branch"
+        die "merging '$branch' into master has conflicts, nothing was changed. Resolve it once by hand: git checkout master && git merge $branch"
+    fi
+}
 need_clean_master() {
-    [ "$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)" = master ] || die "releases are made from the master branch"
+    switch_to_master
+    [ "$DRY_RUN" = 1 ] || [ "$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)" = master ] || die "releases are made from the master branch"
     git -C "$ROOT" fetch origin master --quiet || die "cannot reach GitHub to check master"
     [ "$(git -C "$ROOT" rev-list --count HEAD..origin/master)" = 0 ] || die "master is behind origin/master: git pull first"
 }
