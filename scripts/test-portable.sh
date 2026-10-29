@@ -19,6 +19,7 @@ run() { # name, sources...
     fi
 }
 run suggest_test suggest_test.cpp ../Suggest.cpp ../SuggestSession.cpp
+run sensitive_field_test sensitive_field_test.cpp ../SensitiveField.cpp ../Suggest.cpp
 run snippet_search_test snippet_search_test.cpp ../SnippetSearch.cpp ../Suggest.cpp
 run snippet_store_test snippet_store_test.cpp ../SnippetStore.cpp ../SnippetSearch.cpp ../MiniJson.cpp ../Suggest.cpp
 run minijson_test minijson_test.cpp ../MiniJson.cpp

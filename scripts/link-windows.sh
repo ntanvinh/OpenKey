@@ -16,7 +16,7 @@ for arch in ${1:-x64 x86}; do
     dir="$OUT/$arch"; mkdir -p "$dir"
     objs=()
     sources=($(ls $SRC/*.cpp) $ENG/ConvertTool.cpp $ENG/Engine.cpp $ENG/Macro.cpp $ENG/SmartSwitchKey.cpp $ENG/Vietnamese.cpp \
-              $ENG/MiniJson.cpp $ENG/SnippetSearch.cpp $ENG/SnippetStore.cpp $ENG/Suggest.cpp $ENG/SuggestSession.cpp \
+              $ENG/MiniJson.cpp $ENG/SnippetSearch.cpp $ENG/SnippetStore.cpp $ENG/Suggest.cpp $ENG/SuggestSession.cpp $ENG/SensitiveField.cpp \
               $ENG/CaseTransform.cpp $ENG/MacroPresets.cpp $ENG/AIProtocol.cpp $ENG/AIPresets.cpp)
     pids=()
     for f in "${sources[@]}"; do

@@ -223,6 +223,7 @@
     <ClCompile Include="..\..\..\engine\SnippetStore.cpp" />
     <ClCompile Include="..\..\..\engine\Suggest.cpp" />
     <ClCompile Include="..\..\..\engine\SuggestSession.cpp" />
+    <ClCompile Include="..\..\..\engine\SensitiveField.cpp" />
     <ClCompile Include="..\..\..\engine\CaseTransform.cpp" />
     <ClCompile Include="CaseBar.cpp" />
     <ClCompile Include="CaseTransformWindows.cpp" />

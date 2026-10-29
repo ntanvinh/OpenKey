@@ -6,13 +6,16 @@
 #include "SuggestionController.h"
 #include "SuggestionBar.h"
 #include "FeatureStorage.h"
+#include "../../../engine/SensitiveField.h"
 #include <oleacc.h>
+#include <uiautomation.h>
 #include <shellapi.h>
 #include <algorithm>
 #include <memory>
 
 #pragma comment(lib, "oleacc.lib")
 #pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "shell32.lib")
 
 extern int vMacroNeedsConfirm; //Engine.cpp
@@ -37,6 +40,11 @@ std::unique_ptr<vsuggest::Session> g_session;
 bool g_started = false;
 bool g_appExcluded = false;
 bool g_refreshPosted = false;
+bool g_featureOn = false;         //the suggestions or the abbreviations that wait are on (what isActive says)
+bool g_fieldSecret = false;       //the field being typed in holds a secret (a password...): nothing is suggested or learned
+bool g_fieldPending = false;      //the field of this word has not been asked about yet: the bar is not shown until it has
+bool g_inWord = false;            //a word is being typed, so the field was asked about already
+unsigned g_fieldCheck = 0;        //the number of the last question about the field, a late answer to an earlier one is ignored
 
 std::vector<std::wstring> g_lastWords;
 std::string g_lastTyped;
@@ -50,6 +58,7 @@ unsigned g_generation = 0;       //changes every time the bar is hidden, so late
 CRITICAL_SECTION g_answerLock;
 bool g_answerFound = false;
 RECT g_answerLine = {0, 0, 0, 0};
+bool g_answerSecret = false;
 
 class BarHost : public vsuggest::Host {
 public:
@@ -210,6 +219,79 @@ bool classicCaret(RECT& line) {
     return true;
 }
 
+//--- is the field a secret? -------------------------------------------------------------------------------------
+
+//Windows does not hide the keys of a password field from the keyboard hook (macOS does), so the field itself is asked. The
+//edit boxes of Win32, WinForms and WPF mark a password with the ES_PASSWORD style: quick, answered at once in the hook.
+bool classicPasswordField() {
+    HWND foreground = GetForegroundWindow();
+    if (!foreground)
+        return false;
+    GUITHREADINFO info = {sizeof(info)};
+    if (!GetGUIThreadInfo(GetWindowThreadProcessId(foreground, NULL), &info) || !info.hwndFocus)
+        return false;
+    wchar_t name[32] = {0};
+    if (!GetClassNameW(info.hwndFocus, name, 32))
+        return false;
+    if (_wcsicmp(name, L"Edit") != 0 && _wcsnicmp(name, L"RichEdit", 8) != 0)
+        return false;
+    return (GetWindowLongW(info.hwndFocus, GWL_STYLE) & ES_PASSWORD) != 0;
+}
+
+std::string utf8Of(BSTR text) {
+    if (text == NULL)
+        return std::string();
+    int length = (int)SysStringLen(text);
+    if (length == 0)
+        return std::string();
+    int size = WideCharToMultiByte(CP_UTF8, 0, text, length, NULL, 0, NULL, NULL);
+    std::string out((size_t)size, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, text, length, &out[0], size, NULL, NULL);
+    return out;
+}
+
+//Everything else (browsers, Electron, modern programs) says it through UI Automation: the field is a password, or its name is
+//what a secret is called. Asked on a worker thread, a busy program may take long to answer.
+DWORD WINAPI fieldThread(LPVOID parameter) {
+    unsigned check = (unsigned)(ULONG_PTR)parameter;
+    bool secret = false;
+
+    HRESULT com = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    IUIAutomation* automation = NULL;
+    if (SUCCEEDED(CoCreateInstance(__uuidof(CUIAutomation), NULL, CLSCTX_INPROC_SERVER, __uuidof(IUIAutomation), (void**)&automation)) &&
+        automation) {
+        IUIAutomationElement* element = NULL;
+        if (SUCCEEDED(automation->GetFocusedElement(&element)) && element) {
+            BOOL password = FALSE;
+            if (SUCCEEDED(element->get_CurrentIsPassword(&password)) && password) {
+                secret = true;
+            } else {
+                BSTR texts[3] = {NULL, NULL, NULL};
+                element->get_CurrentName(&texts[0]);
+                element->get_CurrentHelpText(&texts[1]);
+                element->get_CurrentAutomationId(&texts[2]);
+                for (int i = 0; i < 3; i++) {
+                    if (!secret && vsuggest::namesASecret(utf8Of(texts[i])))
+                        secret = true;
+                    SysFreeString(texts[i]);
+                }
+            }
+            element->Release();
+        }
+        automation->Release();
+    }
+    if (SUCCEEDED(com))
+        CoUninitialize();
+
+    EnterCriticalSection(&g_answerLock);
+    g_answerSecret = secret;
+    LeaveCriticalSection(&g_answerLock);
+    HWND bar = SuggestionBar::handle();
+    if (bar)
+        PostMessageW(bar, SuggestionBar::kMessageField, (WPARAM)check, 0);
+    return 0;
+}
+
 } // namespace
 
 namespace SuggestionController {
@@ -223,7 +305,8 @@ namespace {
 void placeBar(const RECT& line) {
     g_lastLine = line;
     g_anchorValid = true;
-    SuggestionBar::showBelow(line);
+    if (!g_fieldPending)
+        SuggestionBar::showBelow(line);
 }
 
 //no position for the caret: under the mouse pointer, which at least is where the user is looking
@@ -231,7 +314,8 @@ void placeNearPointer() {
     POINT pointer = {0, 0};
     GetCursorPos(&pointer);
     RECT line = {pointer.x, pointer.y, pointer.x, pointer.y + 22};
-    SuggestionBar::showBelow(line);
+    if (!g_fieldPending)
+        SuggestionBar::showBelow(line);
 }
 
 void requestLocation() {
@@ -260,7 +344,7 @@ void showBar(const std::vector<std::wstring>& words, const std::string& typed) {
     g_lastWords = words;
     g_lastTyped = typed;
     SuggestionBar::setWords(words, vSuggestTabAccepts != 0);
-    if (g_anchorValid) //where it was, until the application says where the line is now
+    if (g_anchorValid && !g_fieldPending) //where it was, until the application says where the line is now
         SuggestionBar::showBelow(g_lastLine);
     requestLocation();
 }
@@ -336,7 +420,8 @@ void applySettings() {
     bool unicode = vCodeTable == 0;
     bool askAboutMacros = vUseMacro && vMacroConfirm && !g_appExcluded && unicode;
     settings.words = vSuggestEnabled && !g_appExcluded && unicode;
-    settings.enabled = settings.words || askAboutMacros;
+    g_featureOn = settings.words || askAboutMacros;
+    settings.enabled = g_featureOn && !g_fieldSecret;
     settings.nextWord = vSuggestNextWord != 0;
     settings.learn = vSuggestLearn != 0;
     settings.compounds = vSuggestCompounds != 0;
@@ -347,7 +432,7 @@ void applySettings() {
 }
 
 bool isActive() {
-    return g_started && g_session && g_session->settings().enabled;
+    return g_started && g_session && g_featureOn;
 }
 
 bool isShowing() {
@@ -357,12 +442,62 @@ bool isShowing() {
 void reset() {
     if (!g_started)
         return;
+    g_inWord = false; //after a click or another break the next word may be in another field
     g_session->reset();
     hideBar();
 }
 
+//Does the field the word is typed into hold a secret? Asked once per word, when its first letter comes (what follows a Tab or a
+//click is a new word). The bar of that word is not shown until the answer is in, so a password is never echoed on the screen.
+static void checkFieldWhenWordStarts(const std::string& word) {
+    bool inWord = !word.empty();
+    bool starts = inWord && !g_inWord;
+    g_inWord = inWord;
+    if (!starts || !g_featureOn || g_appExcluded)
+        return;
+    unsigned check = ++g_fieldCheck;
+    if (classicPasswordField()) {
+        EnterCriticalSection(&g_answerLock);
+        g_answerSecret = true;
+        LeaveCriticalSection(&g_answerLock);
+        g_fieldPending = true;
+        HWND bar = SuggestionBar::handle();
+        if (bar)
+            PostMessageW(bar, SuggestionBar::kMessageField, (WPARAM)check, 0);
+        else
+            g_fieldPending = false;
+        return;
+    }
+    g_fieldPending = true;
+    HANDLE thread = CreateThread(NULL, 0, fieldThread, (LPVOID)(ULONG_PTR)check, 0, NULL);
+    if (thread)
+        CloseHandle(thread);
+    else
+        g_fieldPending = false; //no answer counts as an ordinary field: typing is never held back by a guess
+}
+
+void fieldChecked(unsigned check) {
+    if (!g_started || check != g_fieldCheck)
+        return;
+    g_fieldPending = false;
+    bool secret;
+    EnterCriticalSection(&g_answerLock);
+    secret = g_answerSecret;
+    LeaveCriticalSection(&g_answerLock);
+    if (secret != g_fieldSecret) {
+        g_fieldSecret = secret;
+        applySettings(); //a session that is switched off puts the bar away and forgets the words
+        g_inWord = true; //that reset is not a new word
+    }
+    if (!secret && g_session->isShowing() && !g_lastWords.empty())
+        requestLocation(); //the bar that was waiting for the answer is placed now
+}
+
 void keyProcessed(vsuggest::KeyKind kind, const std::string& word, const std::string& raw, const std::string& macro) {
-    if (!g_started || !g_session->settings().enabled)
+    if (!g_started)
+        return;
+    checkFieldWhenWordStarts(word);
+    if (!g_session->settings().enabled)
         return;
     g_session->keyProcessed(kind, word, raw, macro);
     //the suggestions are worked out after the key has been let through, so typing is never held up by them
@@ -421,6 +556,8 @@ void applicationActivated(const std::string& exeName) {
     if (!g_started)
         return;
     g_appExcluded = isExcludedApplication(exeName);
+    g_fieldSecret = false; //another program: its field is asked about when the first word is typed
+    g_fieldPending = false;
     reset();
     applySettings();
     saveLearning();

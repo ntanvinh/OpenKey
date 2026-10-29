@@ -26,7 +26,8 @@ void stop();
 void applySettings();
 
 /// The suggestions (or the abbreviations that wait for a choice) are on: the hook only works out the words of the typing engine
-/// for the controller when this is true, so that typing costs nothing when the features are off.
+/// for the controller when this is true, so that typing costs nothing when the features are off. Stays true in a field that holds
+/// a secret: the controller still has to see the words to notice when the next field is an ordinary one.
 bool isActive();
 
 /// True when a bar is up and a key could choose from it.
@@ -59,5 +60,6 @@ void openDictionaryFolder();
 void refresh();
 void saveLearning();
 void caretFound(unsigned generation);
+void fieldChecked(unsigned check);
 
 } // namespace SuggestionController
