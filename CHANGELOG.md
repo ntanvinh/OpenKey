@@ -1,5 +1,8 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.20 (build 98): (03/11/2026)
+- feat(macOS): turn the tray icon yellow and show who holds secure input
+
 ##### VOpenKey 3.7.19 (build 97): (29/10/2026)
 - fix(macOS): hide suggestion bar and learning in password fields
 - feat(macOS): copy and close the AI assistant window in one action
