@@ -83,6 +83,41 @@ NSImage* VOKFlagImage(NSString* region) {
     return image;
 }
 
+NSImage* VOKWarningStatusImage(NSImage* glyph) {
+    if (glyph == nil)
+        return nil;
+    NSSize size = glyph.size;
+    NSImage* image = [NSImage imageWithSize:size flipped:NO drawingHandler:^BOOL(NSRect rect) {
+        NSColor* yellow = [NSColor colorWithSRGBRed:1.0 green:0.80 blue:0.0 alpha:1];
+        //the glyph alone in yellow: filled over the glyph only, which is what the transparent parts of it keep out
+        NSImage* yellowGlyph = [NSImage imageWithSize:rect.size flipped:NO drawingHandler:^BOOL(NSRect inner) {
+            [glyph drawInRect:inner fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
+            [yellow set];
+            NSRectFillUsingOperation(inner, NSCompositingOperationSourceAtop);
+            return YES;
+        }];
+        //the tile is where the icons of the menu bar have their flag: 20.5 x 15.5 of 22 (see StatusIconSource/*.svg)
+        CGFloat scale = rect.size.width / 22.0;
+        NSRect tile = NSMakeRect(0.75 * scale, 3.25 * scale, 20.5 * scale, 15.5 * scale);
+        [[NSColor colorWithSRGBRed:0.13 green:0.12 blue:0.10 alpha:0.94] setFill];
+        [[NSBezierPath bezierPathWithRoundedRect:tile xRadius:2.8 * scale yRadius:2.8 * scale] fill];
+        //twice: the grey stripes of the flag are half transparent, and over a dark tile half a yellow turns into mustard
+        for (int pass = 0; pass < 2; pass++)
+            [yellowGlyph drawInRect:rect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
+        return YES;
+    }];
+    image.template = NO;
+    return image;
+}
+
+NSImage* VOKPaletteSymbol(NSString* name, CGFloat pointSize, NSArray<NSColor*>* colors) {
+    NSImage* symbol = VOKSymbol(name, pointSize, NSFontWeightRegular);
+    if (symbol == nil)
+        return nil;
+    NSImage* colored = [symbol imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPaletteColors:colors]];
+    return colored ?: symbol;
+}
+
 NSTextField* VOKLabel(NSString* text, CGFloat size, NSFontWeight weight, NSColor* color) {
     NSTextField* label = [NSTextField wrappingLabelWithString:text];
     label.font = [NSFont systemFontOfSize:size weight:weight];

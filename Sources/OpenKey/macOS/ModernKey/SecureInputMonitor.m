@@ -37,7 +37,12 @@ static TISInputSourceRef _fallbackSource;   //what we switched to
 static BOOL _noSourceAvailable;
 static NSString* _description;
 static NSString* _holderName;
+static SecureInputHolder* _holder;
+static SecureInputHolder* _lastHolder;
+static NSDate* _lastReleaseDate;
+static pid_t _lastOtherFrontPID;            //the app the person was typing in, not counting VOpenKey AI's own windows
 static BOOL _publishedSecure, _publishedActive;
+static SecureInputHolder* _publishedHolder;
 
 //Is the app being typed in the one that holds secure input? That is what a focused password field or Terminal's
 //Secure Keyboard Entry look like, and typing there with macOS' Vietnamese input source would also convert the
@@ -108,6 +113,18 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     return _holderName;
 }
 
++(SecureInputHolder*)currentHolder {
+    return _holder;
+}
+
++(SecureInputHolder*)lastHolder {
+    return _lastHolder;
+}
+
++(NSDate*)lastReleaseDate {
+    return _lastReleaseDate;
+}
+
 //Everything here runs on the main thread, the same one the event tap callback runs on.
 +(void)start {
     if (_timer != nil)
@@ -142,6 +159,7 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
         [self disengage];
     _secure = NO;
     _noSourceAvailable = NO;
+    _holder = nil;
     [self publishDescription:nil];
 }
 
@@ -156,10 +174,18 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     if (_timer == nil)
         return;
 
+    //VOpenKey AI's own windows (the one that lists the holder of secure input) take the focus away from the app the person
+    //was typing in, but that app is the one the holder is compared with
+    pid_t frontmostPID = [NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier;
+    if (frontmostPID != getpid())
+        _lastOtherFrontPID = frontmostPID;
+
     BOOL secure = IsSecureEventInputEnabled();
     if (secure != _secure) {
         _secure = secure;
         _noSourceAvailable = NO;
+        if (!secure)
+            _lastReleaseDate = [NSDate date];
         //keys typed while macOS hides them were never seen, what OpenKey remembers of the current word is stale
         RequestNewSession();
         //and the suggestion bar of the field before would stay up over a password field, which no key can take away any more
@@ -167,15 +193,18 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     }
 
     NSString* holderName = nil;
+    SecureInputHolder* snapshot = nil;
     BOOL wantFallback = NO;
     if (secure) {
         NSDictionary* session = CFBridgingRelease(CGSessionCopyCurrentDictionary());
         pid_t holderPID = [session[kSecureInputPIDKey] intValue];
         NSRunningApplication* holder = holderPID > 0 ? [NSRunningApplication runningApplicationWithProcessIdentifier:holderPID] : nil;
-        holderName = holder.localizedName;
 
         NSNumber* onConsole = session[(__bridge NSString*)kCGSessionOnConsoleKey];
         BOOL sessionInFront = (onConsole == nil || onConsole.boolValue) && ![session[kScreenIsLockedKey] boolValue];
+        snapshot = [SecureInputHolder holderForPID:holderPID sessionInFront:sessionInFront frontmostPID:_lastOtherFrontPID];
+        //not only apps have a name: a process that is not one is named by the program it runs
+        holderName = holder.localizedName ?: snapshot.name;
         //NSApplicationActivationPolicyRegular is 0, which is also what a nil holder answers
         BOOL holderIsRegularApp = holder != nil && holder.activationPolicy == NSApplicationActivationPolicyRegular;
 
@@ -197,6 +226,9 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
                 secure ? @"ON" : @"released", holderName ?: @"none/unknown", vLanguage == 1, _active);
     }
     _holderName = secure ? holderName : nil;
+    _holder = snapshot;
+    if (snapshot != nil)
+        _lastHolder = snapshot;
     NSString* description = nil;
     if (secure) {
         NSString* by = holderName != nil ? holderName : @"một ứng dụng khác";
@@ -269,10 +301,12 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
 
 +(void)publishDescription:(NSString*)description {
     BOOL sameDescription = description == _description || [description isEqualToString:_description];
-    if (_secure == _publishedSecure && _active == _publishedActive && sameDescription)
+    BOOL sameHolder = _holder == _publishedHolder || [_holder isEqualToHolder:_publishedHolder];
+    if (_secure == _publishedSecure && _active == _publishedActive && sameDescription && sameHolder)
         return;
     _publishedSecure = _secure;
     _publishedActive = _active;
+    _publishedHolder = _holder;
     _description = description;
     [[NSNotificationCenter defaultCenter] postNotificationName:SecureInputMonitorDidChangeNotification object:self];
 }

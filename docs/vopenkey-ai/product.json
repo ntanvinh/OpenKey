@@ -160,6 +160,6 @@
     "macos": "https://github.com/ntanvinh/OpenKey/releases/latest",
     "windows": "https://github.com/ntanvinh/OpenKey/releases/latest",
     "linux": "#",
-    "privacyPolicy": "https://github.com/ntanvinh/OpenKey/blob/HEAD/PRIVACY.md"
+    "privacyPolicy": "/privacy"
   }
 }

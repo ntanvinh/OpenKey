@@ -18,8 +18,9 @@
 #define SecureInputMonitor_h
 
 #import <Cocoa/Cocoa.h>
+#import "SecureInputHolder.h"
 
-// Posted when +isOpenKeyBlind, +isFallbackActive or +statusDescription changes.
+// Posted when +isOpenKeyBlind, +isFallbackActive, +statusDescription or +currentHolder changes.
 extern NSString* const SecureInputMonitorDidChangeNotification;
 
 @interface SecureInputMonitor : NSObject
@@ -39,6 +40,17 @@ extern NSString* const SecureInputMonitorDidChangeNotification;
 
 // Name of the app holding secure input, nil when it is off or unknown.
 +(NSString*)holderName;
+
+// Everything that can be found out about the process holding secure input (name, bundle id, process number, path, since
+// when it runs...): nil while secure input is off. Its role says whether it is the app being typed in. SecureInputWindow
+// shows it so that a person can track the program down.
++(SecureInputHolder*)currentHolder;
+
+// The holder of the most recent time secure input was on: still there after it was released, so that the window can say
+// who it was. nil if secure input has not been on since VOpenKey AI started.
++(SecureInputHolder*)lastHolder;
+// When secure input was last released, nil if it has not been since VOpenKey AI started.
++(NSDate*)lastReleaseDate;
 
 // For a tooltip: who is holding secure input and what is going on. nil while secure input is off.
 +(NSString*)statusDescription;

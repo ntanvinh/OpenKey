@@ -25,6 +25,13 @@ void VOKSetButtonSymbol(NSButton* button, NSString* symbol, CGFloat pointSize);
 // sharp at any resolution.
 NSImage* VOKFlagImage(NSString* region);
 
+// The menu bar icon in its warning colour: the shape of `glyph` (a menu bar icon, which is one colour on transparent) in yellow
+// on a dark rounded tile, so it stands out on a light menu bar as well as a dark one. Not a template: it keeps its colours.
+NSImage* VOKWarningStatusImage(NSImage* glyph);
+
+// SF Symbol with the given colours (one per layer), for a menu item or a heading that must not take the colour of the text.
+NSImage* VOKPaletteSymbol(NSString* name, CGFloat pointSize, NSArray<NSColor*>* colors);
+
 // Non-editable text that wraps at the width it is given.
 NSTextField* VOKLabel(NSString* text, CGFloat size, NSFontWeight weight, NSColor* color);
 

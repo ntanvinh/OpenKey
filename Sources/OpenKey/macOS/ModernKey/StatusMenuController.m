@@ -13,6 +13,7 @@
 #import "Donation.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
+#import "SecureInputWindow.h"
 #import "ShortcutRecorder.h"
 #import "SnippetPalette.h"
 #import "SuggestionController.h"
@@ -58,6 +59,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _secureItem;
     NSMenuItem* _updateItem;
     NSMenuItem* _noticeSeparator;
+    NSImage* _warningImage;                 //the English icon in yellow, while secure input forces English
 
     NSMenuItem* _vietnameseItem;
     NSMenuItem* _englishItem;
@@ -111,8 +113,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
     //notices, only there when there is something to tell
     _permissionItem = MakeItem(@"Cấp quyền để VOpenKey AI hoạt động…", @"exclamationmark.shield", self, @selector(askPermissions:));
-    _secureItem = MakeItem(@"Secure Input đang bật", @"exclamationmark.triangle", nil, nil);
-    _secureItem.enabled = NO;
+    //yellow like the icon; a click lists what is known about the program that holds secure input
+    _secureItem = MakeItem(@"Secure Input đang bật…", nil, self, @selector(openSecureInput:));
+    _secureItem.image = VOKPaletteSymbol(@"exclamationmark.triangle.fill", 13,
+                                         @[[NSColor blackColor], [NSColor colorWithSRGBRed:1.0 green:0.80 blue:0.0 alpha:1]]);
     _updateItem = MakeItem(@"", @"arrow.down.circle", self, @selector(updateAction:));
     _noticeSeparator = [NSMenuItem separatorItem];
     [_menu addItem:_permissionItem];
@@ -171,6 +175,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 //While secure input is on macOS hides every key from the app, so the icon shows English until it is released
 //(unless macOS' own Vietnamese input source is typing in the app's place). Only the icon changes, not the saved
 //language: that would also teach Smart Switch Key that the app holding secure input is an English app.
+//The icon is yellow while typing Vietnamese was switched off that way, so that the person notices: a plain English icon
+//looks like a choice they made. It is not yellow when they are in English mode anyway (nothing was taken away).
 -(void)refresh {
     NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
     NSInteger language = [defaults integerForKey:@"InputMethod"];
@@ -178,12 +184,25 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSInteger codeTable = [defaults integerForKey:@"CodeTable"];
     BOOL grayIcon = [defaults integerForKey:@"GrayIcon"] != 0;
 
-    BOOL vietnamese = language == 1 && ![SecureInputMonitor isOpenKeyBlind];
-    NSImage* image = [NSImage imageNamed:vietnamese ? @"Status" : @"StatusEng"];
-    [image setTemplate:grayIcon];
-    _statusItem.button.image = image;
-    _statusItem.button.alternateImage = [NSImage imageNamed:vietnamese ? @"StatusHighlighted" : @"StatusHighlightedEng"];
+    BOOL forcedToEnglish = language == 1 && [SecureInputMonitor isOpenKeyBlind];
+    BOOL vietnamese = language == 1 && !forcedToEnglish;
+    if (forcedToEnglish) {
+        if (_warningImage == nil)
+            _warningImage = VOKWarningStatusImage([NSImage imageNamed:@"StatusEng"]);
+        //the highlighted pair of icons is white on the blue of an open menu; the yellow one stays as it is
+        _statusItem.button.image = _warningImage;
+        _statusItem.button.alternateImage = _warningImage;
+    } else {
+        NSImage* image = [NSImage imageNamed:vietnamese ? @"Status" : @"StatusEng"];
+        [image setTemplate:grayIcon];
+        _statusItem.button.image = image;
+        _statusItem.button.alternateImage = [NSImage imageNamed:vietnamese ? @"StatusHighlighted" : @"StatusHighlightedEng"];
+    }
     _statusItem.button.toolTip = [SecureInputMonitor statusDescription];
+    //colour alone says nothing to VoiceOver
+    _statusItem.button.accessibilityLabel = forcedToEnglish
+        ? [NSString stringWithFormat:@"%@: Secure Input đang bật, tạm chuyển sang tiếng Anh", VOK_APP_NAME]
+        : VOK_APP_NAME;
 
     //Language switching is available through the app-wide shortcut; show the selection like other menu toggles.
     _vietnameseItem.state = language == 1 ? NSControlStateValueOn : NSControlStateValueOff;
@@ -219,8 +238,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _noticeSeparator.hidden = !needsPermission && secureDescription == nil && _updateItem.hidden;
     if (secureDescription != nil) {
         NSString* holder = [SecureInputMonitor holderName];
-        _secureItem.title = holder != nil ? [NSString stringWithFormat:@"Secure Input đang bật bởi %@", holder] : @"Secure Input đang bật";
-        _secureItem.toolTip = secureDescription;
+        _secureItem.title = holder != nil ? [NSString stringWithFormat:@"Secure Input đang bật bởi %@…", holder] : @"Secure Input đang bật…";
+        _secureItem.toolTip = [secureDescription stringByAppendingString:@"\nBấm để xem chi tiết và tìm ra ứng dụng đó."];
         if (@available(macOS 14.4, *)) {
             _secureItem.subtitle = [SecureInputMonitor isFallbackActive] ? @"Đang dùng bộ gõ Vietnamese của macOS" : @"Tạm chuyển sang tiếng Anh";
         }
@@ -318,6 +337,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
         [OpenKeyManager restartToUpdate:nil];
     else
         [OpenKeyManager showUpdateDialog:nil];
+}
+
+-(void)openSecureInput:(id)sender {
+    [SecureInputWindow show];
 }
 
 -(void)askPermissions:(id)sender {
