@@ -241,7 +241,7 @@ BEGIN
     CONTROL         "Khởi động cùng Windows",IDC_CHECK_RUN_WITH_WINDOWS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,89,119,10
     CONTROL         "Chạy với quyền Admin",IDC_CHECK_RUN_AS_ADMIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,31,119,10
-    CONTROL         "Kiểm tra bản mới lúc khởi động",IDC_CHECK_CHECK_UPDATE,
+    CONTROL         "Tự động kiểm tra bản mới",IDC_CHECK_CHECK_UPDATE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,70,119,10
     PUSHBUTTON      "Kiểm tra bản mới...",IDC_BUTTON_CHECK_UPDATE,151,88,75,14
     CONTROL         "Tạo biểu tượng trên Desktop",IDC_CHECK_CHECK_CREATE_SHORTCUT,
@@ -481,7 +481,7 @@ BEGIN
     IDS_STRING_CREATE_DESKTOP 
                             "Tạo biểu tượng VOpenKey AI ở Desktop để có thể tìm thấy nhanh khi cần thiết"
     IDS_STRING_RUN_AS_ADMIN "Khởi động lại VOpenKey AI với quyền Admin để có thể gõ được tiếng Việt trong game, bạn sẽ được yêu cầu khởi động lại chương trình VOpenKey AI"
-    IDS_STRING_CHECK_UPDATE "Kiểm tra bản mới mỗi lần khởi động VOpenKey AI"
+    IDS_STRING_CHECK_UPDATE "Kiểm tra bản mới khi khởi động VOpenKey AI, rồi vài giờ một lần"
     IDS_STRING_REMEMBER_TABLE_CODE 
                             "VOpenKey AI sẽ tự động ghi nhớ bạn đã dùng bảng mã nào cho ứng dụng nào, để lần sau khi chuyển qua ứng dụng đó, VOpenKey AI sẽ tự động chuyển sang bảng mã đó cho bạn. Rất thích hợp cho các ứng dụng kỹ thuật như Photoshop, CAD,..."
     IDS_STRING_TEMP_OFF_OPENKEY 

@@ -45,6 +45,10 @@ const std::vector<Provider>& providers() {
         all.push_back(make("ollama", "Ollama (local)", Protocol::OpenAI, "http://localhost:11434/v1", "llama3.2", true, false, ""));
         all.push_back(make("lmstudio", "LM Studio (local)", Protocol::OpenAI, "http://localhost:1234/v1", "local-model", true, false, ""));
         all.push_back(make("custom", "Other (OpenAI compatible)", Protocol::OpenAI, "", "", false, false, ""));
+        //programs of the computer: no key, no address (their model is chosen from the list the program gives, "" = a light one)
+        all.push_back(make("codex-cli", "Codex CLI", Protocol::Agent, "", "", false, false, ""));
+        all.push_back(make("claude-cli", "Claude Code CLI", Protocol::Agent, "", "", false, false, ""));
+        all.push_back(make("agy-cli", "Antigravity CLI", Protocol::Agent, "", "", false, false, ""));
     }
     return all;
 }
@@ -352,10 +356,16 @@ static void setKeyHeaders(HttpRequest& request, const Config& config) {
             request.headers.push_back(std::make_pair("x-api-key", config.key));
             request.headers.push_back(std::make_pair("anthropic-version", "2023-06-01"));
             break;
+        case Protocol::Agent:
+            break; //a program, not a server: handled by the platform with AIAgent.h
     }
 }
 
 bool buildRequest(const Config& config, const std::string& prompt, HttpRequest& out, Error& error) {
+    if (config.provider.protocol == Protocol::Agent) { //a program, not a server: nothing to send
+        error = Error(ErrorCode::BadAddress);
+        return false;
+    }
     AddressProblem problem;
     std::string base = cleanBaseUrl(config.baseUrl, problem);
     if (base.empty()) {
@@ -422,6 +432,8 @@ bool buildRequest(const Config& config, const std::string& prompt, HttpRequest& 
             address = base + "/messages";
             break;
         }
+        case Protocol::Agent:
+            break; //a program, not a server: handled by the platform with AIAgent.h
     }
     out = HttpRequest();
     out.method = "POST";
@@ -434,6 +446,10 @@ bool buildRequest(const Config& config, const std::string& prompt, HttpRequest& 
 }
 
 bool buildModelsRequest(const Config& config, HttpRequest& out, Error& error) {
+    if (config.provider.protocol == Protocol::Agent) {
+        error = Error(ErrorCode::BadAddress);
+        return false;
+    }
     AddressProblem problem;
     std::string base = cleanBaseUrl(config.baseUrl, problem);
     if (base.empty()) {
@@ -734,6 +750,8 @@ std::string StreamParser::textOfLine(const std::string& line, Error& error) {
             }
             return "";
         }
+        case Protocol::Agent:
+            break; //a program, not a server: handled by the platform with AIAgent.h
     }
     return "";
 }
@@ -782,6 +800,8 @@ std::string StreamParser::textOfCompleteAnswer(const std::string& body, Protocol
             }
             return text;
         }
+        case Protocol::Agent:
+            break; //a program, not a server: handled by the platform with AIAgent.h
     }
     return "";
 }

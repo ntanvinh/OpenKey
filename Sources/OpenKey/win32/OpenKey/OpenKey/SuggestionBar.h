@@ -26,4 +26,6 @@ public:
     static void showBelow(const RECT& line);
     static void hide();
     static bool isVisible();
+    /// The transparency settings changed: the bar that is up takes the new level at once.
+    static void appearanceChanged();
 };

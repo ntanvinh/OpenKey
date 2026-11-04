@@ -13,6 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
 #include "FeatureWindows.h"
+#include <objbase.h>
 
 static AppDelegate* _instance;
 
@@ -49,7 +50,7 @@ int vRunWithWindows = 1;
 int vSupportMetroApp = 1;
 int vCreateDesktopShortcut = 0;
 int vRunAsAdmin = 0;
-int vCheckNewVersion = 0;
+int vCheckNewVersion = 1; //looks for a new version by itself, like the macOS app (the setting of the user, if any, wins)
 //beta feature
 int vFixChromiumBrowser = 0; //new on version 2.0
 
@@ -61,30 +62,68 @@ bool AppDelegate::isDialogMsg(MSG & msg) const {
 		FeatureWindows::handleDialogMessage(msg);
 }
 
-void AppDelegate::checkUpdate() {
-	string newVersion;
-	if (OpenKeyManager::checkUpdate(newVersion)) {
-		WCHAR msg[256];
-		wsprintf(msg,
-			TEXT("VOpenKey AI Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
-			utf8ToWideString(newVersion).c_str());
+void AppDelegate::offerUpdate(HWND parent, const string& newVersion) {
+	WCHAR msg[256];
+	wsprintf(msg,
+		TEXT("VOpenKey AI Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
+		utf8ToWideString(newVersion).c_str());
 
-		int msgboxID = MessageBox(
-			0,
-			msg,
-			_T("VOpenKey AI Update"),
-			MB_ICONEXCLAMATION | MB_YESNO
-		);
-		if (msgboxID == IDYES) {
-			//Call OpenKeyUpdate
-			WCHAR path[MAX_PATH];
-			GetCurrentDirectory(MAX_PATH, path);
-			wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
-			ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
-			AppDelegate::getInstance()->onOpenKeyExit();
-		}
-
+	//a question nobody asked for has to be seen
+	UINT flags = MB_ICONEXCLAMATION | MB_YESNO | (parent ? 0 : (MB_SETFOREGROUND | MB_TOPMOST));
+	if (MessageBox(parent, msg, _T("VOpenKey AI Update"), flags) != IDYES)
+		return;
+	//the program closes only when the updater has started: otherwise the user would be left with neither
+	if (OpenKeyManager::launchUpdater()) {
+		onOpenKeyExit();
+	} else {
+		MessageBox(parent, _T("Không mở được OpenKeyUpdate.exe trong thư mục của VOpenKey AI. Hãy tải bản mới ở trang phát hành trên GitHub."),
+			_T("VOpenKey AI Update"), MB_ICONWARNING | MB_OK);
 	}
+}
+
+void AppDelegate::onUpdateFound(const string& newVersion) {
+	offerUpdate(NULL, newVersion);
+}
+
+//Looks for a new version when the program has started and then every few hours, without ever holding up the program: the question
+//goes to the network from a thread of its own and the answer comes back as a message to the window of the tray. (Asked from the
+//main thread before the message loop, a slow network would keep the keyboard hook from being served.)
+static DWORD WINAPI updateCheckThread(LPVOID) {
+	const DWORD kFirstDelay = 15 * 1000;          //after the start, when the network is up
+	const DWORD kRetryDelay = 10 * 60 * 1000;     //no answer at all (offline at logon)
+	const DWORD kNextDelay = 6 * 60 * 60 * 1000;  //while the program stays open for days
+	//the download of version.json (urlmon) is COM: a thread of its own has to join it, and in the multithreaded apartment nothing has to pump messages
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	DWORD due = GetTickCount() + kFirstDelay;
+	string offered;                               //a version the user was asked about already, in this run
+	for (;;) {
+		Sleep(5000);
+		if (!vCheckNewVersion) {
+			due = GetTickCount() + kFirstDelay;   //switched on later: it looks soon
+			continue;
+		}
+		if ((LONG)(GetTickCount() - due) < 0)
+			continue;
+		string newVersion;
+		bool answered = false;
+		bool found = OpenKeyManager::checkUpdate(newVersion, &answered);
+		due = GetTickCount() + (answered ? kNextDelay : kRetryDelay);
+		if (found && newVersion != offered) {
+			string* version = new string(newVersion);
+			HWND tray = FindWindow(APP_CLASS, NULL);
+			if (tray && PostMessage(tray, AppDelegate::kMessageUpdateFound, 0, (LPARAM)version))
+				offered = newVersion;
+			else
+				delete version;
+		}
+	}
+	return 0;
+}
+
+void AppDelegate::startUpdateChecks() {
+	HANDLE thread = CreateThread(NULL, 0, updateCheckThread, NULL, 0, NULL);
+	if (thread)
+		CloseHandle(thread);
 }
 
 AppDelegate::AppDelegate() {
@@ -119,9 +158,8 @@ int AppDelegate::run(HINSTANCE hInstance) {
 		createMainDialog();
 	MessageBeep(MB_OK);
 
-	//check update
-	if (vCheckNewVersion)
-		checkUpdate();
+	//look for a new version (if it is switched on in the settings), in the background
+	startUpdateChecks();
 
 	MSG msg;
 	// Main message loop:
@@ -193,6 +231,7 @@ void AppDelegate::onDefaultConfig() {
 	APP_SET_DATA(vUseGrayIcon, 0);
 	APP_SET_DATA(vShowOnStartUp, 1);
 	APP_SET_DATA(vRunWithWindows, 1);
+	APP_SET_DATA(vCheckNewVersion, 1);
 
 	APP_SET_DATA(vSupportMetroApp, 1);
 	APP_SET_DATA(vRememberCode, 1);

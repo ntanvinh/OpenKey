@@ -51,7 +51,9 @@ void OpenKeyManager::freeEngine() {
 	OpenKeyFree();
 }
 
-bool OpenKeyManager::checkUpdate(string& newVersion) {
+bool OpenKeyManager::checkUpdate(string& newVersion, bool* answered) {
+	if (answered)
+		*answered = false;
 	wstring dataW = OpenKeyHelper::getContentOfUrl(L"https://raw.githubusercontent.com/ntanvinh/OpenKey/master/version.json");
 	string data = wideStringToUtf8(dataW);
 
@@ -97,7 +99,25 @@ bool OpenKeyManager::checkUpdate(string& newVersion) {
 	DWORD currentVersionCode = OpenKeyHelper::getVersionNumber();
 	currentVersionCode = shiftVersion(currentVersionCode);
 
+	if (answered)
+		*answered = true;
 	return newVersionCode > currentVersionCode;
+}
+
+bool OpenKeyManager::launchUpdater() {
+	WCHAR folder[MAX_PATH];
+	DWORD length = GetModuleFileNameW(NULL, folder, MAX_PATH);
+	if (length == 0 || length >= MAX_PATH)
+		return false;
+	WCHAR* slash = wcsrchr(folder, L'\\');
+	if (!slash)
+		return false;
+	*slash = L'\0';
+	WCHAR updater[MAX_PATH];
+	if (wsprintfW(updater, L"%s\\OpenKeyUpdate.exe", folder) <= 0 || GetFileAttributesW(updater) == INVALID_FILE_ATTRIBUTES)
+		return false;
+	//the updater replaces the files of the folder it is started in
+	return (INT_PTR)ShellExecuteW(NULL, L"open", updater, NULL, folder, SW_SHOWNORMAL) > 32;
 }
 
 void OpenKeyManager::createDesktopShortcut() {

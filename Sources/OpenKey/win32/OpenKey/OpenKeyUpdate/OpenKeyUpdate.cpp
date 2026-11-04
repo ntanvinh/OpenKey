@@ -15,12 +15,72 @@ redistribute your new version, it MUST be open source.
 #include "framework.h"
 #include "OpenKeyUpdate.h"
 #include <Urlmon.h>
+#include <wincrypt.h>
+#include <shellapi.h>
 #include <fstream>
 #include <sstream>
 #include <string>
 #pragma comment(lib, "Urlmon.lib")
+#pragma comment(lib, "Advapi32.lib")
+#pragma comment(lib, "Shell32.lib")
 
 using namespace std;
+
+//The SHA-256 of a file as 64 lower case hex digits; empty when it cannot be worked out (Windows CryptoAPI, no extra library).
+static string Sha256OfFile(const WCHAR* path) {
+	string result;
+	HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE)
+		return result;
+	HCRYPTPROV provider = 0;
+	HCRYPTHASH hash = 0;
+	if (CryptAcquireContextW(&provider, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) && CryptCreateHash(provider, CALG_SHA_256, 0, 0, &hash)) {
+		static BYTE buffer[64 * 1024];
+		bool complete = false, failed = false;
+		while (!complete && !failed) {
+			DWORD read = 0;
+			if (!ReadFile(file, buffer, sizeof(buffer), &read, NULL))
+				failed = true;
+			else if (read == 0)
+				complete = true;
+			else if (!CryptHashData(hash, buffer, read, 0))
+				failed = true;
+		}
+		BYTE digest[32];
+		DWORD size = sizeof(digest);
+		if (complete && CryptGetHashParam(hash, HP_HASHVAL, digest, &size, 0) && size == sizeof(digest)) {
+			static const char hex[] = "0123456789abcdef";
+			for (DWORD i = 0; i < size; i++) {
+				result += hex[digest[i] >> 4];
+				result += hex[digest[i] & 15];
+			}
+		}
+	}
+	if (hash) CryptDestroyHash(hash);
+	if (provider) CryptReleaseContext(provider, 0);
+	CloseHandle(file);
+	return result;
+}
+
+//The first word of a small text file, in lower case ("<sha256>  <name of the file>" is what the release carries), empty when there is none
+static string FirstWordOfFile(const WCHAR* path) {
+	string word;
+	HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE)
+		return word;
+	char buffer[512];
+	DWORD read = 0;
+	if (ReadFile(file, buffer, sizeof(buffer), &read, NULL)) {
+		DWORD i = 0;
+		if (read >= 3 && (unsigned char)buffer[0] == 0xEF && (unsigned char)buffer[1] == 0xBB && (unsigned char)buffer[2] == 0xBF)
+			i = 3; //a byte order mark
+		for (; i < read && (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\r' || buffer[i] == '\n'); i++) {}
+		for (; i < read && buffer[i] != ' ' && buffer[i] != '\t' && buffer[i] != '\r' && buffer[i] != '\n'; i++)
+			word += (char)((buffer[i] >= 'A' && buffer[i] <= 'Z') ? buffer[i] - 'A' + 'a' : buffer[i]);
+	}
+	CloseHandle(file);
+	return word;
+}
 
 INT_PTR CALLBACK MainDialogProcess(HWND, UINT, WPARAM, LPARAM);
 void StartUpdate();
@@ -109,6 +169,31 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 	res = URLDownloadToFile(NULL, updateUrl, path, 0, NULL);
 
 	if (res == S_OK) {
+		//the zip has to be the file that was published: the release carries its SHA-256 beside it. A file that is cut, damaged or not
+		//the one the release has is never opened.
+		bool genuine = false, hashKnown = false;
+		{
+			WCHAR hashUrl[MAX_PATH], hashPath[MAX_PATH];
+			wsprintf(hashUrl, TEXT("%s.sha256"), updateUrl);
+			wsprintf(hashPath, TEXT("%s\\_OpenKeyUpdate.zip.sha256"), currentDir);
+			if (URLDownloadToFile(NULL, hashUrl, hashPath, 0, NULL) == S_OK) {
+				string expected = FirstWordOfFile(hashPath);
+				hashKnown = expected.size() == 64;
+				string actual = Sha256OfFile(path);
+				genuine = hashKnown && expected == actual;
+			}
+			DeleteFile(hashPath);
+		}
+		if (!genuine) {
+			DeleteFile(path);
+			if (!hashKnown)
+				MessageBox(hDlg, _T("Không lấy được mã kiểm tra (SHA-256) của bản cập nhật trên GitHub, nên không cài. Chương trình cũ vẫn như trước, hãy thử lại sau!"), _T("VOpenKey AI Update"), MB_OK);
+			else
+				MessageBox(hDlg, _T("Tệp tải về không khớp mã kiểm tra (SHA-256) mà GitHub công bố, nên không được cài. Chương trình cũ vẫn như trước, hãy thử lại sau!"), _T("VOpenKey AI Update"), MB_OK);
+			ExitProcess(0);
+			return 0;
+		}
+
 		//the program of this folder is the 64 bit one, the 32 bit one (a 32 bit Windows) or both: each gets its new file
 		bool has64 = GetFileAttributes(L"OpenKey64.exe") != INVALID_FILE_ATTRIBUTES;
 		bool has32 = GetFileAttributes(L"OpenKey32.exe") != INVALID_FILE_ATTRIBUTES;
@@ -164,6 +249,8 @@ DWORD WINAPI UpdateThreadFunction(LPVOID lpParam) {
 		RemoveDirectory(L".\\_OpenKeyUpdate");
 		if (replaced) {
 			MessageBox(hDlg, _T("Bạn đã cập nhật VOpenKey AI bản mới nhất thành công!"), _T("VOpenKey AI Update"), MB_OK);
+			//the program was closed to be updated: it comes back, as the macOS one does
+			ShellExecuteW(NULL, L"open", has64 ? L"OpenKey64.exe" : L"OpenKey32.exe", NULL, currentDir, SW_SHOWNORMAL);
 		} else {
 			MessageBox(hDlg, _T("Không cập nhật được: tệp tải về không đủ hoặc không thay được chương trình cũ. Chương trình cũ vẫn như trước, hãy thử lại sau!"), _T("VOpenKey AI Update"), MB_OK);
 		}

@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "AIClient.h"
 #include "AIText.h"
+#include "AIAgentRunner.h"
 #include <winhttp.h>
 #include <map>
 
@@ -360,7 +361,13 @@ unsigned allocateId() {
 
 namespace AIClient {
 
+unsigned newRequestId() {
+    return allocateId();
+}
+
 unsigned generate(const vai::Config& config, const std::string& prompt, HWND window, std::wstring& reason) {
+    if (config.provider.protocol == vai::Protocol::Agent) //a program of the computer, not a server
+        return AIAgentRunner::generate(config, prompt, window, reason);
     Job* job = new Job();
     job->listModels = false;
     job->config = config;
@@ -378,7 +385,17 @@ unsigned generate(const vai::Config& config, const std::string& prompt, HWND win
     return start(job, reason) ? id : 0;
 }
 
+unsigned generateImage(const vai::Config& config, const std::string& request, HWND window, std::wstring& reason) {
+    if (config.provider.protocol != vai::Protocol::Agent) {
+        reason = L"Chỉ tạo được ảnh khi dùng Codex CLI.";
+        return 0;
+    }
+    return AIAgentRunner::generateImage(config, request, window, reason);
+}
+
 unsigned listModels(const vai::Config& config, HWND window, std::wstring& reason) {
+    if (config.provider.protocol == vai::Protocol::Agent)
+        return AIAgentRunner::listModels(config, window, reason);
     Job* job = new Job();
     job->listModels = true;
     job->config = config;
@@ -397,6 +414,7 @@ unsigned listModels(const vai::Config& config, HWND window, std::wstring& reason
 }
 
 void cancel(unsigned id) {
+    AIAgentRunner::cancel(id); //it knows its own and ignores the others
     if (!g_lockReady)
         return;
     EnterCriticalSection(&g_lock);

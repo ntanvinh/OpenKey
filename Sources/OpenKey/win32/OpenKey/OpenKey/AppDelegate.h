@@ -25,8 +25,12 @@ private:
 	BaseDialog* mainDialog = NULL, *aboutDialog = NULL, *macroDialog = NULL, *convertDialog = NULL;
 private:
 	bool isDialogMsg(MSG &msg) const;
-	void checkUpdate();
+	void startUpdateChecks();
 public:
+	/// Posted by the thread that looks for a new version to the window of the tray: lParam is a `new string` with the version
+	/// (the window deletes it).
+	static const UINT kMessageUpdateFound = WM_APP + 70;
+
 	AppDelegate();
 	static AppDelegate* getInstance();
 	int run(HINSTANCE hInstance);
@@ -51,4 +55,9 @@ public: //event
 	void onControlPanel();
 	void onOpenKeyAbout();
 	void onOpenKeyExit();
+
+	/// Asks whether to update to `newVersion` and, when the answer is yes, starts the updater and closes this program. `parent`
+	/// is the window the question belongs to (NULL: it comes up by itself).
+	void offerUpdate(HWND parent, const string& newVersion);
+	void onUpdateFound(const string& newVersion);
 };

@@ -26,7 +26,8 @@
 
 namespace vai {
 
-enum class Protocol { OpenAI, Gemini, Anthropic };
+//Agent is no server at all: a program of the computer that is signed in by itself (Codex, Claude Code, Antigravity), see AIAgent.h.
+enum class Protocol { OpenAI, Gemini, Anthropic, Agent };
 
 struct Provider {
     std::string id;           //never changes, saved in the settings: "openai", "gemini", "ollama"...
@@ -57,7 +58,16 @@ enum class ErrorCode {
     Network,          //no connection, no answer in time
     Cancelled,
     Empty,            //the answer had no text
-    Rejected          //the service refused the content (safety filters)
+    Rejected,         //the service refused the content (safety filters)
+    // the programs (AIAgent.h):
+    Login,            //the program is not signed in, or its session ended
+    NoProgram,        //the program is not there or did not start (the detail says why)
+    Effort,           //the program does not take the thinking level
+    OldProgram,       //the program does not know an option that was passed to it
+    Timeout,          //no answer in time, the program was stopped
+    TooMuch,          //more text than a program can mean to say, it was stopped
+    NoPicture,        //the program ended well but made no picture (the detail is what it said)
+    BadPicture        //the picture it made cannot be read (the detail is the name of the file)
 };
 
 struct Error {
@@ -113,6 +123,8 @@ struct Config {
     std::string model;
     std::string key;           //empty when the provider does not need one and the user gave none
     std::string systemPrompt;
+    std::string executable;    //agent programs: the file to run (UTF-8)
+    std::string effort;        //agent programs: the thinking level the user chose ("" = choose for me)
 };
 
 struct HttpRequest {

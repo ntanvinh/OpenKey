@@ -115,7 +115,7 @@ void OpenKeyInit() {
 	APP_GET_DATA(vSupportMetroApp, 0);
 	APP_GET_DATA(vRunAsAdmin, 0);
 	APP_GET_DATA(vCreateDesktopShortcut, 0);
-	APP_GET_DATA(vCheckNewVersion, 0);
+	APP_GET_DATA(vCheckNewVersion, 1);
 	APP_GET_DATA(vRememberCode, 1);
 	APP_GET_DATA(vOtherLanguage, 1);
 	APP_GET_DATA(vTempOffOpenKey, 0);
@@ -181,6 +181,7 @@ void OpenKeyInit() {
 	FeatureActions::setRestoreHandler(restoreTypingWord);
 	FeatureActions::start(hInstance);
 	SuggestionController::start(hInstance);
+	CaseBar::prepare();
 
 	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
 	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
@@ -581,6 +582,21 @@ static void sendSuggestionText(const wstring& text, size_t eraseCount) {
 	}
 }
 
+//The character a key types with the layout of the program in front and the Shift and Caps Lock of now: 0 for a key that types
+//none (arrows, F keys...) and for a dead key. The state of dead keys of the layout is not touched (flag 4, Windows 10 1607 and
+//later; older systems ignore it), and this is only asked right after a suggestion was chosen, so a key is hardly ever looked at.
+static unsigned int characterOfKey(const KBDLLHOOKSTRUCT* key) {
+	BYTE state[256] = {0};
+	if (_flag & MASK_SHIFT)
+		state[VK_SHIFT] = 0x80;
+	if (_flag & MASK_CAPITAL)
+		state[VK_CAPITAL] = 0x01;
+	WCHAR text[8] = {0};
+	HKL layout = GetKeyboardLayout(GetWindowThreadProcessId(GetForegroundWindow(), NULL));
+	int count = ToUnicodeEx(key->vkCode, key->scanCode, state, text, 8, 0x4, layout);
+	return count == 1 ? (unsigned int)text[0] : 0;
+}
+
 static bool SetModifierMask(const Uint16& vkCode) {
 	// For caps lock case, toggling the flag isn't enough. We need to check the actual state, which should be done before each key press.
 	// Example: the caps lock state can be changed without the key being pressed, or the key toggle is made with admin privilege, making the app not able to detect the change.
@@ -714,8 +730,9 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 
-	//the list that changes the case of the selection uses some keys (arrows, Enter, Esc, Alt+digits)
-	if ((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) && !_isFlagKey && CaseBar::isVisible() &&
+	//the list that changes the case of the selection uses some keys (arrows, Enter, Esc, Alt+digits); with the list that comes up by
+	//itself on, every key is looked at: a selection made with the keys (Shift+arrows, Ctrl+A) is what makes it come up
+	if ((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) && !_isFlagKey && (CaseBar::isVisible() || vCaseBarAuto) &&
 		GET_SWITCH_KEY(vCaseBarHotKey) != _keycode) {
 		if (CaseBar::keyDown(_keycode, (_flag & MASK_ALT) != 0, (_flag & MASK_CONTROL) != 0, (_flag & MASK_SHIFT) != 0, (_flag & MASK_WIN) != 0)) {
 			_swallowedKey = _keycode; //its key up and repeats too
@@ -831,6 +848,18 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 		}
 
+		//a suggestion was just chosen and left its space: a closing mark (. , ) > ...) typed now takes the place of that space, and a
+		//letter after the mark gets a space before it (the same as on macOS)
+		if (suggesting && SuggestionController::spaceAdjustmentPending() && !(_flag & (MASK_CONTROL | MASK_ALT | MASK_WIN))) {
+			unsigned int typed = characterOfKey(keyboardData);
+			int adjustment = typed != 0 ? SuggestionController::spaceAdjustment(typed) : 0;
+			if (adjustment < 0) {
+				SendInput(2, backspaceEvent, sizeof(INPUT));
+			} else if (adjustment > 0) {
+				sendSuggestionText(L" ", 0); //the typing engine has no word here, the letter that follows starts a new one
+			}
+		}
+
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Keyboard,
 						vKeyEventState::KeyDown,
@@ -891,10 +920,16 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 		vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
 		SuggestionController::reset();
 		if (wParam != WM_LBUTTONUP && wParam != WM_RBUTTONUP && wParam != WM_MBUTTONUP && wParam != WM_XBUTTONUP && wParam != WM_NCXBUTTONUP)
-			CaseBar::mouseDown(mouseData->pt);
+			CaseBar::mouseDown(mouseData->pt, wParam == WM_LBUTTONDOWN);
+		else if (wParam == WM_LBUTTONUP)
+			CaseBar::mouseUp(mouseData->pt, (_flag & MASK_SHIFT) != 0);
 		if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 			_syncKey.clear();
 		}
+		break;
+	case WM_MOUSEWHEEL:
+	case WM_MOUSEHWHEEL:
+		CaseBar::scrolled();
 		break;
 	}
 	return CallNextHookEx(hMouseHook, nCode, wParam, lParam);

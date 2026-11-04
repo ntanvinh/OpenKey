@@ -22,6 +22,10 @@ void activateWindow(HWND window);
 /// `target` may be NULL: then the program that is in front gets it.
 void insertText(const std::wstring& text, HWND target);
 
+/// The same for a picture: `dib` is the bitmap as the clipboard takes it (CF_DIB), `png` the file when there is one (the "PNG" format keeps
+/// transparency for the programs that know it, may be empty). The clipboard of the user comes back a moment later, as for a text.
+void insertPicture(const std::vector<BYTE>& dib, const std::vector<BYTE>& png, HWND target);
+
 /// `text` (UTF-8) with {clipboard}, {date} and {time} replaced: the clipboard text of the user, 14/10/2026, 09:05.
 std::string expandedText(const std::string& text);
 

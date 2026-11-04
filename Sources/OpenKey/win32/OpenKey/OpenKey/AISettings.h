@@ -32,7 +32,22 @@ void setBaseUrl(const vai::Provider& provider, const std::string& baseUrl);
 std::string modelFor(const vai::Provider& provider);
 void setModel(const vai::Provider& provider, const std::string& model);
 
-/// The service can be used now: it has a key (or does not need one), an address that is allowed and a model.
+/// The programs of the computer (Codex CLI, Claude Code CLI, Antigravity CLI): the file the user chose ("" = look for it by the name of the program)
+/// and the thinking level ("" = choose for me, "default" = what the program does by itself).
+std::string programFor(const vai::Provider& provider);
+void setProgram(const vai::Provider& provider, const std::string& path);
+std::string effortFor(const vai::Provider& provider);
+void setEffort(const vai::Provider& provider, const std::string& effort);
+
+/// The sentence said to Codex to make a picture; {prompt} stands for the description of the user. The default names the imagegen skill, which
+/// Codex needs to make a good picture. An empty text, or the default one, is not kept as a choice.
+std::string defaultImagePrompt();
+std::string imagePrompt();
+void setImagePrompt(const std::string& text);
+/// The service makes pictures (Codex CLI) and is ready to be used.
+bool canMakeImages(const vai::Provider& provider);
+
+/// The service can be used now: it has a key (or does not need one), an address that is allowed and a model. A program of the computer: it is found.
 bool isReady(const vai::Provider& provider);
 
 /// The configuration of a service with its key. False with the reason (ready to show) when it cannot be used. With

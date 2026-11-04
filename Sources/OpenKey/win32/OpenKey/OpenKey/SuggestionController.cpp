@@ -7,6 +7,8 @@
 #include "SuggestionBar.h"
 #include "FeatureStorage.h"
 #include "../../../engine/SensitiveField.h"
+#include "../../../engine/AppExclusions.h"
+#include "../../../engine/SuggestAppearance.h"
 #include <oleacc.h>
 #include <uiautomation.h>
 #include <shellapi.h>
@@ -26,14 +28,23 @@ int vSuggestLearn = 1;
 int vSuggestCompounds = 1;
 int vSuggestTabAccepts = 1;
 int vMacroConfirm = 1;
+int vSuggestExclusionsEnabled = 1;
+int vSuggestTransparency = vsuggest::appearance::kDefaultTransparency;
+int vSuggestHoverTransparency = vsuggest::appearance::kDefaultHoverTransparency;
 
 namespace {
 
-//Tab completes shell commands and moves between fields, these programs would lose that
-const char* const kExcludedApps[] = {
+//Tab completes shell commands and moves between fields, these programs would lose that. The list the user starts from.
+const char* const kDefaultExcludedApps[] = {
     "cmd.exe", "powershell.exe", "pwsh.exe", "windowsterminal.exe", "wt.exe", "conhost.exe", "openconsole.exe",
     "mintty.exe", "alacritty.exe", "wezterm-gui.exe", "kitty.exe", "conemu.exe", "conemu64.exe", "hyper.exe", "putty.exe"
 };
+
+//the registry value of the edited list; a value that is not there at all means the user never edited it (an empty value is a list
+//the user emptied on purpose)
+const wchar_t kExcludedAppsSetting[] = L"vSuggestExcludedApps";
+const char kNeverEdited[] = "\x01";
+std::vector<std::string> g_excludedApps;
 
 std::unique_ptr<vsuggest::Engine> g_engine;
 std::unique_ptr<vsuggest::Session> g_session;
@@ -364,14 +375,66 @@ void BarHost::hideCandidates() {
 
 namespace SuggestionController {
 
+std::vector<std::string> defaultExcludedApps() {
+    return std::vector<std::string>(kDefaultExcludedApps, kDefaultExcludedApps + sizeof(kDefaultExcludedApps) / sizeof(kDefaultExcludedApps[0]));
+}
+
+static void loadExcludedApps() {
+    std::string saved = FeatureStorage::getSettingText(kExcludedAppsSetting, kNeverEdited);
+    g_excludedApps = saved == kNeverEdited ? defaultExcludedApps() : vsuggest::appexclusions::parse(saved);
+}
+
+std::vector<std::string> excludedApps() {
+    return g_excludedApps;
+}
+
 bool isExcludedApplication(const std::string& exeName) {
+    if (!vSuggestExclusionsEnabled)
+        return false;
     std::string lower = exeName;
     std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)tolower(c); });
-    for (size_t i = 0; i < sizeof(kExcludedApps) / sizeof(kExcludedApps[0]); i++) {
-        if (lower == kExcludedApps[i])
-            return true;
+    return vsuggest::appexclusions::contains(g_excludedApps, lower);
+}
+
+void setExcludedApps(const std::vector<std::string>& names) {
+    g_excludedApps = vsuggest::appexclusions::normalizeList(names);
+    FeatureStorage::setSettingText(kExcludedAppsSetting, vsuggest::appexclusions::serialize(g_excludedApps));
+    if (g_started) {
+        g_appExcluded = isExcludedApplication(OpenKeyHelper::getFrontMostAppExecuteName());
+        reset();
+        applySettings();
     }
-    return false;
+}
+
+void setExclusionsEnabled(bool enabled) {
+    APP_SET_DATA(vSuggestExclusionsEnabled, enabled ? 1 : 0);
+    if (g_started) {
+        g_appExcluded = isExcludedApplication(OpenKeyHelper::getFrontMostAppExecuteName());
+        reset();
+        applySettings();
+    }
+}
+
+void setTransparency(int percent) {
+    namespace appearance = vsuggest::appearance;
+    APP_SET_DATA(vSuggestTransparency, appearance::clampTransparency(percent));
+    int hover = appearance::hoverAfterTransparencyChange(appearance::clampHoverTransparency(vSuggestHoverTransparency, 0), vSuggestTransparency);
+    APP_SET_DATA(vSuggestHoverTransparency, hover);
+    SuggestionBar::appearanceChanged();
+}
+
+void setHoverTransparency(int percent) {
+    namespace appearance = vsuggest::appearance;
+    APP_SET_DATA(vSuggestHoverTransparency, appearance::clampHoverTransparency(percent, vSuggestTransparency));
+    SuggestionBar::appearanceChanged();
+}
+
+int spaceAdjustment(unsigned int character) {
+    return g_started && g_session ? g_session->spaceAdjustment(character) : 0;
+}
+
+bool spaceAdjustmentPending() {
+    return g_started && g_session && g_session->spaceAdjustmentPending();
 }
 
 void start(HINSTANCE instance) {
@@ -390,6 +453,12 @@ void start(HINSTANCE instance) {
     APP_GET_DATA(vSuggestCompounds, 1);
     APP_GET_DATA(vSuggestTabAccepts, 1);
     APP_GET_DATA(vMacroConfirm, 1);
+    APP_GET_DATA(vSuggestExclusionsEnabled, 1);
+    APP_GET_DATA(vSuggestTransparency, vsuggest::appearance::kDefaultTransparency);
+    APP_GET_DATA(vSuggestHoverTransparency, vsuggest::appearance::kDefaultHoverTransparency);
+    vSuggestTransparency = vsuggest::appearance::clampTransparency(vSuggestTransparency);
+    vSuggestHoverTransparency = vsuggest::appearance::clampHoverTransparency(vSuggestHoverTransparency, vSuggestTransparency);
+    loadExcludedApps();
 
     SuggestionBar::create(instance);
     g_engine.reset(new vsuggest::Engine());

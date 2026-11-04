@@ -23,7 +23,12 @@ public:
 	static void initEngine();
 	static void freeEngine();
 
-	static bool checkUpdate(string& newVersion);
+	/// True when version.json announces a newer Windows version than this program. `answered` (when given) tells whether the
+	/// answer could be read at all: false when there was no network or the file was not what it should be.
+	static bool checkUpdate(string& newVersion, bool* answered = NULL);
+	/// Starts OpenKeyUpdate.exe from the folder of this program (a program started at logon has the folder of Windows as the
+	/// current one, so that is never used). False when it is not there or did not start: then nothing must be closed.
+	static bool launchUpdater();
 
 	static void createDesktopShortcut();
 };

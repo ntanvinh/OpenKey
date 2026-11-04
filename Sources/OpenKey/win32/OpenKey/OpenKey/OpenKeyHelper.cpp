@@ -306,9 +306,11 @@ wstring OpenKeyHelper::getVersionString() {
 }
 
 wstring OpenKeyHelper::getContentOfUrl(LPCTSTR url){
+	//a file for each thread: the background check for a new version and a check asked for by the user may run together
+	WCHAR folder[MAX_PATH];
+	GetTempPath2(MAX_PATH, folder);
 	WCHAR path[MAX_PATH];
-	GetTempPath2(MAX_PATH, path);
-	wsprintf(path, TEXT("%s\\_OpenKey.tempf"), path);
+	wsprintf(path, TEXT("%s\\_OpenKey.%lu.tempf"), folder, GetCurrentThreadId());
 	HRESULT res = URLDownloadToFile(NULL, url, path, 0, NULL);
 	
 	if (res == S_OK) {

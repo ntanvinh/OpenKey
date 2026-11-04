@@ -51,7 +51,9 @@ static std::string stream(Protocol protocol, const std::string& text, size_t ste
 
 int main() {
     // the services
-    CHECK(providers().size() == 9);
+    CHECK(providers().size() == 12);   // nine servers, then the three programs of the computer (AIAgent.h)
+    for (size_t i = 0; i < providers().size(); i++)
+        CHECK((i < 9) == (providers()[i].protocol != Protocol::Agent));   // the programs come last and are the only ones without a server
     CHECK(findProvider("openai") && findProvider("openai")->protocol == Protocol::OpenAI && findProvider("openai")->needsKey);
     CHECK(findProvider("ollama") && findProvider("ollama")->isLocal && !findProvider("ollama")->needsKey);
     CHECK(findProvider("nope") == NULL);

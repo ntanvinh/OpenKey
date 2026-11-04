@@ -17,6 +17,21 @@ Added 2026-10-29: the ready-made conversions of the AI window (14 buttons) and t
 - `.github/workflows/windows-build.yml`: builds with Visual Studio for x86 and x64 on every change (not yet run: the first push
   of the branch does it).
 
+Added 2026-11-04 (third part: pictures with Codex), checked on the Mac only: `ai_agent_test` now also covers the sentence said to Codex, the
+arguments with `--json`, `$CODEX_HOME`, the safe names of threads and which picture is the one of a run (9 mutations caught); every Windows
+source compiles and the program links for x86 and x64 (it now needs `windowscodecs`).
+
+Added 2026-11-04 (second part: the case list that comes up by itself, and the agent programs as the AI), checked on the Mac only: `ai_agent_test`
+(the models the programs list, what is passed, how their output is read, the errors, and the Windows command line read back with the rules of
+Microsoft; 10 mutations of AIAgent.cpp are caught), `ai_protocol_test` for the three new providers; every Windows source compiles and the program
+links for x86 and x64.
+
+Added 2026-11-04 (parity with the macOS 3.7.x changes), checked on the Mac only: `scripts/test-portable.sh` now also runs
+`suggest_appearance_test` (the two transparency levels, same numbers as macOS), `app_exclusions_test` (what a program name is, how the
+list is kept) and the new `spaceAdjustmentPending` checks in `suggest_test`; every Windows source compiles (`check-windows.sh`) and the
+program links (`link-windows.sh`) for x86 and x64; `OpenKeyUpdate.cpp` compiles with mingw; the `.sha256` file of a real release
+(v3.7.19) has the shape the updater reads and equals the SHA-256 of its zip.
+
 ## NOT checked: nothing of the Windows program was run
 
 Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
@@ -47,6 +62,54 @@ Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
    name `VOpenKey AI.lnk`, About window). Kept as they were because they are identifiers or credit: `OpenKey64.exe` / `OpenKey32.exe`
    / `OpenKeyUpdate.exe`, the registry key `SOFTWARE\TuyenMai\OpenKey` and the "OpenKey" start-up entry, the clipboard format,
    github URLs, the licence headers. Check that nothing visible still says "OpenKey" (title bars, the main window, the About window).
+
+10. Suggestion bar look and programs (added 2026-11-04): "Gợi ý, snippet và công cụ..." > "Trong suốt và chương trình tự tắt...": the two sliders
+   change the bar that is up at once (0% fully drawn, the hover level always above the normal one and it follows when the normal level
+   is raised past it), the check box and the list: "Thêm" with a typed name (`putty`, `C:\x\PuTTY.exe`, quotes), "Chọn chương trình..."
+   (the file dialog), "Bỏ khỏi danh sách", "Khôi phục mặc định", an emptied list stays empty after a restart, the master switch off keeps
+   the list but the bar shows in cmd.exe; the window fits a 1366x768 screen and the Trackbar controls work with the keyboard (arrows).
+11. A suggestion chosen with Tab, then a closing mark (`.` `,` `)`...): the space is replaced by the mark (`xin.` and not `xin .`), a letter
+   typed right after the mark gets a space first (`xin. Chao`); with Ctrl/Alt held nothing changes; on a layout with dead keys (US
+   International, French) the typed character is still right and no accent is lost.
+12. AI window: "Sao chép và đóng (Ctrl+Shift+C)" puts the answer on the clipboard and closes the window; when another program holds the
+   clipboard the window stays and says so; the text pastes elsewhere with Ctrl+V.
+13. About: under the version there are "Phát triển bởi: LSSoft - lssoft.io.vn" and "Liên hệ: lssoft.adm@gmail.com" lines; both links open
+   the browser / the mail program; the lines are not cut off at 100% and 150% DPI.
+14. Update (added 2026-11-04): a fresh install now looks for a new version by itself (15 seconds after the start, then every 6 hours, 10 minutes
+   after a failed try) in a thread of its own: with the network cable out at logon the keyboard must not lag. Start the program at logon
+   (task of the Task Scheduler: its current folder is the folder of Windows), announce a newer version in `version.json` and check that the
+   question comes up, "Có" starts `OpenKeyUpdate.exe` from the program's own folder, the zip is checked against its `.sha256` (change one
+   byte of the zip on a test server to see the refusal), the program comes back after the message. A program that cannot find
+   `OpenKeyUpdate.exe` says so and stays open. NOTE: `OpenKeyUpdate.exe` is never replaced by an update (it is running), so the checks of
+   its SHA-256 and the restart reach people who install from a new zip, not those who only update.
+
+15. Case list that comes up by itself (added 2026-11-04): in Notepad, Word and Edge/Chrome drag over some words, double click one, Shift+click,
+   Shift+arrows, Ctrl+A: the list shows under the selection after about a quarter of a second; Alt+1..Alt+9 apply a style (the text is
+   replaced), Up/Down/Enter/Esc go to the program until the shortcut is pressed (then the list takes them); another key, a click elsewhere,
+   the wheel, another program, 20 seconds: it goes away; the clipboard is never touched while it is up (put an image on it first). Nothing
+   shows in cmd.exe / Windows Terminal, in a password field (a web page's too), in the settings windows, or for a program that does not
+   expose its text (the shortcut still works there). Switched off in "Gợi ý, snippet và công cụ...": no list, no UI Automation call.
+   Watch for: a list that comes up while only clicking, selecting files in Explorer, or typing fast; keys lagging while it is up.
+16. Codex, Claude Code and Antigravity as the AI (added 2026-11-04, nothing of it was ever run on Windows; the paths and the flags of the Windows
+   builds of these programs are guesses taken from macOS): Cài đặt AI > "Codex CLI": the program is found (PATH, `%APPDATA%\npm`,
+   `%USERPROFILE%\.local\bin`...) or "Chọn..." works; "Tải danh sách" fills the model box (Codex: `codex debug models`, fast; Antigravity:
+   `agy models`, several seconds); the level box follows the model; a request streams into the assistant window; Esc stops it and no
+   `codex.exe` / `node.exe` is left in Task Manager (job object); signed out gives the sentence with `codex login`; a wrong model name
+   says so; "Claude Code CLI" with `claude.cmd` says it needs the .exe, with `claude.exe` works; Antigravity says its prompt limit for
+   a 40,000 character selection; the folder `%TEMP%\VOpenKey-agent-*` is gone after each request; a request that runs 10 minutes is
+   stopped. Running as Administrator: the programs run elevated too, so they look at the profile of that account (a different admin
+   account has no login for them).
+
+17. Pictures with Codex (added 2026-11-04, never run on Windows): with "Codex CLI" chosen, "Tạo ảnh (Ctrl+Alt+Enter)" is on (off for the other
+   services and while a request runs); an empty box says to describe the picture; ask for "một con mèo màu cam": about 20 to 40 seconds,
+   the seconds are counted, Esc stops it and kills Codex (Task Manager); the picture appears in the place of the answer box, as large as fits
+   without being blown up, on the field colour in light and dark theme, and follows the size of the window; a click opens it in the program of the
+   user for PNG; "Lưu vào Downloads" makes `VOpenKey AI <date>.png` there and never over a file; "Hiện file ảnh" opens Explorer with the file
+   chosen; Ctrl+Shift+C puts a bitmap (and a "PNG") on the clipboard and closes: paste in Paint (bitmap) and in Word/Teams (PNG keeps
+   transparency); Ctrl+Shift+Enter pastes into the program that was in front and the clipboard of the user comes back (test with text on
+   it); a transparent PNG shows on white; Codex that makes no picture says so with what it said; `%CODEX_HOME%` set elsewhere is found;
+   Settings > AI > Codex CLI shows "Lệnh tạo ảnh" and "Dùng lệnh mặc định" and keeps an edited sentence after a restart.
+   Check the path `generated_images\<thread id>\*.png` on the real Windows build of Codex: it is taken from macOS.
 
 Automatic version of most of this list: `scripts/windows-ui-test.ps1`, see docs/windows-testing.md.
 

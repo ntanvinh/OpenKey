@@ -6,6 +6,7 @@
 #include "SuggestionBar.h"
 #include "SuggestionController.h"
 #include "FeatureTheme.h"
+#include "../../../engine/SuggestAppearance.h"
 #include <algorithm>
 
 namespace {
@@ -22,7 +23,6 @@ const int kLabelGap = 6;       //between the key hint and the word
 const int kScreenMargin = 6;
 const int kDistanceFromText = 4;
 const int kHoverDelayMs = 1200; //give the user time to read before the bar yields to the pointer
-const BYTE kHoverAlpha = 38;    //0.15: the pointer is over the bar, it is almost gone so the application behind can be read
 const UINT_PTR kTimerPointer = 1;
 const UINT_PTR kTimerSave = 2;
 
@@ -148,6 +148,16 @@ void setAlpha(BYTE alpha) {
     SetLayeredWindowAttributes(g_window, 0, alpha, LWA_ALPHA);
 }
 
+//the levels are the ones of the two sliders in the settings (0% see-through is fully drawn); while the pointer is over the bar the
+//second one is used, so that the application behind can be read
+BYTE normalAlpha() {
+    return (BYTE)vsuggest::appearance::alphaForTransparency(vSuggestTransparency);
+}
+
+BYTE hoverAlpha() {
+    return (BYTE)vsuggest::appearance::alphaForTransparency(vSuggestHoverTransparency);
+}
+
 //The bar ignores the mouse, so the pointer is looked at from time to time while the bar is up
 void updateFadeForPointer() {
     POINT pointer;
@@ -157,7 +167,7 @@ void updateFadeForPointer() {
         g_overSince = 0;
         if (g_faded) {
             g_faded = false;
-            setAlpha(255);
+            setAlpha(normalAlpha());
         }
         return;
     }
@@ -168,7 +178,7 @@ void updateFadeForPointer() {
         g_overSince = now;
     if (now - g_overSince >= (DWORD)kHoverDelayMs) {
         g_faded = true;
-        setAlpha(kHoverAlpha);
+        setAlpha(hoverAlpha());
     }
 }
 
@@ -223,7 +233,7 @@ bool SuggestionBar::create(HINSTANCE instance) {
                                kClassName, L"VOpenKey AI suggestions", WS_POPUP, 0, 0, 10, 10, NULL, NULL, instance, NULL);
     if (!g_window)
         return false;
-    setAlpha(255);
+    setAlpha(normalAlpha());
     SetTimer(g_window, kTimerSave, 60000, NULL);
     return true;
 }
@@ -291,7 +301,7 @@ void SuggestionBar::showBelow(const RECT& line) {
     if (!wasVisible) {
         g_faded = false;
         g_overSince = 0;
-        setAlpha(255);
+        setAlpha(normalAlpha());
         SetTimer(g_window, kTimerPointer, 100, NULL);
     }
     updateFadeForPointer();
@@ -308,4 +318,9 @@ void SuggestionBar::hide() {
 
 bool SuggestionBar::isVisible() {
     return g_window && IsWindowVisible(g_window);
+}
+
+void SuggestionBar::appearanceChanged() {
+    if (g_window)
+        setAlpha(g_faded ? hoverAlpha() : normalAlpha());
 }

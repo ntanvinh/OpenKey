@@ -603,28 +603,12 @@ void MainControlDialog::onTabIndexChanged() {
 void MainControlDialog::onUpdateButton() {
     EnableWindow(hUpdateButton, false);
     string newVersion;
-    if (OpenKeyManager::checkUpdate(newVersion)) {
-        WCHAR msg[256];
-        wsprintf(msg,
-            TEXT("VOpenKey AI Có phiên bản mới (%s), bạn có muốn cập nhật không?"),
-            utf8ToWideString(newVersion).c_str());
-
-        int msgboxID = MessageBox(
-            hDlg,
-            msg,
-            _T("VOpenKey AI Update"),
-            MB_ICONEXCLAMATION | MB_YESNO
-        );
-        if (msgboxID == IDYES) {
-            //Call OpenKeyUpdate
-            WCHAR path[MAX_PATH];
-            GetCurrentDirectory(MAX_PATH, path);
-            wsprintf(path, TEXT("%s\\OpenKeyUpdate.exe"), path);
-            ShellExecute(0, L"", path, 0, 0, SW_SHOWNORMAL);
-
-            AppDelegate::getInstance()->onOpenKeyExit();
-        }
-
+    bool answered = false;
+    if (OpenKeyManager::checkUpdate(newVersion, &answered)) {
+        AppDelegate::getInstance()->offerUpdate(hDlg, newVersion);
+    }
+    else if (!answered) {
+        MessageBox(hDlg, _T("Không kiểm tra được phiên bản mới. Hãy kiểm tra kết nối mạng rồi thử lại."), _T("VOpenKey AI Update"), MB_ICONWARNING | MB_OK);
     }
     else {
         MessageBox(hDlg, _T("Bạn đang dùng phiên bản mới nhất!"), _T("VOpenKey AI Update"), MB_OK);

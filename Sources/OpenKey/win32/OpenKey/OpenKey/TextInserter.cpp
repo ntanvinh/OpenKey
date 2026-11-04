@@ -107,6 +107,25 @@ bool putTemporaryText(const std::wstring& text) {
     return ok;
 }
 
+//The picture goes on the clipboard, marked like the text so that clipboard history and the cloud clipboard leave it alone
+bool putTemporaryPicture(const std::vector<BYTE>& dib, const std::vector<BYTE>& png) {
+    if (dib.empty() || !openClipboard())
+        return false;
+    EmptyClipboard();
+    bool ok = putFormat(CF_DIB, dib.data(), dib.size());
+    if (ok && !png.empty())
+        putFormat(RegisterClipboardFormatW(L"PNG"), png.data(), png.size());
+    DWORD zero = 0, one = 1;
+    UINT history = RegisterClipboardFormatW(L"CanIncludeInClipboardHistory");
+    UINT cloud = RegisterClipboardFormatW(L"CanUploadToCloudClipboard");
+    UINT monitors = RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing");
+    putFormat(history, (const BYTE*)&zero, sizeof(zero));
+    putFormat(cloud, (const BYTE*)&zero, sizeof(zero));
+    putFormat(monitors, (const BYTE*)&one, sizeof(one));
+    CloseClipboard();
+    return ok;
+}
+
 void CALLBACK restoreTimerProc(HWND, UINT, UINT_PTR, DWORD) {
     TextInserter::restoreClipboardNow();
 }
@@ -250,6 +269,28 @@ void insertText(const std::wstring& text, HWND target) {
     postControlKey('V');
 
     g_restoreTimer = SetTimer(NULL, 0, kRestoreDelayMs, restoreTimerProc);
+}
+
+void insertPicture(const std::vector<BYTE>& dib, const std::vector<BYTE>& png, HWND target) {
+    restoreClipboardNow();
+
+    Snapshot before = takeSnapshot();
+    DWORD sequenceBefore = GetClipboardSequenceNumber();
+    if (!putTemporaryPicture(dib, png)) {
+        if (GetClipboardSequenceNumber() != sequenceBefore && before.taken)
+            restoreSnapshot(before);
+        return;
+    }
+    g_sequenceAfterOurs = GetClipboardSequenceNumber();
+    g_waiting = before;
+    g_restorePending = true;
+
+    if (target)
+        activateWindow(target);
+    postControlKey('V');
+
+    //a picture is read by the program more slowly than a text: the clipboard of the user comes back a little later
+    g_restoreTimer = SetTimer(NULL, 0, kRestoreDelayMs * 2, restoreTimerProc);
 }
 
 std::string expandedText(const std::string& text) {

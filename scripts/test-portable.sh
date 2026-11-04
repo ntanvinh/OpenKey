@@ -27,6 +27,9 @@ run macro_presets_test macro_presets_test.cpp ../MacroPresets.cpp
 run ai_presets_test ai_presets_test.cpp ../AIPresets.cpp ../MiniJson.cpp
 run donation_info_test donation_info_test.cpp ../MiniJson.cpp
 run ai_protocol_test ai_protocol_test.cpp ../AIProtocol.cpp ../MiniJson.cpp
+run ai_agent_test ai_agent_test.cpp ../AIAgent.cpp ../AIProtocol.cpp ../MiniJson.cpp
+run suggest_appearance_test suggest_appearance_test.cpp ../SuggestAppearance.cpp
+run app_exclusions_test app_exclusions_test.cpp ../AppExclusions.cpp
 run restore_test restore_test.cpp ../Engine.cpp ../Vietnamese.cpp ../Macro.cpp ../SmartSwitchKey.cpp ../ConvertTool.cpp
 run suggestion_keys_test ../../win32/OpenKey/tests/suggestion_keys_test.cpp -I../../win32/OpenKey/OpenKey
 if [ "$(uname)" = "Darwin" ]; then

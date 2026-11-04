@@ -17,6 +17,7 @@
 #include "SnippetEditor.h"
 #include "SnippetService.h"
 #include "SuggestionController.h"
+#include "SuggestionOptionsDialog.h"
 
 namespace {
 
@@ -32,7 +33,8 @@ enum {
     kIdStatus = 364,
     kIdAISettings = 365,
     kIdMacroPresets = 366,
-    kIdDonate = 367
+    kIdDonate = 367,
+    kIdSuggestionOptions = 368
 };
 
 struct CheckSpec {
@@ -52,6 +54,7 @@ const CheckSpec kChecks[] = {
     {L"Phím Tab chọn gợi ý đầu tiên", L"Tắt đi thì Tab là phím Tab bình thường; vẫn có thể chọn bằng Alt+1 đến Alt+5. Esc tắt thanh gợi ý.", &vSuggestTabAccepts, L"vSuggestTabAccepts", true},
     {L"Gõ tắt: chờ bạn chọn trên thanh gợi ý rồi mới thay", L"Gõ \"vn\" ở cuối \"example.com.vn\" sẽ không bị đổi thành chữ gõ tắt. Chỉ áp dụng với bảng mã Unicode.", &vMacroConfirm, L"vMacroConfirm", false},
     {L"Bật snippet", L"Mở bảng snippet bằng phím tắt, chọn rồi dán vào chỗ đang gõ.", &vSnippetsEnabled, L"vSnippetsEnabled", false},
+    {L"Tự hiện danh sách đổi chữ hoa thường khi bôi đen chữ", L"Đọc vùng chọn bằng UI Automation, không dùng Ctrl+C và không đụng vào clipboard. Chỉ hiện khi chương trình cho phép đọc vùng chọn (Notepad, Word, trình duyệt...). Alt+1 đến Alt+9 chọn kiểu; nhấn phím tắt đổi chữ hoa thường để dùng thêm phím mũi tên và Enter.", &vCaseBarAuto, L"vCaseBarAuto", false},
 };
 const int kCheckCount = sizeof(kChecks) / sizeof(kChecks[0]);
 
@@ -118,7 +121,7 @@ void section(const wchar_t* title, int& y, int width) {
 }
 
 void build() {
-    int width = px(560);
+    int width = px(640);
     int y = px(12);
     int check = 0;
 
@@ -135,6 +138,8 @@ void build() {
     control(L"BUTTON", L"Xoá từ đã học", WS_TABSTOP | BS_PUSHBUTTON, px(24) + buttonWidth + px(146), y + px(4), px(130), px(28), kIdForgetLearned);
     y += px(40);
     control(L"BUTTON", L"Thêm gõ tắt phổ biến (ko, dc, vs...)", WS_TABSTOP | BS_PUSHBUTTON, px(24), y, px(300), px(28), kIdMacroPresets);
+    //on the same row, and the window is wider: it is as high as a small screen allows already
+    control(L"BUTTON", L"Trong suốt và chương trình tự tắt...", WS_TABSTOP | BS_PUSHBUTTON, px(332), y, width - px(332) - px(24), px(28), kIdSuggestionOptions);
     y += px(40);
 
     section(L"Snippet", y, width);
@@ -149,6 +154,9 @@ void build() {
     y += px(40);
 
     section(L"Công cụ khi gõ và trợ lý AI", y, width);
+    g_checks[check] = control(L"BUTTON", kChecks[check].text, WS_TABSTOP | BS_AUTOCHECKBOX, px(24), y, width - px(40), px(24), kIdCheckFirst + check);
+    check++;
+    y += px(28);
     for (int i = 1; i < kShortcutCount; i++) {
         control(L"STATIC", kShortcuts[i].label, 0, px(24), y + px(4), width - fieldWidth - px(56), px(22), 0);
         g_fields[i] = control(L"EDIT", L"", WS_TABSTOP | ES_READONLY | ES_CENTER, width - fieldWidth - px(16), y, fieldWidth, px(28),
@@ -199,6 +207,8 @@ void changeCheck(int index) {
     OpenKeyHelper::setRegInt(spec.registryName, value);
     refreshEnabled();
     SuggestionController::applySettings();
+    if (spec.variable == &vCaseBarAuto && !value)
+        CaseBar::hide(); //switched off: a list that is up goes away
 }
 
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -240,6 +250,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 SuggestionController::forgetLearnedWords();
                 setStatus(L"Đã xoá các từ đã học.");
             }
+        } else if (id == kIdSuggestionOptions) {
+            SuggestionOptionsDialog::show();
         } else if (id == kIdMacroPresets) {
             addMacroPresets();
         } else if (id == kIdAISettings) {

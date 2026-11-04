@@ -8,6 +8,8 @@
 #include "AIText.h"
 #include "FeatureStorage.h"
 #include "FeatureActions.h"
+#include "AIAgentRunner.h"
+#include "../../../engine/AIAgent.h"
 
 int vAICopySelection = 1;
 
@@ -90,7 +92,44 @@ void setModel(const vai::Provider& provider, const std::string& model) {
     saveOrForget(perProvider(provider, L"model"), model, provider.model);
 }
 
+std::string defaultImagePrompt() {
+    return vai::agent::defaultImagePromptTemplate();
+}
+
+std::string imagePrompt() {
+    std::string saved = FeatureStorage::getSettingText(L"AI.imagePrompt");
+    return saved.empty() ? defaultImagePrompt() : saved;
+}
+
+void setImagePrompt(const std::string& text) {
+    saveOrForget(L"AI.imagePrompt", text, defaultImagePrompt());
+}
+
+bool canMakeImages(const vai::Provider& provider) {
+    const vai::agent::Agent* program = vai::agent::find(provider.id);
+    return program != NULL && program->canMakeImages && isReady(provider);
+}
+
+std::string programFor(const vai::Provider& provider) {
+    return FeatureStorage::getSettingText(perProvider(provider, L"program").c_str());
+}
+
+void setProgram(const vai::Provider& provider, const std::string& path) {
+    saveOrForget(perProvider(provider, L"program"), path, std::string());
+}
+
+std::string effortFor(const vai::Provider& provider) {
+    return FeatureStorage::getSettingText(perProvider(provider, L"effort").c_str());
+}
+
+void setEffort(const vai::Provider& provider, const std::string& effort) {
+    saveOrForget(perProvider(provider, L"effort"), effort, std::string());
+}
+
 bool isReady(const vai::Provider& provider) {
+    const vai::agent::Agent* program = vai::agent::find(provider.id);
+    if (program != NULL)
+        return !AIAgentRunner::findProgram(*program, utf8ToWideString(programFor(provider))).empty();
     if (provider.needsKey && !AIKeyStore::hasKeyForProvider(provider.id))
         return false;
     vai::AddressProblem problem;
@@ -98,6 +137,22 @@ bool isReady(const vai::Provider& provider) {
 }
 
 bool configurationFor(const vai::Provider& provider, bool requireModel, vai::Config& out, std::wstring& reason) {
+    const vai::agent::Agent* program = vai::agent::find(provider.id);
+    if (program != NULL) {
+        //a program of the computer: no address, no key, and no model needed (the program has its own default)
+        std::wstring executable = AIAgentRunner::findProgram(*program, utf8ToWideString(programFor(provider)));
+        out = vai::Config();
+        out.provider = provider;
+        if (executable.empty()) {
+            reason = AIText::forError(vai::Error(vai::ErrorCode::NoProgram, wideStringToUtf8(L"không tìm thấy")), out);
+            return false;
+        }
+        out.executable = wideStringToUtf8(executable);
+        out.model = modelFor(provider);
+        out.effort = effortFor(provider);
+        out.systemPrompt = systemPrompt();
+        return true;
+    }
     vai::AddressProblem problem;
     std::string address = vai::cleanBaseUrl(baseUrlFor(provider), problem);
     if (address.empty()) {
@@ -128,10 +183,13 @@ bool configurationFor(const vai::Provider& provider, bool requireModel, vai::Con
 void resetToDefaults() {
     FeatureStorage::deleteSetting(L"AI.provider");
     FeatureStorage::deleteSetting(L"AI.systemPrompt");
+    FeatureStorage::deleteSetting(L"AI.imagePrompt");
     const std::vector<vai::Provider>& all = vai::providers();
     for (size_t i = 0; i < all.size(); i++) {
         FeatureStorage::deleteSetting(perProvider(all[i], L"baseURL").c_str());
         FeatureStorage::deleteSetting(perProvider(all[i], L"model").c_str());
+        FeatureStorage::deleteSetting(perProvider(all[i], L"program").c_str());
+        FeatureStorage::deleteSetting(perProvider(all[i], L"effort").c_str());
     }
 }
 

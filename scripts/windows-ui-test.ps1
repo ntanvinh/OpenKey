@@ -108,7 +108,8 @@ $saved = $null
 if (Test-Path $key) { $saved = Get-ItemProperty $key }
 New-Item -Force -Path $key | Out-Null
 $test = @{ vLanguage = 1; vInputType = 0; vCodeTable = 0; vShowOnStartUp = 0; vRunWithWindows = 0; vCheckNewVersion = 0; vRunAsAdmin = 0;
-           vCheckSpelling = 1; vSuggestEnabled = 1; vSnippetsEnabled = 1; vUseMacro = 0; vUseSmartSwitchKey = 0; vRememberCode = 0 }
+           vCheckSpelling = 1; vSuggestEnabled = 1; vSnippetsEnabled = 1; vUseMacro = 0; vUseSmartSwitchKey = 0; vRememberCode = 0;
+           vCaseBarAuto = 0 }
 foreach ($k in $test.Keys) { Set-ItemProperty -Path $key -Name $k -Value $test[$k] -Type DWord }
 
 $app = $null

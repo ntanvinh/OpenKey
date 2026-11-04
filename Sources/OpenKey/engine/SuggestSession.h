@@ -109,6 +109,12 @@ public:
      * dropsAcceptedSpace(ch) is true for the key's character, sends one backspace first.
      */
     bool acceptedSpacePending() const { return spacePending_; }
+    /**
+     * True when spaceAdjustment() could answer something else than 0 for some key: a suggestion was just chosen, or the closing
+     * mark after one was just typed. Platforms that have to work out the character of a key (Windows: ToUnicodeEx, which is not
+     * free of side effects on old systems) do that only while this is true.
+     */
+    bool spaceAdjustmentPending() const { return settings_.enabled && (spacePending_ || markPending_); }
     static bool dropsAcceptedSpace(unsigned int codePoint);
 
     /**

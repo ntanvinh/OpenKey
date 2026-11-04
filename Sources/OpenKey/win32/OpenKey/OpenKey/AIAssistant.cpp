@@ -14,11 +14,17 @@
 #include "FeatureTheme.h"
 #include "FeatureWindows.h"
 #include "TextInserter.h"
+#include "PictureFile.h"
+#include "../../../engine/AIAgent.h"
+#include <shlwapi.h>
 #include <ctime>
+
+#pragma comment(lib, "shlwapi.lib")
 
 namespace {
 
 const wchar_t kClassName[] = L"VOpenKeyAIAssistant";
+const wchar_t kPictureClassName[] = L"VOpenKeyAIPicture";
 
 enum {
     kIdProvider = 401,
@@ -31,6 +37,10 @@ enum {
     kIdOutput,
     kIdInsert,
     kIdCopy,
+    kIdImage,
+    kIdSavePicture,
+    kIdRevealPicture,
+    kIdPicture,
     kIdLabelInput,
     kIdLabelOutput,
     kIdPresetCaption,
@@ -40,10 +50,13 @@ enum {
 enum State { Idle, Generating, Done, Failed };
 
 const UINT_PTR kTimerSeconds = 1;
-const UINT_PTR kTimerCopied = 2;
 
 HWND g_window = NULL;
 HWND g_provider, g_model, g_settings, g_context, g_input, g_ask, g_status, g_output, g_insert, g_copy, g_labelInput, g_labelOutput;
+//a picture made by Codex: the button, the view that takes the place of the answer box, and what can be done with it
+HWND g_image, g_pictureView, g_savePicture, g_revealPicture;
+PictureFile::Picture g_picture;
+bool g_imageRequest = false;          //the request that is going on is for a picture
 HFONT g_font = NULL, g_boldFont = NULL;
 HBRUSH g_fieldBrush = NULL, g_backgroundBrush = NULL;
 int g_dpi = 96;
@@ -132,7 +145,10 @@ void fillProviders() {
 void showModel() {
     const vai::Provider& provider = chosenProvider();
     std::wstring model = utf8ToWideString(AISettings::modelFor(provider));
-    SetWindowTextW(g_model, model.empty() ? L"" : (L"Model: " + model).c_str());
+    if (model.empty() && provider.protocol == vai::Protocol::Agent) //a program of the computer picks a light model by itself
+        SetWindowTextW(g_model, L"Model: tự chọn (nhẹ)");
+    else
+        SetWindowTextW(g_model, model.empty() ? L"" : (L"Model: " + model).c_str());
 }
 
 void setStatus(const std::wstring& text) {
@@ -165,13 +181,19 @@ void updatePresetButtons() {
     }
 }
 
+bool hasPicture() {
+    return !g_picture.empty();
+}
+
 void updateButtons() {
     bool generating = g_state == Generating;
     SetWindowTextW(g_ask, generating ? L"Dừng (Esc)" : L"Tạo (Ctrl+Enter)");
-    bool haveResult = !g_result.empty();
+    bool haveResult = !g_result.empty() || hasPicture();
     EnableWindow(g_insert, haveResult && !generating);
     EnableWindow(g_copy, haveResult && !generating);
     EnableWindow(g_provider, !generating);
+    //only Codex makes pictures
+    EnableWindow(g_image, !generating && AISettings::canMakeImages(chosenProvider()));
     updatePresetButtons();
 }
 
@@ -186,12 +208,30 @@ void tickSeconds() {
     if (g_state != Generating)
         return;
     int seconds = (int)(time(NULL) - g_started);
-    setStatus(seconds < 2 ? L"Đang tạo..." : L"Đang tạo... " + std::to_wstring(seconds) + L" giây");
+    if (g_imageRequest)
+        setStatus(seconds < 2 ? L"Đang tạo ảnh..." : L"Đang tạo ảnh... " + std::to_wstring(seconds) + L" giây (thường 20 đến 40 giây)");
+    else
+        setStatus(seconds < 2 ? L"Đang tạo..." : L"Đang tạo... " + std::to_wstring(seconds) + L" giây");
+}
+
+void layout();
+
+//the answer box shows again where the picture was
+void forgetPicture() {
+    g_picture = PictureFile::Picture();
+    g_imageRequest = false;
+    if (g_window) {
+        ShowWindow(g_pictureView, SW_HIDE);
+        ShowWindow(g_savePicture, SW_HIDE);
+        ShowWindow(g_revealPicture, SW_HIDE);
+        ShowWindow(g_output, SW_SHOW);
+    }
 }
 
 void clearTexts() {
     g_result.clear();
     g_failure.clear();
+    forgetPicture();
     if (g_window) {
         SetWindowTextW(g_input, L"");
         SetWindowTextW(g_output, L"");
@@ -226,6 +266,7 @@ void ask() {
     }
     g_result.clear();
     SetWindowTextW(g_output, L"");
+    forgetPicture();
     g_started = time(NULL);
     //a conversion that was chosen goes in front of the text; it is not written in the box, the button that is down says which one it is
     std::string request = wideStringToUtf8(prompt);
@@ -247,9 +288,90 @@ void ask() {
     SetTimer(g_window, kTimerSeconds, 1000, NULL);
 }
 
+//Asks Codex for a picture of what the box describes. Its imagegen skill has to be named in the request, or the picture is a poor one: the sentence
+//(Settings > AI) does it. The file is kept by Codex in its own folder.
+void askForImage() {
+    if (g_state == Generating)
+        return;
+    if (!hasText()) {
+        setHint(L"Hãy mô tả bức ảnh bạn muốn trước.");
+        SetFocus(g_input);
+        return;
+    }
+    const vai::Provider& provider = chosenProvider();
+    if (!AISettings::canMakeImages(provider)) {
+        showFailure(L"Chỉ tạo được ảnh khi dùng Codex CLI. Chọn Codex CLI ở ô dịch vụ phía trên (và cài đặt chương trình trong Cài đặt AI).");
+        return;
+    }
+    g_activePreset = -1; //a picture is made from the description in the box, not from a conversion
+    updatePresetButtons();
+    AISettings::setProviderId(provider.id);
+    vai::Config config;
+    std::wstring reason;
+    if (!AISettings::configurationFor(provider, false, config, reason)) {
+        showFailure(reason);
+        return;
+    }
+    g_result.clear();
+    SetWindowTextW(g_output, L"");
+    forgetPicture();
+    g_started = time(NULL);
+    std::string request = vai::agent::imagePromptForRequest(wideStringToUtf8(fromEdit(textOf(g_input))), AISettings::imagePrompt());
+    unsigned id = AIClient::generateImage(config, request, g_window, reason);
+    if (id == 0) {
+        showFailure(reason);
+        return;
+    }
+    g_imageRequest = true;
+    g_request = id;
+    g_state = Generating;
+    setStatus(L"Đang tạo ảnh...");
+    updateButtons();
+    SetTimer(g_window, kTimerSeconds, 1000, NULL);
+}
+
+//The picture is there: it takes the place of the answer box, with what can be done with it
+void showPictureFile(const std::wstring& path) {
+    PictureFile::Picture picture;
+    if (!PictureFile::load(path, picture)) {
+        vai::Config forText;
+        forText.provider = chosenProvider();
+        const wchar_t* name = PathFindFileNameW(path.c_str());
+        showFailure(AIText::forError(vai::Error(vai::ErrorCode::BadPicture, wideStringToUtf8(name)), forText));
+        return;
+    }
+    g_picture = picture;
+    g_imageRequest = false;
+    g_state = Done;
+    ShowWindow(g_output, SW_HIDE);
+    ShowWindow(g_pictureView, SW_SHOW);
+    ShowWindow(g_savePicture, SW_SHOW);
+    ShowWindow(g_revealPicture, SW_SHOW);
+    layout();
+    InvalidateRect(g_pictureView, NULL, TRUE);
+    wchar_t shown[MAX_PATH] = {0};
+    if (!PathCompactPathExW(shown, path.c_str(), 64, 0))
+        wcsncpy(shown, path.c_str(), MAX_PATH - 1);
+    setStatus(L"Xong. Ctrl+Shift+Enter để chèn ảnh, Ctrl+Shift+C để sao chép và đóng, bấm vào ảnh để xem lớn. Codex lưu ảnh ở " + std::wstring(shown));
+    updateButtons();
+}
+
+//Downloads, with a name of its own, without asking
+void savePicture() {
+    if (!hasPicture())
+        return;
+    std::wstring saved = PictureFile::saveCopy(g_picture.path, PictureFile::downloadsFolder());
+    if (saved.empty()) {
+        setStatus(L"Không lưu được ảnh vào thư mục Downloads.");
+        return;
+    }
+    setStatus(L"Đã lưu vào Downloads: " + std::wstring(PathFindFileNameW(saved.c_str())));
+}
+
 void stop() {
     if (g_state != Generating)
         return;
+    g_imageRequest = false;
     stopRequest();
     g_state = g_result.empty() ? Idle : Done;
     setStatus(g_result.empty() ? L"Đã dừng." : L"Đã dừng. Phần đã viết được giữ lại.");
@@ -280,8 +402,27 @@ void pasteResult() {
     g_pasteText.clear();
 }
 
+std::vector<BYTE> g_pasteDib, g_pastePng;
+
+//the keys of the shortcut may still be down, as for a text
+void pastePicture() {
+    TextInserter::insertPicture(g_pasteDib, g_pastePng, g_pasteTarget);
+    g_pasteDib.clear();
+    g_pastePng.clear();
+}
+
 void insertResult() {
-    if (g_result.empty() || g_state == Generating)
+    if (g_state == Generating)
+        return;
+    if (hasPicture()) {
+        g_pasteDib = g_picture.dib;
+        g_pastePng = g_picture.png;
+        g_pasteTarget = g_target;
+        AIAssistant::hide(); //the picture of the window is gone, the copy above is what is pasted
+        TextInserter::runWhenKeysReleased(pastePicture);
+        return;
+    }
+    if (g_result.empty())
         return;
     g_pasteText = g_result;
     g_pasteTarget = g_target;
@@ -289,28 +430,41 @@ void insertResult() {
     TextInserter::runWhenKeysReleased(pasteResult);
 }
 
-void copyResult() {
+//Puts the answer on the clipboard and closes the window, as the same action on macOS. The window closes only after the clipboard
+//took the text: when it did not (another program holds the clipboard) the answer stays for another try.
+void copyAndClose() {
+    if (g_state == Generating)
+        return;
+    if (hasPicture()) {
+        if (PictureFile::copyToClipboard(g_window, g_picture))
+            AIAssistant::hide();
+        else
+            setStatus(L"Không sao chép được: chương trình khác đang giữ clipboard. Hãy thử lại.");
+        return;
+    }
     if (g_result.empty())
         return;
-    if (!OpenClipboard(g_window))
-        return;
-    EmptyClipboard();
-    size_t bytes = (g_result.size() + 1) * sizeof(wchar_t);
-    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
-    if (memory) {
-        void* destination = GlobalLock(memory);
-        if (destination) {
-            memcpy(destination, g_result.c_str(), bytes);
-            GlobalUnlock(memory);
-            if (!SetClipboardData(CF_UNICODETEXT, memory))
-                GlobalFree(memory);
-        } else {
-            GlobalFree(memory);
+    bool copied = false;
+    if (OpenClipboard(g_window)) {
+        EmptyClipboard();
+        size_t bytes = (g_result.size() + 1) * sizeof(wchar_t);
+        HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+        if (memory) {
+            void* destination = GlobalLock(memory);
+            if (destination) {
+                memcpy(destination, g_result.c_str(), bytes);
+                GlobalUnlock(memory);
+                copied = SetClipboardData(CF_UNICODETEXT, memory) != NULL;
+            }
+            if (!copied)
+                GlobalFree(memory); //the clipboard owns the memory only when it was taken
         }
+        CloseClipboard();
     }
-    CloseClipboard();
-    setStatus(L"Đã sao chép.");
-    SetTimer(g_window, kTimerCopied, 2000, NULL);
+    if (copied)
+        AIAssistant::hide();
+    else
+        setStatus(L"Không sao chép được: chương trình khác đang giữ clipboard. Hãy thử lại.");
 }
 
 //The ready-made conversions: buttons in rows that break where the width of the window ends (a row of controls does not wrap by itself).
@@ -363,18 +517,25 @@ void layout() {
         y += stripHeight + gap;
     }
 
-    int askWidth = px(150);
+    int askWidth = px(150), imageWidth = px(190);
     MoveWindow(g_ask, pad, y, askWidth, rowHeight + px(4), TRUE);
-    MoveWindow(g_status, pad + askWidth + gap, y + px(4), width - pad * 2 - askWidth - gap, px(36), TRUE);
+    MoveWindow(g_image, pad + askWidth + gap, y, imageWidth, rowHeight + px(4), TRUE);
+    int statusLeft = pad + askWidth + gap + imageWidth + gap;
+    MoveWindow(g_status, statusLeft, y + px(4), width - pad - statusLeft, px(36), TRUE);
     y += rowHeight + px(4) + gap;
 
-    MoveWindow(g_labelOutput, pad, y, width - pad * 2, px(20), TRUE);
-    y += px(20);
+    //the label of the answer, and on its line what can be done with a picture
+    int saveWidth = px(150), revealWidth = px(120);
+    MoveWindow(g_labelOutput, pad, y, width - pad * 2 - saveWidth - revealWidth - gap * 2, px(24), TRUE);
+    MoveWindow(g_savePicture, width - pad - saveWidth - revealWidth - gap, y - px(2), saveWidth, px(26), TRUE);
+    MoveWindow(g_revealPicture, width - pad - revealWidth, y - px(2), revealWidth, px(26), TRUE);
+    y += px(26);
     int bottom = height - pad - rowHeight - gap;
     MoveWindow(g_output, pad, y, width - pad * 2, (std::max)(px(60), bottom - y), TRUE);
+    MoveWindow(g_pictureView, pad, y, width - pad * 2, (std::max)(px(60), bottom - y), TRUE);
     int buttonsTop = height - pad - rowHeight;
     MoveWindow(g_insert, pad, buttonsTop, px(290), rowHeight, TRUE);
-    MoveWindow(g_copy, pad + px(290) + gap, buttonsTop, px(220), rowHeight, TRUE);
+    MoveWindow(g_copy, pad + px(290) + gap, buttonsTop, px(250), rowHeight, TRUE);
 }
 
 HWND child(const wchar_t* cls, const wchar_t* text, DWORD style, int id, DWORD exStyle = 0) {
@@ -391,9 +552,16 @@ LRESULT CALLBACK editProc(HWND edit, UINT message, WPARAM wParam, LPARAM lParam)
     //keep moving and closing as in any dialog.
     if (message == WM_GETDLGCODE && GetKeyState(VK_CONTROL) < 0)
         return DLGC_WANTALLKEYS | (LRESULT)CallWindowProcW(original, edit, message, wParam, lParam);
+    //Ctrl+Alt+Enter asks for a picture: Alt makes it a "system" key message
+    if (message == WM_SYSKEYDOWN && wParam == VK_RETURN && GetKeyState(VK_CONTROL) < 0 && GetKeyState(VK_SHIFT) >= 0 && edit == g_input) {
+        askForImage();
+        return 0;
+    }
+    if (message == WM_SYSCHAR && wParam == '\r' && GetKeyState(VK_CONTROL) < 0)
+        return 0; //the character of that Enter is not for the box (and no beep)
     if (message == WM_KEYDOWN) {
         bool control = GetKeyState(VK_CONTROL) < 0, shift = GetKeyState(VK_SHIFT) < 0;
-        if (wParam == VK_RETURN && control && !shift && edit == g_input) {
+        if (wParam == VK_RETURN && control && !shift && GetKeyState(VK_MENU) >= 0 && edit == g_input) {
             ask();
             return 0;
         }
@@ -402,13 +570,38 @@ LRESULT CALLBACK editProc(HWND edit, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
         if (wParam == 'C' && control && shift) {
-            copyResult();
+            copyAndClose();
             return 0;
         }
     }
     if (message == WM_CHAR && wParam == '\n' && GetKeyState(VK_CONTROL) < 0)
         return 0; //Ctrl+Enter is not a character of the request
     return CallWindowProcW(original, edit, message, wParam, lParam);
+}
+
+//The picture that Codex made, in the place of the answer box: as large as fits, a click opens it in the program of the user for it
+LRESULT CALLBACK pictureProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC dc = BeginPaint(window, &ps);
+        RECT client;
+        GetClientRect(window, &client);
+        PictureFile::draw(dc, client, g_picture, FeatureTheme::colors().field);
+        EndPaint(window, &ps);
+        return 0;
+    }
+    case WM_ERASEBKGND:
+        return 1;
+    case WM_SETCURSOR:
+        SetCursor(LoadCursor(NULL, hasPicture() ? IDC_HAND : IDC_ARROW));
+        return TRUE;
+    case WM_LBUTTONUP:
+        if (hasPicture())
+            PictureFile::openWithDefaultProgram(g_picture.path);
+        return 0;
+    }
+    return DefWindowProcW(window, message, wParam, lParam);
 }
 
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -450,10 +643,16 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         int id = LOWORD(wParam);
         if (id == kIdAsk) {
             if (g_state == Generating) stop(); else ask();
+        } else if (id == kIdImage) {
+            askForImage();
+        } else if (id == kIdSavePicture) {
+            savePicture();
+        } else if (id == kIdRevealPicture) {
+            PictureFile::showInExplorer(g_picture.path);
         } else if (id == kIdInsert) {
             insertResult();
         } else if (id == kIdCopy) {
-            copyResult();
+            copyAndClose();
         } else if (id >= kIdPresetFirst && id < kIdPresetFirst + (int)g_presetButtons.size() && HIWORD(wParam) == BN_CLICKED) {
             applyPreset(id - kIdPresetFirst);
         } else if (id == kIdInput && HIWORD(wParam) == EN_CHANGE) {
@@ -468,6 +667,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             AISettings::setProviderId(chosenProvider().id);
             showModel();
             setStatus(L"");
+            updateButtons(); //only Codex makes pictures
         } else if (id == IDCANCEL) { //Esc: stops what is going on, otherwise closes
             if (g_state == Generating) stop(); else AIAssistant::hide();
         }
@@ -476,10 +676,6 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     case WM_TIMER:
         if (wParam == kTimerSeconds) {
             tickSeconds();
-        } else if (wParam == kTimerCopied) {
-            KillTimer(window, kTimerCopied);
-            if (g_state != Generating && g_state != Failed)
-                setStatus(L"");
         }
         return 0;
     case AIClient::kMessageText: {
@@ -493,6 +689,22 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         }
         return 0;
     }
+    case AIClient::kMessageImage: {
+        AIClient::ImageDone* done = (AIClient::ImageDone*)lParam;
+        if (done) {
+            if ((unsigned)wParam == g_request && g_state == Generating) {
+                g_request = 0;
+                g_imageRequest = false;
+                KillTimer(window, kTimerSeconds);
+                if (done->error.ok())
+                    showPictureFile(done->path);
+                else
+                    showFailure(done->message);
+            }
+            delete done;
+        }
+        return 0;
+    }
     case AIClient::kMessageDone: {
         AIClient::Done* done = (AIClient::Done*)lParam;
         if (done) {
@@ -502,8 +714,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 if (done->error.ok()) {
                     g_state = Done;
                     //the rhymes and the number of syllables of a poem are the AI's word: the window does not count them
-                    setStatus(g_poemRequest ? L"Xong. Số tiếng và vần của thơ chưa được kiểm tra, hãy đọc lại. Ctrl+Shift+Enter để chèn, Ctrl+Shift+C để sao chép."
-                                            : L"Xong. Ctrl+Shift+Enter để chèn vào chỗ đang gõ, Ctrl+Shift+C để sao chép.");
+                    setStatus(g_poemRequest ? L"Xong. Số tiếng và vần của thơ chưa được kiểm tra, hãy đọc lại. Ctrl+Shift+Enter để chèn, Ctrl+Shift+C để sao chép và đóng."
+                                            : L"Xong. Ctrl+Shift+Enter để chèn vào chỗ đang gõ, Ctrl+Shift+C để sao chép và đóng.");
                     updateButtons();
                 } else {
                     //what came before the error stays readable
@@ -583,6 +795,13 @@ bool create() {
     wc.hIcon = LoadIcon(instance, MAKEINTRESOURCE(IDI_APP_ICON));
     if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
         return false;
+    WNDCLASSEXW pictureClass = {sizeof(pictureClass)};
+    pictureClass.lpfnWndProc = pictureProc;
+    pictureClass.hInstance = instance;
+    pictureClass.lpszClassName = kPictureClassName;
+    pictureClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+    if (!RegisterClassExW(&pictureClass) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
+        return false;
     g_dpi = FeatureTheme::dpi();
     if (g_font) DeleteObject(g_font);
     if (g_boldFont) DeleteObject(g_boldFont);
@@ -610,14 +829,22 @@ bool create() {
     SetWindowLongPtrW(g_input, GWLP_USERDATA, SetWindowLongPtrW(g_input, GWLP_WNDPROC, (LONG_PTR)editProc));
     buildPresets();
     g_ask = child(L"BUTTON", L"Tạo (Ctrl+Enter)", WS_TABSTOP | BS_DEFPUSHBUTTON, kIdAsk);
+    g_image = child(L"BUTTON", L"Tạo ảnh (Ctrl+Alt+Enter)", WS_TABSTOP | BS_PUSHBUTTON, kIdImage);
     g_status = child(L"STATIC", L"", 0, kIdStatus);
     g_labelOutput = child(L"STATIC", L"Kết quả", 0, kIdLabelOutput);
     SendMessageW(g_labelOutput, WM_SETFONT, (WPARAM)g_boldFont, TRUE);
     g_output = child(L"EDIT", L"", WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL, kIdOutput, WS_EX_CLIENTEDGE);
     SendMessageW(g_output, EM_SETLIMITTEXT, 0, 0);
     SetWindowLongPtrW(g_output, GWLP_USERDATA, SetWindowLongPtrW(g_output, GWLP_WNDPROC, (LONG_PTR)editProc));
+    g_pictureView = CreateWindowExW(WS_EX_CLIENTEDGE, kPictureClassName, L"Ảnh đã tạo", WS_CHILD | WS_CLIPSIBLINGS, 0, 0, 10, 10, g_window,
+                                    (HMENU)(INT_PTR)kIdPicture, GetModuleHandleW(NULL), NULL);
+    g_savePicture = child(L"BUTTON", L"Lưu vào Downloads", WS_TABSTOP | BS_PUSHBUTTON, kIdSavePicture);
+    g_revealPicture = child(L"BUTTON", L"Hiện file ảnh", WS_TABSTOP | BS_PUSHBUTTON, kIdRevealPicture);
+    ShowWindow(g_pictureView, SW_HIDE);
+    ShowWindow(g_savePicture, SW_HIDE);
+    ShowWindow(g_revealPicture, SW_HIDE);
     g_insert = child(L"BUTTON", L"Chèn vào ứng dụng (Ctrl+Shift+Enter)", WS_TABSTOP | BS_PUSHBUTTON, kIdInsert);
-    g_copy = child(L"BUTTON", L"Sao chép (Ctrl+Shift+C)", WS_TABSTOP | BS_PUSHBUTTON, kIdCopy);
+    g_copy = child(L"BUTTON", L"Sao chép và đóng (Ctrl+Shift+C)", WS_TABSTOP | BS_PUSHBUTTON, kIdCopy);
     layout();
     return true;
 }
@@ -640,6 +867,7 @@ void openAfterRelease() {
     g_activePreset = -1;
     g_result.clear();
     g_failure.clear();
+    forgetPicture();
     fillProviders();
     showModel();
     SetWindowTextW(g_output, L"");

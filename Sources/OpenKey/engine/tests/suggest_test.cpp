@@ -163,15 +163,19 @@ int main(int argc, char** argv) {
         Settings st; st.enabled = true; s.setSettings(st);
         Acceptance a;
         s.keyProcessed(KeyKind::Other, "xin"); s.keyProcessed(KeyKind::Space, ""); s.refresh();
+        CHECK(!s.spaceAdjustmentPending());            // nothing was accepted yet: a platform need not even work out characters
         CHECK(s.accept(0, "", a));
+        CHECK(s.spaceAdjustmentPending());             // the accepted space is the last thing typed
         CHECK(s.spaceAdjustment('a') == 0);            // a letter straight after the accepted space: nothing to do
         CHECK(s.spaceAdjustment('.') == -1);
         s.keyProcessed(KeyKind::Other, "");            // the mark itself
         CHECK(!s.acceptedSpacePending());
+        CHECK(s.spaceAdjustmentPending());             // ... and a letter right after the mark still needs its space
         CHECK(s.spaceAdjustment('x') == 1 && s.spaceAdjustment('A') == 1);
         CHECK(s.spaceAdjustment('.') == 0 && s.spaceAdjustment('1') == 0 && s.spaceAdjustment(' ') == 0);
         s.keyProcessed(KeyKind::Other, "x");           // the letter: the chance is over
         CHECK(s.spaceAdjustment('y') == 0);
+        CHECK(!s.spaceAdjustmentPending());
     }
 
     // ---- 7. session behaviour

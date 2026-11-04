@@ -108,6 +108,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	case WM_USER+2019:
 		AppDelegate::getInstance()->onControlPanel();
 		break;
+	case AppDelegate::kMessageUpdateFound: {
+		//a new version was found by the thread that looks for it
+		string* version = (string*)lParam;
+		if (version) {
+			AppDelegate::getInstance()->onUpdateFound(*version);
+			delete version;
+		}
+		break;
+	}
 	case WM_TRAYMESSAGE: {
 		if (lParam == WM_LBUTTONDBLCLK) {
 			AppDelegate::getInstance()->onControlPanel();
