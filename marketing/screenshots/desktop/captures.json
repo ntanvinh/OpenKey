@@ -38,5 +38,20 @@
     "shows": "A document where Vietnamese was typed through the real engine up to an unfinished last word ('viết'); the text is plain with no underline. It shows the result of the Backspace technique, not a side-by-side with the macOS input method.",
     "inUse": true,
     "language": "vi"
+  },
+  "custom-text-macros": {
+    "shows": "A sample document window in the dark theme with a Vietnamese message to customers; 'ace' was typed through the real typing engine (macro ace → 'anh chị em') and the real suggestion bar under the word offers 'anh chị em' with the Tab key.",
+    "inUse": true,
+    "language": "vi"
+  },
+  "remember-input-settings-by-app": {
+    "shows": "A sample Terminal window where commands (cd, git, npm, ssh, grep, git commit with unaccented Vietnamese) were typed in English mode and stay as typed, next to the real 'Ứng dụng đã ghi nhớ' window listing Terminal and Xcode = English, Notes, Safari, TextEdit = Tiếng Việt.",
+    "inUse": true,
+    "language": "vi"
+  },
+  "writing-controls": {
+    "shows": "The real Cài đặt › Bộ gõ window in the dark theme: Telex, Unicode, and the 'Chính tả và dấu' section with spell checking, auto-restore, oà/uý placement and sentence capitalization switched on.",
+    "inUse": true,
+    "language": "vi"
   }
 }

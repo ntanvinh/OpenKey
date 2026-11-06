@@ -16,5 +16,7 @@
   "screens": [
     "Input settings",
     "Encoding settings"
-  ]
+  ],
+  "featured": 10,
+  "image": "../screenshots/desktop/02-remember-input-settings-by-app.png"
 }

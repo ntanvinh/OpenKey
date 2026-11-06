@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "status": "approved",
+  "approvedAt": "2026-11-06T14:08:26.675Z",
+  "edited": true,
+  "theme": "dark",
+  "features": [
+    {
+      "featureId": "ai-writing-assistant",
+      "reason": "Listed first (unique, rank 10).",
+      "shows": ""
+    },
+    {
+      "featureId": "local-ai-setup",
+      "reason": "Listed first (unique, rank 20).",
+      "shows": ""
+    },
+    {
+      "featureId": "signed-in-ai-agents",
+      "reason": "Listed first (unique, rank 30).",
+      "shows": ""
+    },
+    {
+      "featureId": "ai-image-generation",
+      "reason": "Listed first (unique, rank 40).",
+      "shows": ""
+    },
+    {
+      "featureId": "prompt-snippet-library",
+      "reason": "Listed first (unique, rank 50).",
+      "shows": ""
+    },
+    {
+      "featureId": "restore-accidental-typing",
+      "reason": "Listed first (unique, rank 60).",
+      "shows": ""
+    },
+    {
+      "featureId": "contextual-word-suggestions",
+      "reason": "Listed first (unique, rank 70).",
+      "shows": ""
+    },
+    {
+      "featureId": "smooth-vietnamese-typing",
+      "reason": "Listed by the website (value, rank 80).",
+      "shows": ""
+    },
+    {
+      "featureId": "custom-text-macros",
+      "reason": "Added by you.",
+      "shows": "chụp suggestion bar khi gõ ace thì sẽ suggest là anh chị em"
+    },
+    {
+      "featureId": "remember-input-settings-by-app",
+      "reason": "Added by you.",
+      "shows": "chụp màn terminal sẽ tự động chuyển về tiếng anh để khi gõ lệnh không bị sang tiếng việt"
+    },
+    {
+      "featureId": "writing-controls",
+      "reason": "Added by you.",
+      "shows": "chụp cửa sổ setting của khu vực này"
+    }
+  ]
+}

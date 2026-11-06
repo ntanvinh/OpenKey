@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "mode": "desktop",
-  "orientation": "landscape",
+  "orientation": "portrait",
   "id": "writing-controls",
   "tier": "value",
   "rank": 130,
@@ -16,5 +16,7 @@
   "screens": [
     "Input settings",
     "Spelling settings"
-  ]
+  ],
+  "featured": 11,
+  "image": "../screenshots/desktop/03-writing-controls.png"
 }

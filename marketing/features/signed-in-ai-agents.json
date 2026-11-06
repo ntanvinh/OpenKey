@@ -17,5 +17,6 @@
     "AI assistant",
     "AI settings"
   ],
-  "image": "../screenshots/desktop/03-signed-in-ai-agents.png"
+  "image": "../screenshots/desktop/03-signed-in-ai-agents.png",
+  "featured": 3
 }

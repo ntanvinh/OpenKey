@@ -16,5 +16,7 @@
   "screens": [
     "Macro settings",
     "Text entry"
-  ]
+  ],
+  "featured": 9,
+  "image": "../screenshots/desktop/01-custom-text-macros.png"
 }

@@ -17,5 +17,6 @@
     "AI settings",
     "Local AI setup"
   ],
-  "image": "../screenshots/desktop/02-local-ai-setup.png"
+  "image": "../screenshots/desktop/02-local-ai-setup.png",
+  "featured": 2
 }

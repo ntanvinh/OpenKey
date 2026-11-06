@@ -151,14 +151,53 @@
         "en": "Use the Backspace typing technique to address the underline behavior described in macOS’s built-in Vietnamese input, with an option to handle autocorrect issues in supported apps.",
         "vi": "Gõ tiếng Việt bằng kỹ thuật Backspace để xử lý tình trạng gạch chân được README ghi nhận ở bộ gõ macOS, đồng thời có tùy chọn khắc phục lỗi autocorrect trong một số ứng dụng."
       }
+    },
+    {
+      "image": "./screenshots/01-custom-text-macros.png",
+      "mode": "desktop",
+      "orientation": "landscape",
+      "text": {
+        "en": "Expand Your Text Shortcuts",
+        "vi": "Mở rộng nội dung gõ tắt"
+      },
+      "description": {
+        "en": "Turn a short trigger into a longer piece of text while you type. Create macros for the text you use repeatedly.",
+        "vi": "Gõ cụm kích hoạt ngắn để chèn nhanh một đoạn nội dung dài hơn. Tạo macro cho những nội dung bạn thường dùng."
+      }
+    },
+    {
+      "image": "./screenshots/02-remember-input-settings-by-app.png",
+      "mode": "desktop",
+      "orientation": "landscape",
+      "text": {
+        "en": "Remember Settings For Each App",
+        "vi": "Ghi nhớ thiết lập từng app"
+      },
+      "description": {
+        "en": "Keep a preferred input mode or encoding for individual apps and switch back to it when you return. Useful when different apps need different text formats.",
+        "vi": "Ghi nhớ kiểu gõ hoặc bảng mã riêng cho từng ứng dụng để tự chuyển lại khi bạn quay về. Tiện khi mỗi ứng dụng cần một định dạng văn bản khác nhau."
+      }
+    },
+    {
+      "image": "./screenshots/03-writing-controls.png",
+      "mode": "desktop",
+      "orientation": "portrait",
+      "text": {
+        "en": "Tune Vietnamese Writing Rules",
+        "vi": "Tùy chỉnh cách gõ tiếng Việt"
+      },
+      "description": {
+        "en": "Adjust modern orthography, Quick Telex, spelling and grammar checks, capitalization, and other typing rules to suit your writing.",
+        "vi": "Tùy chỉnh cách đặt dấu, Quick Telex, kiểm tra chính tả và ngữ pháp, viết hoa đầu câu cùng các quy tắc gõ khác theo cách bạn viết."
+      }
     }
   ],
   "links": {
     "appStore": "#",
     "googlePlay": "#",
     "website": "#",
-    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest",
-    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest",
+    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg",
+    "windows": "#",
     "linux": "#",
     "privacyPolicy": "/privacy"
   }

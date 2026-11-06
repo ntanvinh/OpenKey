@@ -17,5 +17,6 @@
     "AI assistant",
     "AI settings"
   ],
-  "image": "../screenshots/desktop/01-ai-writing-assistant.png"
+  "image": "../screenshots/desktop/01-ai-writing-assistant.png",
+  "featured": 1
 }

@@ -16,8 +16,8 @@
     "appStore": "#",
     "googlePlay": "#",
     "website": "#",
-    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest",
-    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest",
+    "macos": "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg",
+    "windows": "#",
     "linux": "#",
     "privacyPolicy": "/privacy"
   },
@@ -27,7 +27,8 @@
       "vi"
     ],
     "media": [
-      "en-US"
+      "en-US",
+      "vi"
     ],
     "seed": [
       "en-US"

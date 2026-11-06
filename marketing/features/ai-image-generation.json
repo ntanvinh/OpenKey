@@ -17,5 +17,6 @@
     "AI assistant",
     "AI settings"
   ],
-  "image": "../screenshots/desktop/04-ai-image-generation.png"
+  "image": "../screenshots/desktop/04-ai-image-generation.png",
+  "featured": 4
 }

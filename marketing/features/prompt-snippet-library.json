@@ -18,5 +18,6 @@
     "Snippet management",
     "Snippet settings"
   ],
-  "image": "../screenshots/desktop/05-prompt-snippet-library.png"
+  "image": "../screenshots/desktop/05-prompt-snippet-library.png",
+  "featured": 5
 }
