@@ -1,5 +1,15 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.22 (build 100): (09/11/2026)
+- fix(secure-input): doubt the holder name macOS gives and delay the fallback
+- docs(marketing): add desktop captures 01-03 and refresh store listing
+- feat(windows): port agent CLIs, pictures, auto case list and update flow
+
+##### VOpenKey 3.7.21 (build 99): (09/11/2026)
+- fix(secure-input): doubt the holder name macOS gives and delay the fallback
+- docs(marketing): add desktop captures 01-03 and refresh store listing
+- feat(windows): port agent CLIs, pictures, auto case list and update flow
+
 ##### VOpenKey 3.7.20 (build 98): (03/11/2026)
 - feat(macOS): turn the tray icon yellow and show who holds secure input
 
