@@ -1,5 +1,11 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.23 (build 101): (09/11/2026)
+- chore(release): bump version to 3.7.22 (build 100)
+- fix(secure-input): doubt the holder name macOS gives and delay the fallback
+- docs(marketing): add desktop captures 01-03 and refresh store listing
+- feat(windows): port agent CLIs, pictures, auto case list and update flow
+
 ##### VOpenKey 3.7.22 (build 100): (09/11/2026)
 - fix(secure-input): doubt the holder name macOS gives and delay the fallback
 - docs(marketing): add desktop captures 01-03 and refresh store listing

@@ -184,7 +184,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSInteger codeTable = [defaults integerForKey:@"CodeTable"];
     BOOL grayIcon = [defaults integerForKey:@"GrayIcon"] != 0;
 
-    BOOL forcedToEnglish = language == 1 && [SecureInputMonitor isOpenKeyBlind];
+    BOOL forcedToEnglish = [SecureInputMonitor isOpenKeyBlind];
     BOOL vietnamese = language == 1 && !forcedToEnglish;
     if (forcedToEnglish) {
         if (_warningImage == nil)
@@ -201,7 +201,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _statusItem.button.toolTip = [SecureInputMonitor statusDescription];
     //colour alone says nothing to VoiceOver
     _statusItem.button.accessibilityLabel = forcedToEnglish
-        ? [NSString stringWithFormat:@"%@: Secure Input đang bật, tạm chuyển sang tiếng Anh", VOK_APP_NAME]
+        ? [NSString stringWithFormat:@"%@: Secure Input đang bật, %@", VOK_APP_NAME, language == 1 ? @"tạm chuyển sang tiếng Anh" : @"không gõ được tiếng Việt"]
         : VOK_APP_NAME;
 
     //Language switching is available through the app-wide shortcut; show the selection like other menu toggles.
