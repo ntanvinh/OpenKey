@@ -42,7 +42,129 @@ static NSString* NonEmpty(NSString* text) {
     return text.length > 0 ? text : nil;
 }
 
+static BOOL HasAnyPrefix(NSString* text, NSArray<NSString*>* prefixes) {
+    for (NSString* prefix in prefixes) {
+        if ([text hasPrefix:prefix])
+            return YES;
+    }
+    return NO;
+}
+
+static BOOL ContainsAny(NSString* text, NSArray<NSString*>* words) {
+    for (NSString* word in words) {
+        if ([text containsString:word])
+            return YES;
+    }
+    return NO;
+}
+
+//Terminals that have a "Secure Keyboard Entry" switch of their own, and where its state is kept
+static NSString* SecureKeyboardEntryKey(NSString* bundleIdentifier) {
+    if ([bundleIdentifier isEqualToString:@"com.apple.Terminal"])
+        return @"SecureKeyboardEntry";
+    if ([bundleIdentifier isEqualToString:@"com.googlecode.iterm2"])
+        return @"Secure Input";
+    return nil;
+}
+
+static NSArray<NSDictionary*>* (^sApplicationsProvider)(void);
+
+@implementation SecureInputSuspect
+
++(NSString*)reasonForBundleIdentifier:(NSString*)bundleIdentifier name:(NSString*)name secureKeyboardEntry:(BOOL)secureKeyboardEntry {
+    NSString* bundle = bundleIdentifier.lowercaseString ?: @"";
+    NSString* title = name.lowercaseString ?: @"";
+    if (SecureKeyboardEntryKey(bundleIdentifier) != nil)
+        return secureKeyboardEntry ? @"Secure Keyboard Entry đang bật" : nil;
+    if (HasAnyPrefix(bundle, @[@"com.devolutions.", @"com.microsoft.rdc", @"com.apple.remotedesktop", @"com.apple.screensharing", @"com.teamviewer.",
+                               @"com.philandro.anydesk", @"com.anydesk.", @"tv.parsec.", @"com.p5sys.jump", @"com.realvnc.", @"com.lemonmojo.royaltsx",
+                               @"com.royalapps.", @"com.edovia.screens", @"com.citrix.", @"com.rustdesk.", @"com.splashtop.", @"com.nomachine",
+                               @"com.vmware.horizon"]))
+        return @"điều khiển từ xa";
+    if (HasAnyPrefix(bundle, @[@"com.vmware.fusion", @"com.parallels.", @"org.virtualbox.", @"com.utmapp.utm"]))
+        return @"máy ảo";
+    if (HasAnyPrefix(bundle, @[@"com.1password.", @"com.agilebits.", @"com.bitwarden.", @"org.keepassxc.", @"com.hicknhacksoftware.macpass",
+                               @"com.dashlane.", @"com.lastpass.", @"com.apple.passwords", @"com.enpass.", @"com.keepersecurity."]))
+        return @"trình quản lý mật khẩu";
+    //nobody listed it, but its name says what it is
+    if (ContainsAny(title, @[@"remote desktop", @"anydesk", @"teamviewer", @"vnc viewer", @"rustdesk", @"splashtop"]))
+        return @"điều khiển từ xa";
+    return nil;
+}
+
++(NSArray<SecureInputSuspect*>*)suspectsAmongApplications:(NSArray<NSDictionary*>*)applications excludingPIDs:(NSArray<NSNumber*>*)pids {
+    NSMutableArray* suspects = [NSMutableArray array];
+    for (NSDictionary* app in applications) {
+        pid_t pid = (pid_t)[app[@"pid"] intValue];
+        if (pid <= 0 || [pids containsObject:@(pid)])
+            continue;
+        NSString* reason = [self reasonForBundleIdentifier:NonEmpty(app[@"bundleID"]) name:app[@"name"]
+                                       secureKeyboardEntry:[app[@"secureKeyboardEntry"] boolValue]];
+        if (reason != nil)
+            [suspects addObject:[[SecureInputSuspect alloc] initWithPID:pid name:app[@"name"] bundleIdentifier:NonEmpty(app[@"bundleID"]) reason:reason]];
+    }
+    return suspects;
+}
+
+//Is the Secure Keyboard Entry switch of that terminal on? NO for an application that has no such switch.
+static BOOL SecureKeyboardEntryIsOn(NSString* bundleIdentifier) {
+    NSString* key = SecureKeyboardEntryKey(bundleIdentifier);
+    if (key == nil)
+        return NO;
+    CFPropertyListRef value = CFPreferencesCopyAppValue((__bridge CFStringRef)key, (__bridge CFStringRef)bundleIdentifier);
+    BOOL on = value != NULL && CFGetTypeID(value) == CFBooleanGetTypeID() && CFBooleanGetValue(value);
+    if (value != NULL)
+        CFRelease(value);
+    return on;
+}
+
++(BOOL)secureKeyboardEntryIsOnForPID:(pid_t)pid {
+    if (pid <= 0)
+        return NO;
+    if (sApplicationsProvider != nil) {
+        for (NSDictionary* app in sApplicationsProvider()) {
+            if ((pid_t)[app[@"pid"] intValue] == pid)
+                return SecureKeyboardEntryKey(app[@"bundleID"]) != nil && [app[@"secureKeyboardEntry"] boolValue];
+        }
+        return NO;
+    }
+    return SecureKeyboardEntryIsOn([NSRunningApplication runningApplicationWithProcessIdentifier:pid].bundleIdentifier);
+}
+
++(NSArray<SecureInputSuspect*>*)runningSuspectsExcludingPIDs:(NSArray<NSNumber*>*)pids {
+    if (sApplicationsProvider != nil)
+        return [self suspectsAmongApplications:sApplicationsProvider() excludingPIDs:pids];
+    NSMutableArray* applications = [NSMutableArray array];
+    for (NSRunningApplication* app in [NSWorkspace sharedWorkspace].runningApplications) {
+        NSString* bundle = app.bundleIdentifier;
+        //only a terminal that is running and has the switch on counts: the switch is read for the ones that are there
+        [applications addObject:@{@"pid": @(app.processIdentifier), @"name": app.localizedName ?: @"", @"bundleID": bundle ?: @"",
+                                  @"secureKeyboardEntry": @(SecureKeyboardEntryIsOn(bundle))}];
+    }
+    return [self suspectsAmongApplications:applications excludingPIDs:pids];
+}
+
++(void)setApplicationsProvider:(NSArray<NSDictionary*>* (^)(void))provider {
+    sApplicationsProvider = [provider copy];
+}
+
+-(instancetype)initWithPID:(pid_t)pid name:(NSString*)name bundleIdentifier:(NSString*)bundleIdentifier reason:(NSString*)reason {
+    self = [super init];
+    if (self) {
+        _pid = pid;
+        _name = [name copy];
+        _bundleIdentifier = [bundleIdentifier copy];
+        _reason = [reason copy];
+    }
+    return self;
+}
+
+@end
+
 @implementation SecureInputHolder
+
+//their getters answer an empty array rather than nil
+@synthesize earlierReports = _earlierReports, suspects = _suspects;
 
 +(SecureInputHolderRole)roleForSessionInFront:(BOOL)sessionInFront holderPID:(pid_t)holderPID processExists:(BOOL)processExists
                                    regularApp:(BOOL)regularApp systemProgram:(BOOL)systemProgram frontmostPID:(pid_t)frontmostPID {
@@ -124,6 +246,25 @@ static NSString* NonEmpty(NSString* text) {
     return self;
 }
 
+-(instancetype)holderWithDoubt:(NSString*)doubt earlierReports:(NSArray<SecureInputHolder*>*)earlierReports
+                      suspects:(NSArray<SecureInputSuspect*>*)suspects {
+    SecureInputHolder* copy = [[SecureInputHolder alloc] initWithPID:_pid role:_role processExists:_processExists name:_name
+                                                    bundleIdentifier:_bundleIdentifier version:_version path:_path startDate:_startDate
+                                                           parentPID:_parentPID parentName:_parentName icon:_icon];
+    copy->_doubt = NonEmpty(doubt);
+    copy->_earlierReports = [earlierReports copy] ?: @[];
+    copy->_suspects = [suspects copy] ?: @[];
+    return copy;
+}
+
+-(NSArray<SecureInputHolder*>*)earlierReports {
+    return _earlierReports ?: @[];
+}
+
+-(NSArray<SecureInputSuspect*>*)suspects {
+    return _suspects ?: @[];
+}
+
 -(BOOL)isEqualToHolder:(SecureInputHolder*)other {
     if (other == self)
         return YES;
@@ -131,7 +272,11 @@ static NSString* NonEmpty(NSString* text) {
         return NO;
     return _pid == other.pid && _role == other.role && _processExists == other.processExists && _parentPID == other.parentPID &&
         SameObject(_name, other.name) && SameObject(_bundleIdentifier, other.bundleIdentifier) &&
-        SameObject(_version, other.version) && SameObject(_path, other.path) && SameObject(_parentName, other.parentName);
+        SameObject(_version, other.version) && SameObject(_path, other.path) && SameObject(_parentName, other.parentName) &&
+        SameObject(_doubt, other.doubt) &&
+        [[self.earlierReports valueForKey:@"pid"] isEqualToArray:[other.earlierReports valueForKey:@"pid"]] &&
+        [[self.suspects valueForKey:@"pid"] isEqualToArray:[other.suspects valueForKey:@"pid"]] &&
+        [[self.suspects valueForKey:@"reason"] isEqualToArray:[other.suspects valueForKey:@"reason"]];
 }
 
 -(NSString*)displayName {

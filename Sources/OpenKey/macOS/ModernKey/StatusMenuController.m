@@ -238,7 +238,14 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     _noticeSeparator.hidden = !needsPermission && secureDescription == nil && _updateItem.hidden;
     if (secureDescription != nil) {
         NSString* holder = [SecureInputMonitor holderName];
-        _secureItem.title = holder != nil ? [NSString stringWithFormat:@"Secure Input đang bật bởi %@…", holder] : @"Secure Input đang bật…";
+        //macOS names one process and is not always right (it has named this app itself): say so when the monitor has found a reason to doubt it
+        BOOL doubtful = [SecureInputMonitor currentHolder].doubt.length > 0;
+        if (holder == nil)
+            _secureItem.title = @"Secure Input đang bật…";
+        else if (doubtful)
+            _secureItem.title = [NSString stringWithFormat:@"macOS báo Secure Input bật bởi %@ (có thể không đúng)…", holder];
+        else
+            _secureItem.title = [NSString stringWithFormat:@"Secure Input đang bật bởi %@…", holder];
         _secureItem.toolTip = [secureDescription stringByAppendingString:@"\nBấm để xem chi tiết và tìm ra ứng dụng đó."];
         if (@available(macOS 14.4, *)) {
             _secureItem.subtitle = [SecureInputMonitor isFallbackActive] ? @"Đang dùng bộ gõ Vietnamese của macOS" : @"Tạm chuyển sang tiếng Anh";

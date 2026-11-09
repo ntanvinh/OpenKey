@@ -9,6 +9,7 @@
 #import "OpenKeyManager.h"
 #import "AppUpdater.h"
 #import "SecureInputMonitor.h"
+#import "SensitiveField.h"
 #import "SuggestionController.h"
 #import "InputSourceGuard.h"
 #import "Diagnostics.h"
@@ -94,7 +95,11 @@ static CFRunLoopSourceRef runLoopSource;
     if (myEventSource != NULL)
         [VOKDiagnostics watchDeliveryFromSource:CGEventSourceGetSourceStateID(myEventSource)];
     
-    // macOS hides keys from event taps while secure input is on, see SecureInputMonitor
+    // macOS hides keys from event taps while secure input is on, see SecureInputMonitor. It names the application in front, not the
+    // one that holds secure input: a password field in that application (asked through Accessibility, off the main thread) confirms it
+    [SecureInputMonitor setFieldVerdictProvider:^SensitiveFieldVerdict(pid_t pid) {
+        return [SensitiveField verdictForFocusedFieldInProcess:pid];
+    }];
     [SecureInputMonitor start];
 
     //suggestion bar: dictionaries, learned words

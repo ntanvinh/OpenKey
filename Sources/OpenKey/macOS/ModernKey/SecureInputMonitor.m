@@ -43,6 +43,33 @@ static NSDate* _lastReleaseDate;
 static pid_t _lastOtherFrontPID;            //the app the person was typing in, not counting VOpenKey AI's own windows
 static BOOL _publishedSecure, _publishedActive;
 static SecureInputHolder* _publishedHolder;
+static NSMutableArray<SecureInputHolder*>* _period;   //every process macOS named during the current (or the last) time secure input was on, oldest first
+
+static NSTimeInterval (^sClock)(void);                //a test's clock
+static NSTimeInterval _fallbackWantedSince = -1;      //since when macOS' input source has been wanted without a break, -1 when it is not wanted
+static SecureInputFieldVerdictProvider sFieldVerdictProvider;
+static NSMutableDictionary<NSNumber*, NSNumber*>* _fieldVerdicts;   //what was found in the field of an application macOS named, this time secure input is on
+static pid_t _fieldQueryPID;                          //the application whose field was asked about last: asked again only when macOS names another
+static NSUInteger _stretch;                           //counts the times secure input went on: an answer that comes late is for an earlier one
+static dispatch_queue_t _fieldQueue;                  //where the field of another application is looked into, never on the main thread
+
+static NSTimeInterval Now(void) {
+    return sClock != nil ? sClock() : [NSProcessInfo processInfo].systemUptime;
+}
+
+//macOS names one process only, and it is not always the right one: it has named VOpenKey AI itself while a remote desktop manager held
+//secure input. This process holds secure input only while a password field of its own is being edited (AppKit turns it on when a
+//NSSecureTextField starts editing and off when it stops, and VOpenKey AI has no other way to take it): so when macOS names it and no such
+//field is being edited, the name is wrong.
+static BOOL OwnProcessEditsSecureField(void) {
+    for (NSWindow* window in [NSApp windows]) {
+        NSResponder* responder = window.firstResponder;
+        if ([responder isKindOfClass:[NSTextView class]] && ((NSTextView*)responder).fieldEditor &&
+            [((NSTextView*)responder).delegate isKindOfClass:[NSSecureTextField class]])
+            return YES;
+    }
+    return NO;
+}
 
 //Is the app being typed in the one that holds secure input? That is what a focused password field or Terminal's
 //Secure Keyboard Entry look like, and typing there with macOS' Vietnamese input source would also convert the
@@ -95,6 +122,16 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
 +(void)initialize {
     if (self == [SecureInputMonitor class])
         [[NSUserDefaults standardUserDefaults] registerDefaults:@{kFallbackKey: @YES}];
+}
+
+const NSTimeInterval SecureInputFallbackDelay = 1.0;
+
++(void)setFieldVerdictProvider:(SecureInputFieldVerdictProvider)provider {
+    sFieldVerdictProvider = [provider copy];
+}
+
++(void)setClockForTesting:(NSTimeInterval (^)(void))clock {
+    sClock = [clock copy];
 }
 
 +(BOOL)isOpenKeyBlind {
@@ -160,6 +197,10 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     _secure = NO;
     _noSourceAvailable = NO;
     _holder = nil;
+    _fallbackWantedSince = -1;
+    _fieldVerdicts = nil;
+    _fieldQueryPID = 0;
+    _stretch++;                                 //an answer still on its way is for a time that is over
     [self publishDescription:nil];
 }
 
@@ -186,6 +227,12 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
         _noSourceAvailable = NO;
         if (!secure)
             _lastReleaseDate = [NSDate date];
+        else {
+            _period = [NSMutableArray array];       //a new time secure input is on: nobody has been named yet,
+            _fieldVerdicts = [NSMutableDictionary dictionary];   //and nothing is known about the fields
+            _fieldQueryPID = 0;
+            _stretch++;
+        }
         //keys typed while macOS hides them were never seen, what OpenKey remembers of the current word is stale
         RequestNewSession();
         //and the suggestion bar of the field before would stay up over a password field, which no key can take away any more
@@ -202,7 +249,8 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
 
         NSNumber* onConsole = session[(__bridge NSString*)kCGSessionOnConsoleKey];
         BOOL sessionInFront = (onConsole == nil || onConsole.boolValue) && ![session[kScreenIsLockedKey] boolValue];
-        snapshot = [SecureInputHolder holderForPID:holderPID sessionInFront:sessionInFront frontmostPID:_lastOtherFrontPID];
+        SecureInputHolder* named = [SecureInputHolder holderForPID:holderPID sessionInFront:sessionInFront frontmostPID:_lastOtherFrontPID];
+        snapshot = [self checked:named];
         //not only apps have a name: a process that is not one is named by the program it runs
         holderName = holder.localizedName ?: snapshot.name;
         //NSApplicationActivationPolicyRegular is 0, which is also what a nil holder answers
@@ -214,7 +262,15 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
                                         [NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier);
     }
 
-    if (wantFallback && !_active)
+    //macOS names the application in front, so "an ordinary application that is not in front holds it" is what a switch of the front
+    //application looks like for a moment (the name still is the one before): macOS' input source takes over only once that has
+    //stayed true for SecureInputFallbackDelay, and gives the input source back at once when it stops being true
+    NSTimeInterval now = Now();
+    if (!wantFallback)
+        _fallbackWantedSince = -1;
+    else if (_fallbackWantedSince < 0)
+        _fallbackWantedSince = now;
+    if (wantFallback && !_active && now - _fallbackWantedSince >= SecureInputFallbackDelay)
         [self engage];
     else if (!wantFallback && _active)
         [self disengage];
@@ -232,6 +288,8 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
     NSString* description = nil;
     if (secure) {
         NSString* by = holderName != nil ? holderName : @"một ứng dụng khác";
+        if (snapshot.doubt.length > 0)
+            by = [by stringByAppendingString:@" (theo macOS, có thể không đúng)"];
         if (_active) {
             description = [NSString stringWithFormat:@"Secure Input đang bật bởi %@: đang dùng bộ gõ Vietnamese của macOS thay cho OpenKey.", by];
         } else if (vLanguage != 1) {
@@ -241,8 +299,100 @@ static TISInputSourceRef CopyMacVietnameseSource(void) {
             if (_noSourceAvailable)
                 description = [description stringByAppendingString:@"\nHãy bật bộ gõ Vietnamese của macOS (Cài đặt hệ thống > Bàn phím > Nguồn đầu vào) để OpenKey tự chuyển sang khi cần."];
         }
+        if (snapshot.suspects.count > 0)
+            description = [description stringByAppendingFormat:@"\nCũng đang chạy và hay giữ Secure Input: %@.",
+                           [[snapshot.suspects valueForKey:@"name"] componentsJoinedByString:@", "]];
     }
     [self publishDescription:description];
+}
+
+//Looks into the field that has the keyboard in the application macOS names, off the main thread: a password field there confirms that
+//the application holds secure input (what macOS names is the application in front, which says nothing about who holds it). Asked once
+//each time macOS names another application; the answer comes back to the main thread and the situation is looked at again.
++(void)askFieldOf:(pid_t)pid {
+    SecureInputFieldVerdictProvider provider = sFieldVerdictProvider;
+    if (provider == nil || pid <= 0 || pid == _fieldQueryPID)
+        return;
+    _fieldQueryPID = pid;
+    [_fieldVerdicts removeObjectForKey:@(pid)];         //what was found there last time no longer counts
+    NSUInteger stretch = _stretch;
+    if (_fieldQueue == nil)
+        _fieldQueue = dispatch_queue_create("vn.io.lssoft.vopenkey.secureinput.field", DISPATCH_QUEUE_SERIAL);
+    dispatch_async(_fieldQueue, ^{
+        SensitiveFieldVerdict verdict = provider(pid);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            //the answer is for the application that was named then: not for another one, nor for an earlier time secure input was on
+            if (stretch != _stretch || pid != _fieldQueryPID || !_secure)
+                return;
+            _fieldVerdicts[@(pid)] = @(verdict);
+            [self evaluate];
+        });
+    });
+}
+
+//What macOS named, checked against what can be seen from here: whom it named before during this time secure input has been on,
+//whether the process it names could be holding it at all, and which other running applications are known to take it.
++(SecureInputHolder*)checked:(SecureInputHolder*)named {
+    if (_period == nil)
+        _period = [NSMutableArray array];
+    BOOL first = NO;
+    NSMutableArray<SecureInputHolder*>* earlier = [NSMutableArray array];
+    if (named.pid > 0) {
+        BOOL known = NO;
+        for (SecureInputHolder* before in _period) {
+            if (before.pid == named.pid)
+                known = YES;
+            else
+                [earlier addObject:before];
+        }
+        if (!known) {
+            [_period addObject:named];
+            first = YES;
+        }
+    }
+
+    //What macOS names is the application in FRONT, not the one that holds secure input: measured on macOS 15 with a process in the
+    //background holding it, the name was the front application, followed it to the next one when the person switched, and the
+    //process that really held it was never named. The name is a fact only where something confirms it.
+    NSString* doubt = nil;
+    if (named.pid == getpid()) {
+        if (!OwnProcessEditsSecureField()) {
+            //this process holds it only while a password field of its own is being edited: none is, so macOS named it as the one in front
+            doubt = [NSString stringWithFormat:@"macOS báo chính %@ giữ Secure Input, nhưng %@ không có ô mật khẩu nào đang mở nên không phải nó. "
+                     "macOS chỉ báo ứng dụng đang ở phía trước chứ không báo ứng dụng giữ Secure Input: ứng dụng giữ thật là ứng dụng khác, thường là một ứng dụng chạy nền.",
+                     named.displayName, named.displayName];
+        }
+    } else if (named.pid > 0 && named.processExists && named.role != SecureInputHolderRoleSystem &&
+               named.role != SecureInputHolderRoleLockedSession && ![SecureInputSuspect secureKeyboardEntryIsOnForPID:named.pid]) {
+        //(a number that names no process any more is not the application in front: it is stale, the window says so on its own)
+        //the lock screen and the password prompts of macOS hold it while they are in front, and so does a terminal whose Secure
+        //Keyboard Entry is on: those are confirmed. For any other application the name only says where the person types, unless the
+        //field that has the keyboard in it is a password field: that is asked once each time macOS names another application.
+        [self askFieldOf:named.pid];
+        NSNumber* found = _fieldVerdicts[@(named.pid)];
+        BOOL passwordField = found != nil && found.integerValue == SensitiveFieldSensitive;
+        if (!passwordField) {
+            doubt = [NSString stringWithFormat:@"macOS chỉ báo ứng dụng đang ở phía trước chứ không báo ứng dụng giữ Secure Input: %@ chỉ chắc chắn là nơi bạn đang gõ. "
+                     "Nếu con trỏ không ở ô mật khẩu của %@ thì ứng dụng giữ thật là ứng dụng khác, thường là một ứng dụng chạy nền.",
+                     named.displayName, named.displayName];
+        }
+    }
+
+    //the lock screen and the password prompts of macOS are not what an application that is running in the background takes
+    NSArray<SecureInputSuspect*>* suspects = @[];
+    if (named.role != SecureInputHolderRoleSystem && named.role != SecureInputHolderRoleLockedSession)
+        suspects = [SecureInputSuspect runningSuspectsExcludingPIDs:@[@(named.pid), @(getpid())]];
+
+    SecureInputHolder* checked = [named holderWithDoubt:doubt earlierReports:earlier suspects:suspects];
+    if (first) {
+        //the evidence for the next time the name is wrong: who macOS named, who was in front, whom it named before, what else could be it
+        VOKDiag(@"secure", @"macOS names %@ (pid %d) as the holder; in front: %@; named before in this stretch: %@; also running and known to take it: %@%@",
+                named.displayName, named.pid, [NSWorkspace sharedWorkspace].frontmostApplication.bundleIdentifier ?: @"?",
+                earlier.count > 0 ? [[earlier valueForKey:@"displayName"] componentsJoinedByString:@", "] : @"nobody",
+                suspects.count > 0 ? [[suspects valueForKey:@"name"] componentsJoinedByString:@", "] : @"none",
+                doubt != nil ? @"; name unconfirmed (macOS names the application in front, not the holder)" : @"");
+    }
+    return checked;
 }
 
 +(void)engage {

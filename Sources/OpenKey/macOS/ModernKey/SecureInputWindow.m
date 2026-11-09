@@ -121,6 +121,8 @@ static NSString* RoleText(SecureInputHolder* holder) {
     return @"Không xác định";
 }
 
+static NSArray<NSString*>* SearchTips(void);
+
 //What to try, for the kind of holder
 static NSArray<NSString*>* TipsFor(SecureInputHolder* holder) {
     if (holder.pid > 0 && !holder.processExists) {
@@ -146,9 +148,57 @@ static NSArray<NSString*>* TipsFor(SecureInputHolder* holder) {
         case SecureInputHolderRoleUnknown:
             break;
     }
-    return @[@"macOS không cho biết ứng dụng nào đang giữ Secure Input.",
-             @"Thử thoát lần lượt những ứng dụng hay bật nó: Terminal hoặc iTerm2 (Secure Keyboard Entry), trình quản lý mật khẩu, ứng dụng điều khiển từ xa, VPN. Biểu tượng trên thanh menu hết vàng ngay khi bạn thoát đúng ứng dụng.",
+    return [@[@"macOS không cho biết ứng dụng nào đang giữ Secure Input."] arrayByAddingObjectsFromArray:SearchTips()];
+}
+
+//What to try when nobody is named, or the name cannot be trusted
+static NSArray<NSString*>* SearchTips(void) {
+    return @[@"Thử thoát lần lượt những ứng dụng hay bật nó: Terminal hoặc iTerm2 (Secure Keyboard Entry), trình quản lý mật khẩu, ứng dụng điều khiển từ xa, VPN. Biểu tượng trên thanh menu hết vàng ngay khi bạn thoát đúng ứng dụng.",
              @"Nếu đã thoát hết mà Secure Input vẫn bật, hãy đăng xuất rồi đăng nhập lại."];
+}
+
+//"Remote Desktop Manager (điều khiển từ xa), 1Password (trình quản lý mật khẩu)"
+static NSString* SuspectsText(NSArray<SecureInputSuspect*>* suspects) {
+    NSMutableArray* parts = [NSMutableArray array];
+    for (SecureInputSuspect* suspect in suspects)
+        [parts addObject:suspect.reason.length > 0 ? [NSString stringWithFormat:@"%@ (%@)", suspect.name, suspect.reason] : suspect.name];
+    return [parts componentsJoinedByString:@", "];
+}
+
+//Everyone macOS named during this time secure input has been on, the one it names now last: "Electron, VOpenKey AI"
+static NSString* NamedInOrderText(SecureInputHolder* holder) {
+    NSMutableArray* names = [NSMutableArray array];
+    for (SecureInputHolder* earlier in holder.earlierReports)
+        [names addObject:earlier.displayName];
+    [names addObject:holder.displayName];
+    return [names componentsJoinedByString:@", "];
+}
+
+//The advice for the holder, with what the monitor found out by checking the name macOS gave
+static NSArray<NSString*>* AllTipsFor(SecureInputHolder* holder) {
+    //macOS names this very process and a password field of its own is being edited: it is the one, and the way out is here
+    if (holder.pid > 0 && holder.pid == getpid() && holder.doubt.length == 0) {
+        return @[[NSString stringWithFormat:@"Chính %@ đang giữ Secure Input vì ô nhập API key trong Cài đặt đang mở. Bấm ra ngoài ô đó hoặc đóng cửa sổ Cài đặt: biểu tượng trên thanh menu hết vàng ngay.", VOK_APP_NAME]];
+    }
+    NSMutableArray* tips = [NSMutableArray array];
+    BOOL doubtful = holder.doubt.length > 0;
+    //advice for a kind of holder is no use when the holder is not the right one
+    if (doubtful)
+        [tips addObject:holder.doubt];
+    else
+        [tips addObjectsFromArray:TipsFor(holder)];
+    if (holder.earlierReports.count > 0) {
+        //macOS names the application in front, so these are the applications the person typed in while secure input stayed on
+        [tips addObject:[NSString stringWithFormat:@"Secure Input vẫn bật liên tục trong khi app bạn gõ đổi giữa: %@. Ô mật khẩu thường nhả nó khi bạn rời đi, nên nhiều khả năng một ứng dụng chạy nền đang giữ.",
+                         NamedInOrderText(holder)]];
+    }
+    if (holder.suspects.count > 0) {
+        [tips addObject:[NSString stringWithFormat:@"Cũng đang chạy và hay giữ Secure Input: %@. Thoát từng ứng dụng này; biểu tượng trên thanh menu hết vàng ngay khi bạn thoát đúng ứng dụng.",
+                         SuspectsText(holder.suspects)]];
+    }
+    if (doubtful)
+        [tips addObjectsFromArray:SearchTips()];
+    return tips;
 }
 
 //What the card about the holder lists: name, value and how the value is shown
@@ -317,8 +367,11 @@ static NSArray<SecureInputRow*>* RowsFor(SecureInputHolder* holder) {
 -(NSString*)heading {
     if (_holder == nil)
         return _lastHolder != nil ? @"Secure Input đã tắt" : @"Secure Input đang tắt";
-    if (_holder.pid > 0 || _holder.name.length > 0)
+    if (_holder.pid > 0 || _holder.name.length > 0) {
+        if (_holder.doubt.length > 0)
+            return [NSString stringWithFormat:@"macOS báo Secure Input đang bật bởi %@ (có thể không đúng)", _holder.displayName];
         return [NSString stringWithFormat:@"Secure Input đang bật bởi %@", _holder.displayName];
+    }
     return @"Secure Input đang bật";
 }
 
@@ -347,6 +400,13 @@ static NSArray<SecureInputRow*>* RowsFor(SecureInputHolder* holder) {
     NSMutableArray* lines = [NSMutableArray arrayWithObject:[NSString stringWithFormat:@"%@: %@", VOK_APP_NAME, [self heading]]];
     for (SecureInputRow* row in RowsFor(holder))
         [lines addObject:[NSString stringWithFormat:@"%@: %@", row.name, row.value]];
+    //what to add to a report: why the name may be wrong, whom macOS named before, what else could be holding it
+    if (holder.doubt.length > 0)
+        [lines addObject:[@"Lưu ý: " stringByAppendingString:holder.doubt]];
+    if (holder.earlierReports.count > 0)
+        [lines addObject:[@"macOS đã nêu lần lượt: " stringByAppendingString:NamedInOrderText(holder)]];
+    if (holder.suspects.count > 0)
+        [lines addObject:[@"Cũng đang chạy và hay giữ Secure Input: " stringByAppendingString:SuspectsText(holder.suspects)]];
     return [lines componentsJoinedByString:@"\n"];
 }
 
@@ -489,7 +549,7 @@ static NSArray<SecureInputRow*>* RowsFor(SecureInputHolder* holder) {
     if (_holder != nil) {
         [views addObject:[self sectionTitle:@"Cách tìm ra nguyên nhân" width:width]];
         spacing[@(views.count - 1)] = @6;
-        [views addObject:[self tipsCardWithTips:TipsFor(_holder) width:width]];
+        [views addObject:[self tipsCardWithTips:AllTipsFor(_holder) width:width]];
         spacing[@(views.count - 1)] = @10;
     }
 

@@ -212,6 +212,62 @@ static void TestHolders(void) {
     CHECK(Has(w.tipTexts, @"Đăng xuất"));
 }
 
+//macOS names ONE process and is not always right (it named VOpenKey AI itself while a remote desktop manager held secure input): what the
+//window says when the monitor has checked the name, and what it adds so that the person can find the real one
+static void TestChecked(void) {
+    printf("-- checked against what the monitor can see\n");
+    SecureInputSuspect* rdm = [[SecureInputSuspect alloc] initWithPID:6001 name:@"Remote Desktop Manager"
+                                                     bundleIdentifier:@"com.devolutions.remotedesktopmanager" reason:@"điều khiển từ xa"];
+    SecureInputSuspect* passwords = [[SecureInputSuspect alloc] initWithPID:6002 name:@"1Password" bundleIdentifier:@"com.1password.1password"
+                                                                     reason:@"trình quản lý mật khẩu"];
+    SecureInputHolder* electron = Holder(6000, SecureInputHolderRoleFrontApp, YES, @"Electron", @"com.github.Electron", nil, @"/Applications/Electron.app", 0, nil, NO);
+    SecureInputHolder* me = Holder(getpid(), SecureInputHolderRoleHelper, YES, @"VOpenKey AI", @"vn.io.lssoft.vopenkey", @"3.7.20 (98)",
+                                   @"/Users/someone/Applications/VOpenKey AI.app", 0, nil, YES);
+    NSString* doubt = @"macOS báo chính VOpenKey AI giữ Secure Input, nhưng VOpenKey AI không có ô mật khẩu nào đang mở nên không phải nó.";
+
+    //the case of the screenshot: after Electron, macOS names VOpenKey AI, which has no password field open
+    SecureInputWindow* w = Show(@"doubtful", [me holderWithDoubt:doubt earlierReports:@[electron] suspects:@[rdm, passwords]],
+                                SecureInputEffectBlocked, nil, nil);
+    CHECK([w.headingLabel.stringValue isEqualToString:@"macOS báo Secure Input đang bật bởi VOpenKey AI (có thể không đúng)"]);
+    CHECK(w.tipTexts.count >= 4);
+    CHECK(w.tipTexts.count > 0 && [w.tipTexts[0] isEqualToString:doubt]);                //why not to trust it comes first
+    //secure input stayed on while the application in front changed: whoever holds it, it is not the one the person just left
+    CHECK(Has(w.tipTexts, @"liên tục trong khi app bạn gõ đổi giữa: Electron, VOpenKey AI"));   //in the order named, the current one last
+    CHECK(Has(w.tipTexts, @"nhiều khả năng một ứng dụng chạy nền"));
+    CHECK(Has(w.tipTexts, @"Cũng đang chạy và hay giữ Secure Input: Remote Desktop Manager (điều khiển từ xa), 1Password (trình quản lý mật khẩu)"));
+    CHECK(Has(w.tipTexts, @"Thoát từng ứng dụng"));
+    CHECK(!Has(w.tipTexts, @"ô nhập API key"));
+    NSString* copied = [w informationText];
+    CHECK([copied containsString:@"Lưu ý: macOS báo chính VOpenKey AI"]);
+    CHECK([copied containsString:@"macOS đã nêu lần lượt: Electron, VOpenKey AI"]);
+    CHECK([copied containsString:@"Remote Desktop Manager (điều khiển từ xa)"]);
+
+    //it really is VOpenKey AI: a password field of its own is being edited, so there is no doubt, and the way out is its own
+    w = Show(@"holds-itself", [me holderWithDoubt:nil earlierReports:@[] suspects:@[rdm]], SecureInputEffectBlocked, nil, nil);
+    CHECK([w.headingLabel.stringValue isEqualToString:@"Secure Input đang bật bởi VOpenKey AI"]);
+    CHECK(w.tipTexts.count == 1);
+    CHECK(Has(w.tipTexts, @"ô nhập API key") && Has(w.tipTexts, @"Cài đặt"));
+
+    //an ordinary holder, nothing to doubt: what else runs is added after the advice for that kind of holder
+    w = Show(@"suspects", [electron holderWithDoubt:nil earlierReports:@[] suspects:@[rdm]], SecureInputEffectBlocked, nil, nil);
+    CHECK([w.headingLabel.stringValue isEqualToString:@"Secure Input đang bật bởi Electron"]);
+    CHECK(w.tipTexts.count == 3);                                                       //the two of a front app and the suspects
+    CHECK(Has(w.tipTexts, @"ô nhập mật khẩu"));
+    CHECK([w.tipTexts.lastObject containsString:@"Remote Desktop Manager (điều khiển từ xa)"]);
+    CHECK(!Has(w.tipTexts, @"macOS đã nêu lần lượt"));
+    CHECK(![[w informationText] containsString:@"Lưu ý"]);
+
+    //macOS names nobody, and a remote desktop manager runs
+    w = Show(@"unknown-suspect", [Holder(0, SecureInputHolderRoleUnknown, NO, nil, nil, nil, nil, 0, nil, NO) holderWithDoubt:nil earlierReports:@[] suspects:@[rdm]],
+             SecureInputEffectBlocked, nil, nil);
+    CHECK(Has(w.tipTexts, @"macOS không cho biết ứng dụng nào") && Has(w.tipTexts, @"Remote Desktop Manager"));
+
+    //released: the advice goes, who macOS named stays in the card
+    w = Show(@"released-doubtful", nil, SecureInputEffectNone, [me holderWithDoubt:doubt earlierReports:@[electron] suspects:@[rdm]], [NSDate date]);
+    CHECK(w.tipTexts.count == 0);
+    CHECK([w.headingLabel.stringValue isEqualToString:@"Secure Input đã tắt"]);
+}
+
 static void TestReleased(void) {
     printf("-- released\n");
     SecureInputHolder* last = Terminal(SecureInputHolderRoleBackgroundApp);
@@ -497,6 +553,7 @@ int main(int argc, char** argv) {
         if (snapshotFolder != nil)
             [[NSFileManager defaultManager] createDirectoryAtPath:snapshotFolder withIntermediateDirectories:YES attributes:nil error:nil];
         TestHolders();
+        TestChecked();
         TestReleased();
         TestLongTexts();
         TestActions();
