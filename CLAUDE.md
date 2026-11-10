@@ -25,3 +25,8 @@ These are identifiers or file names that must not move, they are not the name of
 - the notarytool profile `VOpenKey-notary`
 - on Windows: the program files `OpenKey64.exe`, `OpenKey32.exe`, `OpenKeyUpdate.exe`, the registry key `SOFTWARE\TuyenMai\OpenKey` and the "OpenKey" start-up entry in it, the github URLs and the licence headers of the original author
 - the `##### VOpenKey x.y.z` headings of `CHANGELOG.md` (`scripts/version.sh` searches for them) and the comment line `//  VOpenKey` at the top of source files
+
+## Release workflow resilience
+`scripts/release.sh` is designed to be idempotent:
+- When a release is partly published or interrupted at the Windows build / announce step, `scripts/release.sh current --yes` safely resumes it, verifies existing notarized disk images, triggers/waits for the Windows build workflow, and finishes announcing the release.
+- `wait_for_windows` automatically dispatches `.github/workflows/release-windows.yml` via `gh workflow run` if GitHub Actions does not trigger the `release: published` event automatically within 20 seconds.
