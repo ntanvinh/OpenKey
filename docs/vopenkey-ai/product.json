@@ -192,6 +192,18 @@
       }
     }
   ],
+  "openSource": [
+    {
+      "name": "OpenKey",
+      "author": "Mai Vũ Tuyên",
+      "url": "https://github.com/tuyenvm/OpenKey",
+      "license": "GPL-3.0",
+      "note": {
+        "en": "VOpenKey AI is a fork of the original OpenKey, developed further by LSSoft.",
+        "vi": "VOpenKey AI là bản fork của OpenKey gốc, được LSSoft phát triển tiếp."
+      }
+    }
+  ],
   "links": {
     "appStore": "#",
     "googlePlay": "#",
