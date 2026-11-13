@@ -4,6 +4,7 @@
 //
 
 #import "VOKUI.h"
+#import "AppInfo.h"
 
 NSImage* VOKSymbol(NSString* name, CGFloat pointSize, NSFontWeight weight) {
     NSImage* image = [NSImage imageWithSystemSymbolName:name accessibilityDescription:nil];
@@ -112,6 +113,18 @@ static NSImage* TintedStatusImage(NSImage* glyph, NSColor* colour) {
 
 NSImage* VOKWarningStatusImage(NSImage* glyph) {
     return TintedStatusImage(glyph, [NSColor colorWithSRGBRed:1.0 green:0.80 blue:0.0 alpha:1]);
+}
+
+NSString* VOKStatusAccessibilityLabel(BOOL vietnameseChosen, BOOL forcedToEnglish, NSString* capsLockStatus) {
+    NSString* label;
+    if (forcedToEnglish)
+        label = [NSString stringWithFormat:@"%@: Secure Input đang bật, %@", VOK_APP_NAME, vietnameseChosen ? @"tạm chuyển sang tiếng Anh" : @"không gõ được tiếng Việt"];
+    else
+        //the names of the two items of the language menu
+        label = [NSString stringWithFormat:@"%@, %@", VOK_APP_NAME, vietnameseChosen ? @"Tiếng Việt" : @"English"];
+    if (capsLockStatus.length > 0)
+        label = [NSString stringWithFormat:@"%@, %@", label, capsLockStatus];
+    return label;
 }
 
 NSImage* VOKCapsLockStatusImage(NSImage* glyph, BOOL vietnamese) {

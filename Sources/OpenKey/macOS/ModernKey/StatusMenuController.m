@@ -218,13 +218,9 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSString* secureStatus = [SecureInputMonitor statusDescription];
     NSString* capsStatus = [CapsLockToast messageForState:YES];
     _statusItem.button.toolTip = !capsLock ? secureStatus : (secureStatus != nil ? [NSString stringWithFormat:@"%@\n%@", secureStatus, capsStatus] : capsStatus);
-    //colour alone says nothing to VoiceOver
-    NSString* accessibility = VOK_APP_NAME;
-    if (forcedToEnglish)
-        accessibility = [NSString stringWithFormat:@"%@: Secure Input đang bật, %@", VOK_APP_NAME, language == 1 ? @"tạm chuyển sang tiếng Anh" : @"không gõ được tiếng Việt"];
-    if (capsLock)
-        accessibility = [NSString stringWithFormat:@"%@, %@", accessibility, capsStatus];
-    _statusItem.button.accessibilityLabel = accessibility;
+    //colour and the letter of the icon say nothing to VoiceOver, nor to a menu bar manager that keeps the icon hidden and shows it when
+    //it changes: they read this label, so every change of the icon (language, Caps Lock, Secure Input) has to change it
+    _statusItem.button.accessibilityLabel = VOKStatusAccessibilityLabel(language == 1, forcedToEnglish, capsLock ? capsStatus : nil);
 
     //Language switching is available through the app-wide shortcut; show the selection like other menu toggles.
     _vietnameseItem.state = language == 1 ? NSControlStateValueOn : NSControlStateValueOff;

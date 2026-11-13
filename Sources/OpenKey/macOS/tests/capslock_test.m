@@ -12,6 +12,7 @@
 #import <Cocoa/Cocoa.h>
 #import "CapsLockMonitor.h"
 #import "CapsLockToast.h"
+#import "AppInfo.h"
 #import "VOKUI.h"
 
 static int failures = 0;
@@ -207,6 +208,33 @@ static void TestToastTiming(void) {
     CHECK(!toast.visible);
 }
 
+//what an application that reads the menu bar icon through Accessibility (VoiceOver, or the menu bar manager that shows a hidden icon when it
+//changes) is told: the icon changes with the typing language and with Caps Lock, and the colour or the letter alone says nothing
+static void TestStatusLabel(void) {
+    printf("-- accessibility label\n");
+    NSString* caps = [CapsLockToast messageForState:YES];
+    NSString* vietnamese = VOKStatusAccessibilityLabel(YES, NO, nil);
+    NSString* english = VOKStatusAccessibilityLabel(NO, NO, nil);
+    CHECK([vietnamese hasPrefix:VOK_APP_NAME] && [english hasPrefix:VOK_APP_NAME]);
+    CHECK([vietnamese containsString:@"Tiếng Việt"] && ![vietnamese containsString:@"English"]);
+    CHECK([english containsString:@"English"] && ![english containsString:@"Tiếng Việt"]);
+    CHECK(![vietnamese isEqualToString:english]);                   //switching the language is a change a reader can see
+
+    NSString* vietnameseCaps = VOKStatusAccessibilityLabel(YES, NO, caps);
+    NSString* englishCaps = VOKStatusAccessibilityLabel(NO, NO, caps);
+    CHECK([vietnameseCaps containsString:@"Tiếng Việt"] && [vietnameseCaps hasSuffix:caps]);
+    CHECK([englishCaps containsString:@"English"] && [englishCaps hasSuffix:caps]);
+    CHECK(![vietnameseCaps isEqualToString:vietnamese] && ![englishCaps isEqualToString:english]);   //so is Caps Lock
+
+    //secure input forces English whatever was chosen: the label says so and the chosen language does not stand in for the real one
+    NSString* secureVietnamese = VOKStatusAccessibilityLabel(YES, YES, nil);
+    NSString* secureEnglish = VOKStatusAccessibilityLabel(NO, YES, nil);
+    CHECK([secureVietnamese containsString:@"Secure Input"] && [secureVietnamese containsString:@"tạm chuyển sang tiếng Anh"]);
+    CHECK([secureEnglish containsString:@"Secure Input"] && [secureEnglish containsString:@"không gõ được tiếng Việt"]);
+    CHECK([VOKStatusAccessibilityLabel(YES, YES, caps) hasSuffix:caps]);
+    CHECK(![secureVietnamese isEqualToString:vietnamese]);          //and it is a change from the plain state
+}
+
 static void TestIcons(NSString* pictures) {
     printf("-- icon\n");
     NSString* resources = [[NSProcessInfo processInfo].environment[@"VOK_RESOURCES"] copy];
@@ -288,6 +316,7 @@ int main(int argc, const char* argv[]) {
         NSString* pictures = argc > 1 ? [NSString stringWithUTF8String:argv[1]] : @"";
         TestMonitor();
         TestToastTiming();
+        TestStatusLabel();
         TestIcons(pictures);
         printf(failures == 0 ? "ALL OK\n" : "FAILED: %d\n", failures);
         return failures == 0 ? 0 : 1;

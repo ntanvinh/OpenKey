@@ -33,6 +33,14 @@ NSImage* VOKWarningStatusImage(NSImage* glyph);
 // the star in yellow on a red tile.
 NSImage* VOKCapsLockStatusImage(NSImage* glyph, BOOL vietnamese);
 
+// What the menu bar icon says to VoiceOver and to any application that reads the icon through Accessibility, which the colour and
+// the V or E of the icon do not: the name of the app, the typing language, and whether Caps Lock is on. A menu bar manager that
+// keeps the icon hidden reads this text to know the icon has changed, so each change of the icon has to change it.
+//   vietnameseChosen   the typing language the person chose (the icon shows English while Secure Input forces it)
+//   forcedToEnglish    Secure Input stops typing in Vietnamese: the label says so instead of naming the language
+//   capsLockStatus     the line for Caps Lock being on (CapsLockToast), nil when it is off
+NSString* VOKStatusAccessibilityLabel(BOOL vietnameseChosen, BOOL forcedToEnglish, NSString* capsLockStatus);
+
 // SF Symbol with the given colours (one per layer), for a menu item or a heading that must not take the colour of the text.
 NSImage* VOKPaletteSymbol(NSString* name, CGFloat pointSize, NSArray<NSColor*>* colors);
 
