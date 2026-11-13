@@ -16,7 +16,7 @@
     "vi": "Gõ tiếng Việt, lỡ tay vẫn sửa được."
   },
   "description": {
-    "en": "Vietnamese input on Mac and Windows helps you recover words changed by typing, then write across apps with shortcuts for snippets and an optional AI assistant.",
+    "en": "Vietnamese input for Mac and Windows that recovers words changed by typing, plus snippet shortcuts and an optional AI assistant in any app.",
     "vi": "Bộ gõ tiếng Việt trên Mac và Windows giúp bạn khôi phục từ bị đổi nhầm, cùng snippet và trợ lý AI tùy chọn để viết nhanh trong nhiều ứng dụng."
   },
   "seo": {
@@ -149,7 +149,7 @@
       },
       "description": {
         "en": "Use the Backspace typing technique to address the underline behavior described in macOS’s built-in Vietnamese input, with an option to handle autocorrect issues in supported apps.",
-        "vi": "Gõ tiếng Việt bằng kỹ thuật Backspace để xử lý tình trạng gạch chân được README ghi nhận ở bộ gõ macOS, đồng thời có tùy chọn khắc phục lỗi autocorrect trong một số ứng dụng."
+        "vi": "Gõ tiếng Việt bằng kỹ thuật Backspace để xử lý tình trạng gạch chân ở bộ gõ tiếng Việt có sẵn của macOS, đồng thời có tùy chọn khắc phục lỗi autocorrect trong một số ứng dụng."
       }
     },
     {

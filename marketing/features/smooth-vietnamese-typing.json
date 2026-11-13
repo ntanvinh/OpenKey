@@ -11,7 +11,7 @@
   },
   "description": {
     "en-US": "Use the Backspace typing technique to address the underline behavior described in macOS’s built-in Vietnamese input, with an option to handle autocorrect issues in supported apps.",
-    "vi": "Gõ tiếng Việt bằng kỹ thuật Backspace để xử lý tình trạng gạch chân được README ghi nhận ở bộ gõ macOS, đồng thời có tùy chọn khắc phục lỗi autocorrect trong một số ứng dụng."
+    "vi": "Gõ tiếng Việt bằng kỹ thuật Backspace để xử lý tình trạng gạch chân ở bộ gõ tiếng Việt có sẵn của macOS, đồng thời có tùy chọn khắc phục lỗi autocorrect trong một số ứng dụng."
   },
   "screens": [
     "Input settings",

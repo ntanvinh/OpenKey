@@ -35,3 +35,10 @@ These are identifiers or file names that must not move, they are not the name of
 ## Windows ships with every release
 - The Windows app is released with the macOS app (`VOpenKey-<version>-Windows.zip`). Do not call it upstream-only or "unverified" in `README.md`, `marketing/positioning.md`, the `product.json` files or `Sources/OpenKey/win32/README.md`, and do not write "Mac" alone where the product is for both platforms.
 - When a platform claim changes, change those files in the same commit. `python3 scripts/check-product-docs.py` checks the Windows links, the platform lists and the descriptions; CI runs it in the `product-docs` job of `.github/workflows/msbuild.yml`.
+
+## Product description length
+- `description` in `marketing/website/product.json` is the page's meta description (search results cut it near 155 characters). Keep `description.en` and `description.vi` at 70-155 characters each, and keep the same text in `docs/vopenkey-ai/product.json`. `scripts/check-product-docs.py` enforces both rules; change both files in the same commit.
+
+## Feature texts
+- Each feature with a picture is written twice: `marketing/features/<id>.json` and its entry in `docs/vopenkey-ai/product.json`. Change both in the same commit; the title and description must match in both languages. `scripts/check-product-docs.py` checks it.
+- Visitor text never names an internal file (the README, `marketing/positioning.md`, a changelog): a visitor cannot open it. Describe the feature itself. The checker rejects `README`, `.md` and `CHANGELOG` in these texts.

@@ -13,6 +13,9 @@ import sys
 
 WINDOWS_URL = "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey-Windows.zip"
 UPSTREAM_WINDOWS = "tuyenvm/OpenKey/tree/master/Sources/OpenKey/win32"
+WEBSITE_PRODUCT = "marketing/website/product.json"
+DOCS_PRODUCT = "docs/vopenkey-ai/product.json"
+META_MIN, META_MAX = 70, 155  # description is the meta description, see CLAUDE.md
 
 if len(sys.argv) > 1:
     ROOT = pathlib.Path(sys.argv[1]).resolve()
@@ -21,6 +24,7 @@ else:
 
 problems = []
 checks = 0
+descriptions = {}
 
 
 def read(rel):
@@ -87,8 +91,59 @@ for rel in ["marketing/product.json", "marketing/website/product.json", "docs/vo
     description = data.get("description")
     if isinstance(description, dict):
         for lang in ("en", "vi"):
-            expect(rel, "Windows" in description.get(lang, ""),
+            value = description.get(lang, "")
+            expect(rel, "Windows" in value,
                    f"description.{lang} does not mention Windows")
+            # The description is the page's meta description: search results cut it near 155.
+            expect(rel, META_MIN <= len(value) <= META_MAX,
+                   f"description.{lang} is {len(value)} characters; it must be {META_MIN}-{META_MAX}")
+        if rel in (WEBSITE_PRODUCT, DOCS_PRODUCT):
+            descriptions[rel] = description
+
+# The website product entry and its docs copy are the same text; keep them identical.
+if WEBSITE_PRODUCT in descriptions and DOCS_PRODUCT in descriptions:
+    expect(DOCS_PRODUCT, descriptions[DOCS_PRODUCT] == descriptions[WEBSITE_PRODUCT],
+           f"description differs from {WEBSITE_PRODUCT}; copy the same text into both files")
+
+# Feature texts are copied by hand from marketing/features/<id>.json into the docs product file.
+# A feature with a picture needs one entry there with the same text, and visitor text must not
+# point at an internal file (the README, a changelog) that a visitor cannot open.
+FEATURES_DIR = "marketing/features"
+INTERNAL_REFERENCE = r"\bREADME\b|\.md\b|CHANGELOG"
+try:
+    docs_features = json.loads(read(DOCS_PRODUCT) or "{}").get("features", [])
+except json.JSONDecodeError:
+    docs_features = []  # already reported above
+for path in sorted((ROOT / FEATURES_DIR).glob("*.json")):
+    rel = f"{FEATURES_DIR}/{path.name}"
+    feature = json.loads(path.read_text(encoding="utf-8"))
+    if "image" not in feature:
+        continue  # no picture, so the docs product file has no entry for it
+    visitor_text = {
+        "title.vi": feature["title"]["vi"],
+        "title.en": feature["title"]["en-US"],
+        "description.vi": feature["description"]["vi"],
+        "description.en": feature["description"]["en-US"],
+    }
+    for label, value in visitor_text.items():
+        must_not_match(rel, value, INTERNAL_REFERENCE,
+                       f"{label} points at an internal file that visitors cannot open")
+    copies = [item for item in docs_features
+              if item.get("image", "").endswith(f"-{feature['id']}.png")]
+    expect(rel, len(copies) == 1,
+           f"{DOCS_PRODUCT} has {len(copies)} entries for {feature['id']}; it needs exactly one")
+    for copy in copies:
+        text = copy.get("text", {})
+        description = copy.get("description", {})
+        copied = {
+            "title.vi": text.get("vi"),
+            "title.en": text.get("en"),
+            "description.vi": description.get("vi"),
+            "description.en": description.get("en"),
+        }
+        for label, value in visitor_text.items():
+            expect(DOCS_PRODUCT, copied[label] == value,
+                   f"{label} of {feature['id']} differs from {rel}; copy the same text into both files")
 
 if problems:
     for line in problems:
