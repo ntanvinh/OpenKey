@@ -27,9 +27,11 @@ private:
 	HWND checkSmartSwitchKey, checkCapsFirstChar, checkQuickTelex, checkUseMacro, checkUseMacroInEnglish;
 	HWND checkCreateDesktopShortcut, checkCheckNewVersion, checkRunAsAdmin, checkSupportMetroApp, checkMacroAutoCaps;
 	HWND checkFixChromium, checkRememberTableCode, checkTempOffOpenKey, checkAllowOtherLanguages;
+	HWND checkCapsLockToast;
 	HWND hUpdateButton;
 private:
 	void initDialog();
+	void addCapsLockToastCheck();
 	void onComboBoxSelected(const HWND& hCombobox, const int& comboboxId);
 	void onCheckboxClicked(const HWND& hWnd);
 	void onCharacter(const HWND& hWnd, const UINT16& keyCode);

@@ -29,6 +29,10 @@ NSImage* VOKFlagImage(NSString* region);
 // on a dark rounded tile, so it stands out on a light menu bar as well as a dark one. Not a template: it keeps its colours.
 NSImage* VOKWarningStatusImage(NSImage* glyph);
 
+// For the time Caps Lock is on. English: the glyph in red on the dark tile. Vietnamese (`glyph` is the star icon): the flag of Vietnam,
+// the star in yellow on a red tile.
+NSImage* VOKCapsLockStatusImage(NSImage* glyph, BOOL vietnamese);
+
 // SF Symbol with the given colours (one per layer), for a menu item or a heading that must not take the colour of the text.
 NSImage* VOKPaletteSymbol(NSString* name, CGFloat pointSize, NSArray<NSColor*>* colors);
 

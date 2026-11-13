@@ -9,6 +9,8 @@
 #import "AISettings.h"
 #import "AppInfo.h"
 #import "AppUpdater.h"
+#import "CapsLockMonitor.h"
+#import "CapsLockToast.h"
 #import "CaseBar.h"
 #import "Donation.h"
 #import "OpenKeyManager.h"
@@ -60,6 +62,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _updateItem;
     NSMenuItem* _noticeSeparator;
     NSImage* _warningImage;                 //the English icon in yellow, while secure input forces English
+    NSImage* _capsLockImageVietnamese;      //the icons in red, while Caps Lock is on
+    NSImage* _capsLockImageEnglish;
 
     NSMenuItem* _vietnameseItem;
     NSMenuItem* _englishItem;
@@ -83,6 +87,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
                                                      name:SecureInputMonitorDidChangeNotification object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
+                                                     name:CapsLockMonitorDidChangeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
                                                      name:AppUpdaterDidChangeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh)
@@ -185,24 +191,40 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     BOOL grayIcon = [defaults integerForKey:@"GrayIcon"] != 0;
 
     BOOL forcedToEnglish = [SecureInputMonitor isOpenKeyBlind];
+    BOOL capsLock = [CapsLockMonitor isOn];
     BOOL vietnamese = language == 1 && !forcedToEnglish;
     if (forcedToEnglish) {
+        //secure input says more than Caps Lock does: nothing can be typed in Vietnamese, so its colour wins
         if (_warningImage == nil)
             _warningImage = VOKWarningStatusImage([NSImage imageNamed:@"StatusEng"]);
         //the highlighted pair of icons is white on the blue of an open menu; the yellow one stays as it is
         _statusItem.button.image = _warningImage;
         _statusItem.button.alternateImage = _warningImage;
+    } else if (capsLock) {
+        //red, in the language that is on, so that the icon still tells which one it is (Vietnamese: the flag, red with a yellow star)
+        if (vietnamese && _capsLockImageVietnamese == nil)
+            _capsLockImageVietnamese = VOKCapsLockStatusImage([NSImage imageNamed:@"Status"], YES);
+        else if (!vietnamese && _capsLockImageEnglish == nil)
+            _capsLockImageEnglish = VOKCapsLockStatusImage([NSImage imageNamed:@"StatusEng"], NO);
+        NSImage* red = vietnamese ? _capsLockImageVietnamese : _capsLockImageEnglish;
+        _statusItem.button.image = red;
+        _statusItem.button.alternateImage = red;
     } else {
         NSImage* image = [NSImage imageNamed:vietnamese ? @"Status" : @"StatusEng"];
         [image setTemplate:grayIcon];
         _statusItem.button.image = image;
         _statusItem.button.alternateImage = [NSImage imageNamed:vietnamese ? @"StatusHighlighted" : @"StatusHighlightedEng"];
     }
-    _statusItem.button.toolTip = [SecureInputMonitor statusDescription];
+    NSString* secureStatus = [SecureInputMonitor statusDescription];
+    NSString* capsStatus = [CapsLockToast messageForState:YES];
+    _statusItem.button.toolTip = !capsLock ? secureStatus : (secureStatus != nil ? [NSString stringWithFormat:@"%@\n%@", secureStatus, capsStatus] : capsStatus);
     //colour alone says nothing to VoiceOver
-    _statusItem.button.accessibilityLabel = forcedToEnglish
-        ? [NSString stringWithFormat:@"%@: Secure Input đang bật, %@", VOK_APP_NAME, language == 1 ? @"tạm chuyển sang tiếng Anh" : @"không gõ được tiếng Việt"]
-        : VOK_APP_NAME;
+    NSString* accessibility = VOK_APP_NAME;
+    if (forcedToEnglish)
+        accessibility = [NSString stringWithFormat:@"%@: Secure Input đang bật, %@", VOK_APP_NAME, language == 1 ? @"tạm chuyển sang tiếng Anh" : @"không gõ được tiếng Việt"];
+    if (capsLock)
+        accessibility = [NSString stringWithFormat:@"%@, %@", accessibility, capsStatus];
+    _statusItem.button.accessibilityLabel = accessibility;
 
     //Language switching is available through the app-wide shortcut; show the selection like other menu toggles.
     _vietnameseItem.state = language == 1 ? NSControlStateValueOn : NSControlStateValueOff;

@@ -17,6 +17,7 @@
 #import "OpenKeyManager.h"
 #import "AppUpdater.h"
 #import "SecureInputMonitor.h"
+#import "CapsLockMonitor.h"
 #import "LegacyOpenKey.h"
 #import "StatusMenuController.h"
 #import "AppInfo.h"
@@ -128,6 +129,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [AISettings registerDefaults];
     [AISettings start];
     [CaseBar registerDefaults];
+    [CapsLockMonitor registerDefaults]; //the Settings window may show it before the monitor starts
     [CaseBar start];
     [AppUpdater registerDefaults]; //the Settings window may show it before the first check
     [AIAssistant setSettingsHandler:^{ [self onAISettingsSelected]; }];
@@ -174,6 +176,8 @@ extern bool convertToolDontAlertWhenCompleted;
         NSBeep();
 
     _statusMenu = [[StatusMenuController alloc] init];
+    //Caps Lock: the icon above turns red, a toast says so. Not tied to the event tap: it also works before the permissions are there.
+    [CapsLockMonitor start];
     [self fillData]; //the engine starts from what was saved: language, typing method, code table, shortcut
     
     //init

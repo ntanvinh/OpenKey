@@ -15,9 +15,12 @@ redistribute your new version, it MUST be open source.
 #include "AppDelegate.h"
 #include "FeatureActions.h"
 #include "DonationDialog.h"
+#include "CapsLockNotice.h"
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
+#define TIMER_CAPSLOCK 1        //the timer of the tray window that looks at Caps Lock
+#define CAPSLOCK_POLL_MS 150
 
 #define POPUP_VIET_ON_OFF 900
 #define POPUP_SPELLING 901
@@ -60,6 +63,24 @@ static HMENU popupMenu;
 static HMENU otherCode;
 
 static NOTIFYICONDATA nid;
+
+//Caps Lock as of the last look: the tray icon is red while it is on. The red icons are made once for each icon of the tray and kept.
+static bool capsLockOn = false;
+static map<int, HICON> redIcons;
+
+static HICON redIconFor(int iconId, bool vietnamese) {
+	map<int, HICON>::iterator found = redIcons.find(iconId);
+	if (found != redIcons.end())
+		return found->second;
+	//made from the small icon, the size the tray shows
+	HICON base = (HICON)LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(iconId), IMAGE_ICON,
+	                              GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+	HICON red = base ? CapsLockNotice::makeRedIcon(base, vietnamese) : NULL;
+	if (base)
+		DestroyIcon(base);
+	redIcons[iconId] = red; //NULL is kept too: it is not tried again at every change
+	return red;
+}
 
 map<UINT, LPCTSTR> menuData = {
 	{POPUP_VIET_ON_OFF, _T("Bật Tiếng Việt")},
@@ -107,6 +128,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		break;
 	case WM_USER+2019:
 		AppDelegate::getInstance()->onControlPanel();
+		break;
+	case WM_TIMER:
+		if (wParam == TIMER_CAPSLOCK)
+			SystemTrayHelper::checkCapsLock();
 		break;
 	case AppDelegate::kMessageUpdateFound: {
 		//a new version was found by the thread that looks for it
@@ -310,6 +335,28 @@ static void loadTrayIcon() {
 		LoadString(GetModuleHandle(0), IDS_TRAY_TITLE, nid.szTip, 128);
 	}
 	nid.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(icon));
+	if (capsLockOn) {
+		HICON red = redIconFor(icon, vLanguage != 0);
+		if (red)
+			nid.hIcon = red;
+		//the tip says it as well: colour alone says nothing to a screen reader
+		int used = lstrlenW(nid.szTip);
+		if (used + 1 < (int)_countof(nid.szTip)) {
+			wstring note = L"\n";
+			note += CapsLockNotice::messageFor(true);
+			lstrcpynW(nid.szTip + used, note.c_str(), (int)_countof(nid.szTip) - used);
+		}
+	}
+}
+
+void SystemTrayHelper::checkCapsLock() {
+	bool on = CapsLockNotice::isOn();
+	if (on == capsLockOn)
+		return;
+	capsLockOn = on;
+	updateData();
+	if (vCapsLockToast)
+		CapsLockNotice::showToast(on);
 }
 
 void SystemTrayHelper::updateData() {
@@ -397,9 +444,13 @@ void SystemTrayHelper::_createSystemTrayIcon(const HINSTANCE& hIns) {
 	nid.uID = TRAY_ICONUID;
 	nid.uVersion = NOTIFYICON_VERSION;
 	nid.uCallbackMessage = WM_TRAYMESSAGE;
+	//what is on now is not news: the icon is right from the start, no message for it
+	capsLockOn = CapsLockNotice::isOn();
 	loadTrayIcon();
 	LoadString(ins, IDS_APP_TITLE, nid.szTip, 128);
 	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+	//Caps Lock is looked at from the window of the tray: the keyboard hook must answer fast and is not the place for it
+	SetTimer(hWnd, TIMER_CAPSLOCK, CAPSLOCK_POLL_MS, NULL);
 
 	// Shell_NotifyIcon may fail if the system tray icon is not fully initialized
 	const int maxRetries = 5;
@@ -422,5 +473,11 @@ void SystemTrayHelper::createSystemTrayIcon(const HINSTANCE& hIns) {
 }
 
 void SystemTrayHelper::removeSystemTray() {
+	KillTimer(nid.hWnd, TIMER_CAPSLOCK);
 	Shell_NotifyIcon(NIM_DELETE, &nid);
+	CapsLockNotice::destroy();
+	for (map<int, HICON>::iterator it = redIcons.begin(); it != redIcons.end(); ++it)
+		if (it->second)
+			DestroyIcon(it->second);
+	redIcons.clear();
 }

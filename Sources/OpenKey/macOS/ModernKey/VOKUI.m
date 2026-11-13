@@ -83,16 +83,16 @@ NSImage* VOKFlagImage(NSString* region) {
     return image;
 }
 
-NSImage* VOKWarningStatusImage(NSImage* glyph) {
+//The glyph of a menu bar icon in a colour, on a dark rounded tile
+static NSImage* TintedStatusImage(NSImage* glyph, NSColor* colour) {
     if (glyph == nil)
         return nil;
     NSSize size = glyph.size;
     NSImage* image = [NSImage imageWithSize:size flipped:NO drawingHandler:^BOOL(NSRect rect) {
-        NSColor* yellow = [NSColor colorWithSRGBRed:1.0 green:0.80 blue:0.0 alpha:1];
-        //the glyph alone in yellow: filled over the glyph only, which is what the transparent parts of it keep out
-        NSImage* yellowGlyph = [NSImage imageWithSize:rect.size flipped:NO drawingHandler:^BOOL(NSRect inner) {
+        //the glyph alone in the colour: filled over the glyph only, which is what the transparent parts of it keep out
+        NSImage* tintedGlyph = [NSImage imageWithSize:rect.size flipped:NO drawingHandler:^BOOL(NSRect inner) {
             [glyph drawInRect:inner fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
-            [yellow set];
+            [colour set];
             NSRectFillUsingOperation(inner, NSCompositingOperationSourceAtop);
             return YES;
         }];
@@ -101,9 +101,32 @@ NSImage* VOKWarningStatusImage(NSImage* glyph) {
         NSRect tile = NSMakeRect(0.75 * scale, 3.25 * scale, 20.5 * scale, 15.5 * scale);
         [[NSColor colorWithSRGBRed:0.13 green:0.12 blue:0.10 alpha:0.94] setFill];
         [[NSBezierPath bezierPathWithRoundedRect:tile xRadius:2.8 * scale yRadius:2.8 * scale] fill];
-        //twice: the grey stripes of the flag are half transparent, and over a dark tile half a yellow turns into mustard
+        //twice: the grey stripes of the flag are half transparent, and over a dark tile half a colour turns into a dull one
         for (int pass = 0; pass < 2; pass++)
-            [yellowGlyph drawInRect:rect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
+            [tintedGlyph drawInRect:rect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
+        return YES;
+    }];
+    image.template = NO;
+    return image;
+}
+
+NSImage* VOKWarningStatusImage(NSImage* glyph) {
+    return TintedStatusImage(glyph, [NSColor colorWithSRGBRed:1.0 green:0.80 blue:0.0 alpha:1]);
+}
+
+NSImage* VOKCapsLockStatusImage(NSImage* glyph, BOOL vietnamese) {
+    if (!vietnamese)
+        return TintedStatusImage(glyph, [NSColor colorWithSRGBRed:1.0 green:0.27 blue:0.23 alpha:1]);
+    if (glyph == nil)
+        return nil;
+    //the flag of Vietnam: a yellow star on a red tile. Drawn, not taken from the glyph: that is a tile with the star cut out of it.
+    NSImage* image = [NSImage imageWithSize:glyph.size flipped:NO drawingHandler:^BOOL(NSRect rect) {
+        CGFloat scale = rect.size.width / 22.0;
+        NSRect tile = NSMakeRect(0.75 * scale, 3.25 * scale, 20.5 * scale, 15.5 * scale);
+        [[NSColor colorWithSRGBRed:0.855 green:0.145 blue:0.114 alpha:1] setFill];
+        [[NSBezierPath bezierPathWithRoundedRect:tile xRadius:2.8 * scale yRadius:2.8 * scale] fill];
+        [[NSColor colorWithSRGBRed:1.0 green:0.90 blue:0.0 alpha:1] setFill];
+        [StarPath(NSMakePoint(NSMidX(tile), NSMidY(tile) - 0.2 * scale), NSHeight(tile) * 0.36) fill];
         return YES;
     }];
     image.template = NO;

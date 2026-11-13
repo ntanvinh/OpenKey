@@ -4,6 +4,7 @@
 //
 #include "stdafx.h"
 #include "FeatureActions.h"
+#include "CapsLockNotice.h"
 #include "CaseBar.h"
 #include "SnippetEditor.h"
 #include "SnippetPalette.h"
@@ -121,6 +122,7 @@ void loadSettings() {
     APP_GET_DATA(vSnippetHotKey, 0x353);
     APP_GET_DATA(vCaseBarHotKey, 0x343);
     APP_GET_DATA(vCaseBarAuto, 1);
+    APP_GET_DATA(vCapsLockToast, 1);
     APP_GET_DATA(vRestoreHotKey, 0x352);
     APP_GET_DATA(vAIEnabled, 1);
     APP_GET_DATA(vAIHotKey, 0x341);

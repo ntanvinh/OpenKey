@@ -40,6 +40,8 @@
 		5EC0DE104A3230845A6DB3D3 /* Donation.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE102463CE88339B8976 /* Donation.m */; };
 		2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 2389467C21FDDB920030A13B /* OpenKeyManager.m */; };
 		5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1020261013000A0002 /* SecureInputMonitor.m */; };
+		5EC0DE10CA95100000000003 /* CapsLockMonitor.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE10CA95100000000002 /* CapsLockMonitor.m */; };
+		5EC0DE10CA95100000000006 /* CapsLockToast.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE10CA95100000000005 /* CapsLockToast.m */; };
 		5EC0DE10302611030B000003 /* SecureInputHolder.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE10302611030B000002 /* SecureInputHolder.m */; };
 		5EC0DE10302611030B000006 /* SecureInputWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE10302611030B000005 /* SecureInputWindow.m */; };
 		5EC0DE1020261020000A0003 /* AppUpdater.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE1020261020000A0002 /* AppUpdater.m */; };
@@ -183,6 +185,10 @@
 		5EC0DE1020261014000A0001 /* AppInfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppInfo.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0001 /* SecureInputMonitor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecureInputMonitor.h; sourceTree = "<group>"; };
 		5EC0DE1020261013000A0002 /* SecureInputMonitor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SecureInputMonitor.m; sourceTree = "<group>"; };
+		5EC0DE10CA95100000000001 /* CapsLockMonitor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CapsLockMonitor.h; sourceTree = "<group>"; };
+		5EC0DE10CA95100000000002 /* CapsLockMonitor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CapsLockMonitor.m; sourceTree = "<group>"; };
+		5EC0DE10CA95100000000004 /* CapsLockToast.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CapsLockToast.h; sourceTree = "<group>"; };
+		5EC0DE10CA95100000000005 /* CapsLockToast.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CapsLockToast.m; sourceTree = "<group>"; };
 		5EC0DE10302611030B000001 /* SecureInputHolder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecureInputHolder.h; sourceTree = "<group>"; };
 		5EC0DE10302611030B000002 /* SecureInputHolder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SecureInputHolder.m; sourceTree = "<group>"; };
 		5EC0DE10302611030B000004 /* SecureInputWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SecureInputWindow.h; sourceTree = "<group>"; };
@@ -460,6 +466,10 @@
 				5EC0DE1020261014000A0001 /* AppInfo.h */,
 				5EC0DE1020261013000A0001 /* SecureInputMonitor.h */,
 				5EC0DE1020261013000A0002 /* SecureInputMonitor.m */,
+				5EC0DE10CA95100000000001 /* CapsLockMonitor.h */,
+				5EC0DE10CA95100000000002 /* CapsLockMonitor.m */,
+				5EC0DE10CA95100000000004 /* CapsLockToast.h */,
+				5EC0DE10CA95100000000005 /* CapsLockToast.m */,
 				5EC0DE10302611030B000001 /* SecureInputHolder.h */,
 				5EC0DE10302611030B000002 /* SecureInputHolder.m */,
 				5EC0DE10302611030B000004 /* SecureInputWindow.h */,
@@ -730,6 +740,8 @@
 				5EC0DE104A3230845A6DB3D3 /* Donation.m in Sources */,
 				2389467D21FDDB920030A13B /* OpenKeyManager.m in Sources */,
 				5EC0DE1020261013000A0003 /* SecureInputMonitor.m in Sources */,
+				5EC0DE10CA95100000000003 /* CapsLockMonitor.m in Sources */,
+				5EC0DE10CA95100000000006 /* CapsLockToast.m in Sources */,
 				5EC0DE10302611030B000003 /* SecureInputHolder.m in Sources */,
 				5EC0DE10302611030B000006 /* SecureInputWindow.m in Sources */,
 				5EC0DE1020261020000A0003 /* AppUpdater.m in Sources */,
@@ -904,7 +916,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 101;
+				CURRENT_PROJECT_VERSION = 103;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -914,7 +926,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.23;
+				MARKETING_VERSION = 3.7.25;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -932,7 +944,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 101;
+				CURRENT_PROJECT_VERSION = 103;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -942,7 +954,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.23;
+				MARKETING_VERSION = 3.7.25;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

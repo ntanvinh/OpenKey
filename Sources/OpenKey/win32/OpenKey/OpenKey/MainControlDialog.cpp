@@ -13,6 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "MainControlDialog.h"
 #include "AppDelegate.h"
+#include "CapsLockNotice.h"
 #include <Shlobj.h>
 #include <Uxtheme.h>
 
@@ -21,7 +22,7 @@ redistribute your new version, it MUST be open source.
 static Uint16 _lastKeyCode;
 
 MainControlDialog::MainControlDialog(const HINSTANCE& hInstance, const int& resourceId)
-    : BaseDialog(hInstance, resourceId) {
+    : BaseDialog(hInstance, resourceId), checkCapsLockToast(NULL) {
 }
 
 MainControlDialog::~MainControlDialog() {
@@ -198,6 +199,8 @@ void MainControlDialog::initDialog() {
     checkFixChromium = GetDlgItem(hTabPage3, IDC_CHECK_FIX_CHROMIUM);
     createToolTip(checkFixChromium, IDS_STRING_FIX_CHROMIUM);
 
+    addCapsLockToastCheck();
+
     /*------------end tab 3----------------*/
 
     SendDlgItemMessage(hDlg, IDBUTTON_OK, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(hIns, MAKEINTRESOURCEW(IDI_ICON_OK_BUTTON)));
@@ -323,6 +326,21 @@ INT_PTR MainControlDialog::tabPageEventProc(HWND hDlg, UINT uMsg, WPARAM wParam,
     return FALSE;
 }
 
+//The check box of the Caps Lock message is made here in code, under "Khởi động cùng Windows" (OpenKey.rc is left alone: Visual Studio
+//rewrites it), on the grid of the dialog units of the page
+static const int kIdCapsLockToast = 2103;
+
+void MainControlDialog::addCapsLockToastCheck() {
+    RECT box = {7, 108, 7 + 200, 108 + 10};
+    MapDialogRect(hTabPage3, &box);
+    checkCapsLockToast = CreateWindowExW(0, L"BUTTON", L"Thông báo khi bật/tắt Caps Lock", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
+        box.left, box.top, box.right - box.left, box.bottom - box.top, hTabPage3, (HMENU)(INT_PTR)kIdCapsLockToast, hInstance, NULL);
+    if (checkCapsLockToast) {
+        SendMessage(checkCapsLockToast, WM_SETFONT, SendMessage(hTabPage3, WM_GETFONT, 0, 0), TRUE);
+        createToolTip(checkCapsLockToast, _T("Khi bấm Caps Lock, một thông báo nhỏ hiện gần đáy màn hình. Biểu tượng ở khay hệ thống vẫn chuyển sang màu đỏ khi Caps Lock đang bật, dù có bật mục này hay không."));
+    }
+}
+
 void MainControlDialog::fillData() {
     SendMessage(comboBoxInputType, CB_SETCURSEL, vInputType, 0);
     SendMessage(comboBoxTableCode, CB_SETCURSEL, vCodeTable, 0);
@@ -344,6 +362,8 @@ void MainControlDialog::fillData() {
     SendMessage(checkSpelling, BM_SETCHECK, vCheckSpelling ? 1 : 0, 0);
     SendMessage(checkRestoreIfWrongSpelling, BM_SETCHECK, vRestoreIfWrongSpelling ? 1 : 0, 0);
     SendMessage(checkModernIcon, BM_SETCHECK, vUseGrayIcon ? 1 : 0, 0);
+    if (checkCapsLockToast)
+        SendMessage(checkCapsLockToast, BM_SETCHECK, vCapsLockToast ? 1 : 0, 0);
     SendMessage(checkAllowZWJF, BM_SETCHECK, vAllowConsonantZFWJ ? 1 : 0, 0);
     SendMessage(checkTempOffSpelling, BM_SETCHECK, vTempOffSpelling ? 1 : 0, 0);
     SendMessage(checkQuickStartConsonant, BM_SETCHECK, vQuickStartConsonant ? 1 : 0, 0);
@@ -504,6 +524,12 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
     else if (hWnd == checkModernIcon) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
         APP_SET_DATA(vUseGrayIcon, val ? 1 : 0);
+    }
+    else if (checkCapsLockToast && hWnd == checkCapsLockToast) {
+        val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
+        APP_SET_DATA(vCapsLockToast, val ? 1 : 0);
+        if (!val)
+            CapsLockNotice::hideToast(); //switched off: a message that is up goes away
     }
     else if (hWnd == checkAllowZWJF) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);

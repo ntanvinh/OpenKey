@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "mode": "desktop",
+  "orientation": "landscape",
+  "id": "caps-lock-warning",
+  "tier": "value",
+  "rank": 100,
+  "title": {
+    "en-US": "See Caps Lock Before You Type",
+    "vi": "Biết ngay khi Caps Lock đang bật"
+  },
+  "description": {
+    "en-US": "Spot Caps Lock at a glance, before a whole sentence comes out in capitals. The menu bar icon turns red while it is on, and a short notice appears near the bottom of the screen each time you press the key. You can switch off that notice in Settings and keep the red icon.",
+    "vi": "Nhìn là biết Caps Lock đang bật, trước khi cả câu bị viết hoa. Biểu tượng trên thanh menu chuyển sang màu đỏ khi Caps Lock bật, và mỗi lần bấm phím một thông báo nhỏ hiện gần đáy màn hình. Thông báo đó có thể tắt riêng trong Cài đặt, biểu tượng đỏ vẫn giữ nguyên."
+  },
+  "screens": [
+    "Menu bar",
+    "Caps Lock notice",
+    "System settings"
+  ]
+}

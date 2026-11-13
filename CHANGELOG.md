@@ -1,5 +1,25 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.25 (build 103): (13/11/2026)
+- docs(website): add open-source credit for OpenKey to product.json
+- feat(release): make release.sh resumable and dispatch the Windows build
+- docs(marketing): add What's New notes for 3.7.23
+- fix(secure-input): show the tray warning even when language is English
+- chore(release): bump version to 3.7.22 (build 100)
+- fix(secure-input): doubt the holder name macOS gives and delay the fallback
+- docs(marketing): add desktop captures 01-03 and refresh store listing
+- feat(windows): port agent CLIs, pictures, auto case list and update flow
+
+##### VOpenKey 3.7.24 (build 102): (13/11/2026)
+- docs(website): add open-source credit for OpenKey to product.json
+- feat(release): make release.sh resumable and dispatch the Windows build
+- docs(marketing): add What's New notes for 3.7.23
+- fix(secure-input): show the tray warning even when language is English
+- chore(release): bump version to 3.7.22 (build 100)
+- fix(secure-input): doubt the holder name macOS gives and delay the fallback
+- docs(marketing): add desktop captures 01-03 and refresh store listing
+- feat(windows): port agent CLIs, pictures, auto case list and update flow
+
 ##### VOpenKey 3.7.23 (build 101): (09/11/2026)
 - chore(release): bump version to 3.7.22 (build 100)
 - fix(secure-input): doubt the holder name macOS gives and delay the fallback

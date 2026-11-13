@@ -13,6 +13,7 @@ redistribute your new version, it MUST be open source.
 -----------------------------------------------------------*/
 #include "AppDelegate.h"
 #include "FeatureWindows.h"
+#include "CapsLockNotice.h"
 #include <objbase.h>
 
 static AppDelegate* _instance;
@@ -229,6 +230,7 @@ void AppDelegate::onDefaultConfig() {
 	APP_SET_DATA(vTempOffSpelling, 0);
 
 	APP_SET_DATA(vUseGrayIcon, 0);
+	APP_SET_DATA(vCapsLockToast, 1);
 	APP_SET_DATA(vShowOnStartUp, 1);
 	APP_SET_DATA(vRunWithWindows, 1);
 	APP_SET_DATA(vCheckNewVersion, 1);

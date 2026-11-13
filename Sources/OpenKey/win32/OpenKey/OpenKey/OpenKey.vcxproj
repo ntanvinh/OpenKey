@@ -175,7 +175,9 @@
     <ClInclude Include="..\..\..\engine\CaseTransform.h" />
     <ClInclude Include="..\..\..\engine\SuggestAppearance.h" />
     <ClInclude Include="..\..\..\engine\AppExclusions.h" />
+    <ClInclude Include="..\..\..\engine\CapsLockIcon.h" />
     <ClInclude Include="..\..\..\engine\AIAgent.h" />
+    <ClInclude Include="CapsLockNotice.h" />
     <ClInclude Include="CaseBar.h" />
     <ClInclude Include="CaseTransformWindows.h" />
     <ClInclude Include="FeatureActions.h" />
@@ -232,8 +234,10 @@
     <ClCompile Include="..\..\..\engine\SensitiveField.cpp" />
     <ClCompile Include="..\..\..\engine\SuggestAppearance.cpp" />
     <ClCompile Include="..\..\..\engine\AppExclusions.cpp" />
+    <ClCompile Include="..\..\..\engine\CapsLockIcon.cpp" />
     <ClCompile Include="..\..\..\engine\AIAgent.cpp" />
     <ClCompile Include="..\..\..\engine\CaseTransform.cpp" />
+    <ClCompile Include="CapsLockNotice.cpp" />
     <ClCompile Include="CaseBar.cpp" />
     <ClCompile Include="CaseTransformWindows.cpp" />
     <ClCompile Include="FeatureActions.cpp" />

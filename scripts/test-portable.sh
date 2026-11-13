@@ -30,6 +30,7 @@ run ai_protocol_test ai_protocol_test.cpp ../AIProtocol.cpp ../MiniJson.cpp
 run ai_agent_test ai_agent_test.cpp ../AIAgent.cpp ../AIProtocol.cpp ../MiniJson.cpp
 run suggest_appearance_test suggest_appearance_test.cpp ../SuggestAppearance.cpp
 run app_exclusions_test app_exclusions_test.cpp ../AppExclusions.cpp
+run capslock_icon_test capslock_icon_test.cpp ../CapsLockIcon.cpp
 run restore_test restore_test.cpp ../Engine.cpp ../Vietnamese.cpp ../Macro.cpp ../SmartSwitchKey.cpp ../ConvertTool.cpp
 run suggestion_keys_test ../../win32/OpenKey/tests/suggestion_keys_test.cpp -I../../win32/OpenKey/OpenKey
 if [ "$(uname)" = "Darwin" ]; then

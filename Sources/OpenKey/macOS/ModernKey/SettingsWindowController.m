@@ -20,6 +20,8 @@
 #import "RememberedAppsController.h"
 #import "ShortcutConflicts.h"
 #import "ShortcutRecorder.h"
+#import "CapsLockMonitor.h"
+#import "CapsLockToast.h"
 #import "InputSourceGuard.h"
 #import "OpenKeyManager.h"
 #import "SnippetEditorController.h"
@@ -1651,7 +1653,14 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     SettingsToggle* gray = [SettingsToggle title:@"Biểu tượng đơn sắc trên thanh menu" detail:@"Hợp với giao diện sáng và tối."
                                              key:@"GrayIcon" variable:NULL];
     gray.onChange = ^(BOOL on) { [appDelegate setGrayIcon:on]; };
-    return [self sectionOfToggles:@"Khởi động và hiển thị" toggles:@[startup, showSettings, dock, gray]];
+    SettingsToggle* capsLock = [SettingsToggle title:@"Thông báo khi bật hoặc tắt Caps Lock"
+                                              detail:@"Biểu tượng menu vẫn chuyển đỏ khi Caps Lock bật, dù tắt mục này."
+                                                 key:CapsLockToastDefaultsKey variable:NULL];
+    capsLock.onChange = ^(BOOL on) {
+        if (!on)
+            [CapsLockToast hide]; //switched off: a message that is up goes away
+    };
+    return [self sectionOfToggles:@"Khởi động và hiển thị" toggles:@[startup, showSettings, dock, gray, capsLock]];
 }
 
 -(NSTextField*)statusLabel {

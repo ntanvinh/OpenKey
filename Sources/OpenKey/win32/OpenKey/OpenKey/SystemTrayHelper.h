@@ -24,6 +24,8 @@ private:
 public:
 	static void createSystemTrayIcon(const HINSTANCE& hIns);
 	static void updateData();
+	//looks at Caps Lock (from a timer of the tray window): when it changed, the icon turns red or back and a message says so
+	static void checkCapsLock();
 	static void removeSystemTray();
 };
 
