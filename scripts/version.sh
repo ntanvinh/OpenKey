@@ -85,7 +85,7 @@ last_release_commit() {
     local tag tag_commit="" marker best=""
     tag="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
     [ -z "$tag" ] || tag_commit="$(git -C "$ROOT" rev-list -n1 "$tag")"
-    marker="$(git -C "$ROOT" log -n1 --format=%H -E --grep='^(release|chore: release)' 2>/dev/null || true)"
+    marker="$(git -C "$ROOT" log -n1 --format=%H -E --grep='^(release|chore: release|chore\(release\))' 2>/dev/null || true)"
     for candidate in "$tag_commit" "$marker"; do
         [ -n "$candidate" ] || continue
         if [ -z "$best" ] || [ "$(git -C "$ROOT" rev-list --count "$candidate"..HEAD)" -lt "$(git -C "$ROOT" rev-list --count "$best"..HEAD)" ]; then
@@ -106,9 +106,9 @@ add_changelog_entry() { # <version> <build>
     local base notes="" count total
     base="$(last_release_commit)"
     if [ -n "$base" ]; then
-        notes="$(git -C "$ROOT" log "$base"..HEAD --no-merges --pretty='- %s' | grep -Ev '^- (release|chore: release)' || true)"
+        notes="$(git -C "$ROOT" log "$base"..HEAD --no-merges --pretty='- %s' | grep -Ev '^- (release|chore: release|chore\(release\))' || true)"
     else # never released: the last few, not the whole history
-        notes="$(git -C "$ROOT" log -n 15 --no-merges --pretty='- %s' | grep -Ev '^- (release|chore: release)' || true)"
+        notes="$(git -C "$ROOT" log -n 15 --no-merges --pretty='- %s' | grep -Ev '^- (release|chore: release|chore\(release\))' || true)"
     fi
     total="$(printf '%s\n' "$notes" | grep -c . || true)"
     if [ "${total:-0}" -gt 30 ]; then

@@ -17,7 +17,7 @@
     "googlePlay": "#",
     "website": "#",
     "macos": "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg",
-    "windows": "#",
+    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest",
     "linux": "#",
     "privacyPolicy": "/privacy"
   },
