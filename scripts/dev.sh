@@ -9,6 +9,7 @@
 #   scripts/dev.sh                       build, install to ~/Applications, open
 #   scripts/dev.sh --reset-permissions   also forget the Accessibility / Input Monitoring grants (to see the first run again)
 #   scripts/dev.sh --no-open             do not open it
+#   VAPP_VERSION_HELD=1 scripts/dev.sh   do not bump (the caller raised and committed the version)
 source "$(dirname "$0")/common.sh"
 
 RESET=0; OPEN=1
@@ -35,8 +36,13 @@ trap cleanup EXIT
 clang -fobjc-arc -framework Cocoa -framework CoreGraphics \
     "$ROOT/scripts/dev-app.m" -o "$WORK/dev-app"
 
-say "Bumping patch version for this dev build"
-"$ROOT/scripts/version.sh" bump patch
+if [ "${VAPP_VERSION_HELD:-}" = 1 ]; then
+    # VApp Manager's Deploy AI already raised the version, wrote its notes and committed it: a second bump would install a number that no commit and no release note has.
+    say "Keeping the version the caller already raised ($("$ROOT/scripts/version.sh" next current | cut -d' ' -f1))"
+else
+    say "Bumping patch version for this dev build"
+    "$ROOT/scripts/version.sh" bump patch
+fi
 
 DERIVED="$ROOT/build/dev"
 mkdir -p "$ROOT/build"
