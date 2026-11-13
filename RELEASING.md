@@ -35,6 +35,7 @@ Cần chuẩn bị một lần: chứng chỉ Developer ID trong keychain (đã 
 **Link cho website và người dùng mới**: GitHub đổi `releases/latest/download/<tên file>` thành file đó của Release mới nhất, nên link không phải sửa mỗi lần phát hành, miễn là tên file không đổi:
 
 - Tải ngay: `https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg`
+- Tải ngay bản Windows: `https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey-Windows.zip` (workflow `Release Windows` đính kèm thêm bản sao tên cố định này của `VOpenKey-x.y.z-Windows.zip`; link luôn là file cài đặt, không phải trang web)
 - Trang của bản mới nhất: `https://github.com/ntanvinh/OpenKey/releases/latest`
 
 Vì vậy mỗi Release phải có **`VOpenKey.dmg`** (script làm sẵn, cùng file với `VOpenKey-x.y.z.dmg`). Trong `docs/vopenkey-ai/product.json` (và bản sao `marketing/website/product.json`), `links.macos` đang trỏ vào link thứ nhất; sửa xong chạy `v-publish-app-info` một lần, sau đó không phải đụng tới website khi có bản mới.

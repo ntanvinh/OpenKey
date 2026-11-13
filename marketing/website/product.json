@@ -105,6 +105,6 @@
   "platforms": ["macOS", "Windows"],
   "links": {
     "macos": "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg",
-    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest"
+    "windows": "https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey-Windows.zip"
   }
 }
