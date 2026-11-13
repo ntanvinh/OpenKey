@@ -73,7 +73,7 @@ VOpenKey AI tự hỏi GitHub (file `version.json` của nhánh `master`) xem c�
 
 ## Cài đặt
 - Vào [đây](https://github.com/ntanvinh/OpenKey/releases/latest) tải file `VOpenKey-<phiên bản>-Windows.zip` mới nhất về máy, giải nén vào nơi bất kỳ.
-- Nhấp đúp vô `OpenKey.exe` để chạy chương trình.
+- Nhấp đúp vô `OpenKey64.exe` (Windows 64 bit) hoặc `OpenKey32.exe` (Windows 32 bit) để chạy chương trình.
 - Lưu ý, khi chạy chương trình lần đầu, Windows sẽ mở một hộp thoại để hỏi bạn, bấm `yes` để đồng ý VOpenKey AI chạy với quyền `admin`
 - Xong rồi một biểu tượng chữ `V` sẽ hiện trên system tray, đúp click vô đó để mở bảng điều khiển, cấu hình những thứ bạn cần.
 - Xong.

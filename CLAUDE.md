@@ -20,6 +20,7 @@ current name. If a task seems to need a rename, ask the owner first.
 These are identifiers or file names that must not move, they are not the name of the app:
 
 - release file names `VOpenKey-<version>.dmg` and `VOpenKey-<version>-Windows.zip` (`APP_NAME` in `scripts/common.sh`: no spaces, GitHub rewrites them), and `VOpenKey.dmg`, the same dmg without the version, which the website links to as `.../releases/latest/download/VOpenKey.dmg`; the app's updater looks for exactly `VOpenKey-<version>.dmg` (`VOK_RELEASE_FILE_NAME` in `AppInfo.h`)
+- `VOpenKey-Windows.zip`, the fixed-name copy of the newest Windows zip that `.github/workflows/release-windows.yml` attaches to every release; the README, the website and the `product.json` files link to `.../releases/latest/download/VOpenKey-Windows.zip`
 - the bundle id `vn.io.lssoft.vopenkey`
 - the folder names `~/Library/Application Support/VOpenKey` and `~/Library/Logs/VOpenKey` (`VOK_DATA_DIR_NAME`), so the user's data stays where it is
 - the notarytool profile `VOpenKey-notary`
@@ -30,3 +31,7 @@ These are identifiers or file names that must not move, they are not the name of
 `scripts/release.sh` is designed to be idempotent:
 - When a release is partly published or interrupted at the Windows build / announce step, `scripts/release.sh current --yes` safely resumes it, verifies existing notarized disk images, triggers/waits for the Windows build workflow, and finishes announcing the release.
 - `wait_for_windows` automatically dispatches `.github/workflows/release-windows.yml` via `gh workflow run` if GitHub Actions does not trigger the `release: published` event automatically within 20 seconds.
+
+## Windows ships with every release
+- The Windows app is released with the macOS app (`VOpenKey-<version>-Windows.zip`). Do not call it upstream-only or "unverified" in `README.md`, `marketing/positioning.md`, the `product.json` files or `Sources/OpenKey/win32/README.md`, and do not write "Mac" alone where the product is for both platforms.
+- When a platform claim changes, change those files in the same commit. `python3 scripts/check-product-docs.py` checks the Windows links, the platform lists and the descriptions; CI runs it in the `product-docs` job of `.github/workflows/msbuild.yml`.

@@ -62,3 +62,13 @@ jobs:
       with:
         subject-name: ${{needs.build.outputs.subject-name}}
         subject-digest: sha256:${{needs.build.outputs.subject-digest}}
+
+  product-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # README, positioning, the product.json files and the Windows README must agree that the app ships for macOS and Windows.
+    - name: Check the docs and product files
+      run: python3 scripts/check-product-docs.py

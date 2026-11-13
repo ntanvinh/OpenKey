@@ -2,8 +2,8 @@
 # VOpenKey AI
 ### [Tải bản mới nhất](https://github.com/ntanvinh/OpenKey/releases/latest)
 
-### Bộ gõ tiếng Việt nguồn mở cho macOS, phát triển bởi LSSoft, fork từ [OpenKey](https://github.com/tuyenvm/OpenKey) của Mai Vũ Tuyên.
-Bộ gõ tiếng Việt cho macOS, sử dụng kỹ thuật `Backspace`. Loại bỏ lỗi gạch chân khó chịu ở bộ gõ mặc định. Hoàn toàn miễn phí và là nguồn mở.
+### Bộ gõ tiếng Việt nguồn mở cho macOS và Windows, phát triển bởi LSSoft, fork từ [OpenKey](https://github.com/tuyenvm/OpenKey) của Mai Vũ Tuyên.
+Bộ gõ tiếng Việt cho macOS và Windows. Trên macOS, sử dụng kỹ thuật `Backspace` để loại bỏ lỗi gạch chân khó chịu ở bộ gõ mặc định. Hoàn toàn miễn phí và là nguồn mở.
 
 ### Mã nguồn được mở công khai, minh bạch dưới giấy phép GPL-3.0. Điều này nghĩa là bạn hoàn toàn có thể tải mã nguồn về tự build, cải tiến theo mục đích của bạn. Nếu bạn tái phân phối bản cải tiến của bạn, thì nó cũng phải là mã nguồn mở và thông báo bản gốc là OpenKey của Mai Vũ Tuyên.
 
@@ -71,9 +71,11 @@ Bộ gõ tiếng Việt cho macOS, sử dụng kỹ thuật `Backspace`. Loại 
 [Changelog](CHANGELOG.md)
 
 ## Cài đặt:
-Yêu cầu macOS 13 (Ventura) trở lên.
+**macOS:** yêu cầu macOS 13 (Ventura) trở lên.
 
 Tải [VOpenKey.dmg](https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey.dmg) (địa chỉ cố định, luôn là bản mới nhất; các bản cũ ở [trang Releases](https://github.com/ntanvinh/OpenKey/releases)), mở ra rồi kéo `VOpenKey AI.app` vào thư mục `Applications`. Mở VOpenKey AI từ đó. Từ đó về sau VOpenKey AI tự cập nhật.
+
+**Windows:** yêu cầu Windows Vista trở lên. Tải [VOpenKey-Windows.zip](https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey-Windows.zip) (địa chỉ cố định, luôn là bản mới nhất), giải nén rồi chạy `OpenKey64.exe` (hoặc `OpenKey32.exe` cho Windows 32 bit). Tính năng riêng và cách cập nhật của bản Windows xem tại [Sources/OpenKey/win32/README.md](Sources/OpenKey/win32/README.md).
 
 ## Cấp quyền khi mở lần đầu:
 VOpenKey AI cần 2 quyền của macOS để đọc phím bạn gõ và thay bằng chữ có dấu. Khi mở lần đầu sẽ có cửa sổ **Chào mừng đến với VOpenKey AI**, bạn chỉ cần:
@@ -101,7 +103,7 @@ Xem [macOS_Build.md](macOS_Build.md). Tóm tắt:
 - **Mai Vũ Tuyên** - tác giả OpenKey gốc: [github.com/tuyenvm/OpenKey](https://github.com/tuyenvm/OpenKey), maivutuyen.91@gmail.com, fanpage [OpenKeyVN](https://www.facebook.com/OpenKeyVN).
 
 ## Liên kết
-- [OpenKey cho Windows, xem chi tiết tại đây](https://github.com/tuyenvm/OpenKey/tree/master/Sources/OpenKey/win32)
+- [VOpenKey AI cho Windows: tải bản mới nhất](https://github.com/ntanvinh/OpenKey/releases/latest/download/VOpenKey-Windows.zip), chi tiết tại [Sources/OpenKey/win32/README.md](Sources/OpenKey/win32/README.md)
 - [OpenKey cho Linux (đang phát triển)](https://github.com/tuyenvm/OpenKey/tree/master/Sources/OpenKey/linux)
 ## Một điều nhỏ nhoi
 Nếu VOpenKey AI giúp ích cho bạn, bạn có thể ủng hộ nhóm phát triển: menu trên thanh trạng thái > **Ủng hộ VOpenKey AI** (hoặc Cài đặt > Hệ thống > Ủng hộ; trên Windows: menu của biểu tượng khay, hoặc nút "Ủng hộ VOpenKey AI..." trong "Gợi ý, snippet và công cụ...") có mã VietQR chuyển khoản và liên kết PayPal. Bấm "Tôi đã ủng hộ" thì mục này tự ẩn khỏi menu; app không đối soát giao dịch.

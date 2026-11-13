@@ -2,15 +2,15 @@
 
 ## Product and audience
 
-**Product:** VOpenKey AI is a macOS Vietnamese input method and writing assistant. The repository README describes macOS 13 Ventura or later as the app requirement; the app configuration lists macOS as its platform.
+**Product:** VOpenKey AI is a Vietnamese input method and writing assistant for macOS and Windows. The repository README gives macOS 13 Ventura or later as the requirement for the Mac app; the Windows app (x86 and x64) is described in `Sources/OpenKey/win32/README.md`. The app configuration lists macOS and Windows as its platforms.
 
-**Who it is for:** People who write Vietnamese on a Mac and want control over how Vietnamese text is entered, corrected, and reused. It also serves people who want to call an AI writing assistant from their current app, with a hosted service, local model, or supported signed-in command-line agent.
+**Who it is for:** People who write Vietnamese on a Mac or a Windows PC and want control over how Vietnamese text is entered, corrected, and reused. It also serves people who want to call an AI writing assistant from their current app, with a hosted service, local model, or supported signed-in command-line agent.
 
 ## Promise
 
-**en-US:** For people who write Vietnamese on a Mac, VOpenKey AI is the Vietnamese input method and writing companion that helps them type, recover, and refine text across apps, with configurable input rules and an optional AI assistant.
+**en-US:** For people who write Vietnamese on a Mac or Windows PC, VOpenKey AI is the Vietnamese input method and writing companion that helps them type, recover, and refine text across apps, with configurable input rules and an optional AI assistant.
 
-**vi:** Dành cho người thường viết tiếng Việt trên Mac, VOpenKey AI là bộ gõ kiêm trợ lý viết giúp bạn nhập, khôi phục và chỉnh sửa nội dung xuyên suốt các ứng dụng, với quy tắc gõ tùy chỉnh và trợ lý AI tùy chọn.
+**vi:** Dành cho người thường viết tiếng Việt trên Mac hoặc máy Windows, VOpenKey AI là bộ gõ kiêm trợ lý viết giúp bạn nhập, khôi phục và chỉnh sửa nội dung xuyên suốt các ứng dụng, với quy tắc gõ tùy chỉnh và trợ lý AI tùy chọn.
 
 ## Strongest differentiators and proof
 
@@ -34,7 +34,7 @@ These are categories of alternatives, not researched competitor evaluations. Pro
 
 ## Claims to keep bounded
 
-- The app configuration lists **macOS**. Windows support for this VOpenKey AI project is unverified; the README links to a separate upstream OpenKey Windows project.
+- The app configuration lists **macOS** and **Windows**. Windows is released as `VOpenKey-<version>-Windows.zip` (x86 and x64) on the project's GitHub Releases, with a fixed-name copy `VOpenKey-Windows.zip` for the newest version. Describe a Windows behavior as verified only when `docs/windows-port-checklist.md` records it as run on Windows.
 - The README identifies the project as a fork of OpenKey by Mai Vũ Tuyên, developed by LSSoft, and licensed under GPL-3.0.
 - AI availability, privacy, cost, and speed depend on the selected provider or local model. Do not describe all AI use as offline, free, or private.
 - Competitor-specific comparisons and market position are unverified.
