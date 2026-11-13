@@ -17,5 +17,7 @@
     "Menu bar",
     "Caps Lock notice",
     "System settings"
-  ]
+  ],
+  "image": "../screenshots/desktop/12-caps-lock-warning.png",
+  "featured": 12
 }

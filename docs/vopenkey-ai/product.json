@@ -190,6 +190,19 @@
         "en": "Adjust modern orthography, Quick Telex, spelling and grammar checks, capitalization, and other typing rules to suit your writing.",
         "vi": "Tùy chỉnh cách đặt dấu, Quick Telex, kiểm tra chính tả và ngữ pháp, viết hoa đầu câu cùng các quy tắc gõ khác theo cách bạn viết."
       }
+    },
+    {
+      "image": "./screenshots/12-caps-lock-warning.png",
+      "mode": "desktop",
+      "orientation": "landscape",
+      "text": {
+        "en": "See Caps Lock Before You Type",
+        "vi": "Biết ngay khi Caps Lock đang bật"
+      },
+      "description": {
+        "en": "Spot Caps Lock at a glance, before a whole sentence comes out in capitals. The menu bar icon turns red while it is on, and a short notice appears near the bottom of the screen each time you press the key. You can switch off that notice in Settings and keep the red icon.",
+        "vi": "Nhìn là biết Caps Lock đang bật, trước khi cả câu bị viết hoa. Biểu tượng trên thanh menu chuyển sang màu đỏ khi Caps Lock bật, và mỗi lần bấm phím một thông báo nhỏ hiện gần đáy màn hình. Thông báo đó có thể tắt riêng trong Cài đặt, biểu tượng đỏ vẫn giữ nguyên."
+      }
     }
   ],
   "openSource": [

@@ -55,8 +55,8 @@
     "language": "vi"
   },
   "caps-lock-warning": {
-    "shows": "The menu bar icon turned red while Caps Lock is on, with the short notice 'Caps Lock đang bật' shown near the bottom of the screen, and the Settings toggle 'Thông báo khi bật hoặc tắt Caps Lock' that switches that notice off while the red icon stays.",
-    "inUse": false,
+    "shows": "Composed from offscreen renders of the real code, not a screen capture: the menu bar icon in red with Caps Lock on, the notice 'Caps Lock đang bật' near the bottom of the screen, and the Settings toggle 'Thông báo khi bật hoặc tắt Caps Lock' switched on. The switch track draws grey because the offscreen window is never active.",
+    "inUse": true,
     "language": "vi"
   }
 }
