@@ -1,5 +1,8 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.28 (build 106): (13/11/2026)
+- Cập nhật phiên bản.
+
 ##### VOpenKey 3.7.27 (build 105): (13/11/2026)
 - docs: guard meta description length and feature text copies
 - docs: say the app ships for macOS and Windows and check it in CI
