@@ -1,5 +1,11 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.27 (build 105): (13/11/2026)
+- docs: guard meta description length and feature text copies
+- docs: say the app ships for macOS and Windows and check it in CI
+- feat(tray): make the icon's accessibility label change with its state
+- feat(release): attach a fixed-name Windows zip for a direct download link
+
 ##### VOpenKey 3.7.26 (build 104): (13/11/2026)
 - feat(caps-lock): turn the tray icon red and show a toast on Caps Lock
 
