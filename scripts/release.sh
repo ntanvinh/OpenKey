@@ -30,6 +30,7 @@
 #
 # The Windows zip is built by .github/workflows/release-windows.yml when the release is published, see RELEASING.md.
 source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/release-notes.sh"
 
 BUMP=""; NOTARIZE=0; PUBLISH=0; WINDOWS=1; ASSUME_YES=0; DRY_RUN=0; ANNOUNCE_ONLY=0
 for arg in "$@"; do
@@ -157,6 +158,10 @@ if [ "$FULL" = 1 ]; then
         git -C "$ROOT" rev-parse -q --verify "refs/tags/$TAG" >/dev/null && die "tag $TAG already exists"
     fi
 
+    # The notes come before anything is changed or built: a missing file must cost seconds here, not an hour of notarizing and a release with
+    # GitHub's own description (marketing/releases/notes/<version>.md, see scripts/release-notes.sh).
+    require_release_notes "$NEXT_VERSION" "$REPO" "v"
+
     say "Plan"
     {
         if [ "$RESUME_RELEASE" = 1 ]; then
@@ -191,6 +196,8 @@ IDENTITY="$(find_identity)"
 VERSION="$(setting MARKETING_VERSION)"; BUILD="$(setting CURRENT_PROJECT_VERSION)"
 [ -n "$VERSION" ] && [ -n "$BUILD" ] || die "could not read the version from the Xcode project"
 say "Releasing $APP_NAME $VERSION (build $BUILD)"
+# Also for a release made without a bump argument (--publish alone): its version is only known here.
+[ "$PUBLISH" = 1 ] && require_release_notes "$VERSION" "$REPO" "v"
 
 BUILD_DIR="$ROOT/build/release"
 DIST_DIR="$ROOT/dist"
@@ -338,17 +345,14 @@ if [ "$PUBLISH" = 1 ]; then
         git -C "$ROOT" push -q origin HEAD:master
         SHA="$(git -C "$ROOT" rev-parse HEAD)"
         NOTES="$ROOT/build/release-notes.md"
-        "$VERSION_SH" notes > "$NOTES"
+        mkdir -p "$ROOT/build"
+        release_notes_body "$VERSION" > "$NOTES"
         if [ "${RESUME_RELEASE:-0}" = 1 ]; then
             say "Release $TAG already exists on $REPO, ensuring assets are uploaded"
             gh release upload "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --clobber --repo "$REPO"
         else
             say "Publishing $TAG on $REPO"
-            if [ -s "$NOTES" ]; then
-                gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --notes-file "$NOTES"
-            else
-                gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --generate-notes
-            fi
+            gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --target "$SHA" --title "$DISPLAY_NAME $VERSION" --notes-file "$NOTES"
         fi
         if [ "$WINDOWS" = 1 ]; then wait_for_windows "$TAG" "$SHA"; fi
         announce_release
@@ -356,7 +360,10 @@ if [ "$PUBLISH" = 1 ]; then
         say "Always the newest version, for the website: https://github.com/$REPO/releases/latest/download/$APP_NAME.dmg"
     else
         say "Publishing $TAG on $REPO"
-        gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --title "$DISPLAY_NAME $VERSION" --generate-notes
+        NOTES="$ROOT/build/release-notes.md"
+        mkdir -p "$ROOT/build"
+        release_notes_body "$VERSION" > "$NOTES"
+        gh release create "$TAG" "$DMG" "$DMG.sha256" "$LATEST_DMG" --repo "$REPO" --title "$DISPLAY_NAME $VERSION" --notes-file "$NOTES"
         warn "the Mac app finds this release by itself; the Windows app and the Mac apps older than the self-updating one read version.json from the master branch of $REPO: make sure the version in it ($VERSION, build $BUILD) is pushed (scripts/release.sh --announce)"
     fi
 fi
