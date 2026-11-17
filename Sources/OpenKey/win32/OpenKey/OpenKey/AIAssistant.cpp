@@ -351,7 +351,7 @@ void showPictureFile(const std::wstring& path) {
     InvalidateRect(g_pictureView, NULL, TRUE);
     wchar_t shown[MAX_PATH] = {0};
     if (!PathCompactPathExW(shown, path.c_str(), 64, 0))
-        wcsncpy(shown, path.c_str(), MAX_PATH - 1);
+        wcsncpy_s(shown, MAX_PATH, path.c_str(), _TRUNCATE);
     setStatus(L"Xong. Ctrl+Shift+Enter để chèn ảnh, Ctrl+Shift+C để sao chép và đóng, bấm vào ảnh để xem lớn. Codex lưu ảnh ở " + std::wstring(shown));
     updateButtons();
 }

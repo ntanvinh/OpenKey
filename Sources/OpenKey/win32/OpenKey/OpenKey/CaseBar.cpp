@@ -10,6 +10,8 @@
 #include "TextInserter.h"
 #include "../../../engine/AppExclusions.h"
 #include "../../../engine/SensitiveField.h"
+// oleacc.h first: with WIN32_LEAN_AND_MEAN the `interface` macro comes from the OLE headers, and uiautomation.h of Windows SDK 10.0.26100 does not compile without it
+#include <oleacc.h>
 #include <uiautomation.h>
 #include <oleauto.h>
 #include <algorithm>
