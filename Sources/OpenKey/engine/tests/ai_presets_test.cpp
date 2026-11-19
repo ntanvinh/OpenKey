@@ -79,6 +79,12 @@ int main() {
         CHECK(!preset.summary.empty() && preset.instruction.size() > 20);
         const bool isPoem = preset.id == "poetry" || preset.id == "rhyme" || preset.id == "lucBat" || preset.id == "tuTuyet";
         CHECK(preset.poem == isPoem);
+        // every poem has at least 4 lines ("toi thieu 4 cau"), whatever the form; and none of them allows fewer ("1 cap", "2 cau")
+        if (isPoem) {
+            CHECK(preset.instruction.find("t\xE1\xBB\x91i thi\xE1\xBB\x83u 4 c\xC3\xA2u") != std::string::npos);
+            CHECK(preset.instruction.find("1 c\xE1\xBA\xB7p") == std::string::npos && preset.instruction.find("(2 c\xC3\xA2u)") == std::string::npos);
+            CHECK(preset.summary.find("4 c\xC3\xA2u") != std::string::npos);
+        }
         std::string prompt = buildPrompt(real, preset, "  xin chao  ");
         CHECK(prompt.compare(0, preset.instruction.size(), preset.instruction) == 0);
         CHECK(prompt.size() > 8 && prompt.substr(prompt.size() - 8) == "xin chao");              // the text, trimmed, comes last

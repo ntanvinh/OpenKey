@@ -148,24 +148,24 @@
       "id": "poetry",
       "group": "poem",
       "title": "Thơ tự do",
-      "summary": "Chuyển ý của đoạn văn thành một bài thơ ngắn, có nhịp điệu.",
-      "instruction": "Chuyển ý của đoạn gốc thành một bài thơ ngắn có nhịp điệu, có thể có vần. Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
+      "summary": "Chuyển ý của đoạn văn thành một bài thơ tự do, tối thiểu 4 câu, có nhịp điệu.",
+      "instruction": "Chuyển ý của đoạn gốc thành một bài thơ tự do từ 4 câu trở lên, có nhịp điệu, có thể có vần. Bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng, dù đoạn gốc rất ngắn (nếu ý ít thì triển khai thêm hình ảnh và cảm xúc cho đủ câu, không bịa tên riêng, số liệu hay sự việc không có trong đó). Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
       "poem": true
     },
     {
       "id": "rhyme",
       "group": "poem",
       "title": "Thơ vần",
-      "summary": "Chuyển ý của đoạn văn thành thơ vần 4 câu.",
-      "instruction": "Chuyển ý của đoạn gốc thành thơ vần 4 câu (ý dài có thể 6 hoặc 8 câu). Mỗi câu một dòng, khoảng 6 đến 8 tiếng, độ dài các câu gần bằng nhau, đọc lên có nhịp. Bắt buộc có vần chân rõ: tiếng cuối của câu 2 vần với tiếng cuối của câu 4 (hoặc từng cặp câu 1-2 và 3-4 vần với nhau). Không lặp lại cùng một chữ để gieo vần. Dùng từ giản dị, đời thường, không sáo rỗng. Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
+      "summary": "Chuyển ý của đoạn văn thành thơ vần, tối thiểu 4 câu.",
+      "instruction": "Chuyển ý của đoạn gốc thành thơ vần 4 câu (ý dài có thể 6 hoặc 8 câu). Mỗi câu một dòng, khoảng 6 đến 8 tiếng, độ dài các câu gần bằng nhau, đọc lên có nhịp. Bắt buộc có vần chân rõ: tiếng cuối của câu 2 vần với tiếng cuối của câu 4 (hoặc từng cặp câu 1-2 và 3-4 vần với nhau). Không lặp lại cùng một chữ để gieo vần. Dùng từ giản dị, đời thường, không sáo rỗng. Bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng, dù đoạn gốc rất ngắn (nếu ý ít thì triển khai thêm hình ảnh và cảm xúc cho đủ câu, không bịa tên riêng, số liệu hay sự việc không có trong đó). Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
       "poem": true
     },
     {
       "id": "lucBat",
       "group": "poem",
       "title": "Thơ lục bát",
-      "summary": "Chuyển ý của đoạn văn thành thơ lục bát (câu 6 tiếng, câu 8 tiếng).",
-      "instruction": "Chuyển ý của đoạn gốc thành thơ lục bát: 1 cặp (2 câu), ý dài có thể 2 đến 4 cặp. Luật lục bát: các câu xen kẽ câu lục rồi câu bát, mỗi câu một dòng. Câu lục đúng 6 tiếng, câu bát đúng 8 tiếng (đếm từng tiếng/âm tiết, mỗi từ cách nhau bằng khoảng trắng là một tiếng). Tiếng cuối câu lục vần với tiếng thứ 6 của câu bát; tiếng cuối câu bát vần với tiếng cuối câu lục kế tiếp (nếu có). Các tiếng gieo vần đều là thanh bằng (không dấu hoặc dấu huyền); ở câu bát, tiếng 6 và tiếng 8 khác dấu (một tiếng huyền, một tiếng không dấu). Tiếng 2, 6, 8 thanh bằng; tiếng 4 thanh trắc (sắc, hỏi, ngã, nặng). Ngắt nhịp chẵn (2/2/2 và 2/2/2/2 hoặc 4/4). Không lặp lại cùng một chữ để gieo vần. Viết xong hãy tự đếm lại số tiếng từng câu và kiểm tra vần rồi sửa cho đúng trước khi trả lời. Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
+      "summary": "Chuyển ý của đoạn văn thành thơ lục bát (câu 6 tiếng, câu 8 tiếng), tối thiểu 4 câu.",
+      "instruction": "Chuyển ý của đoạn gốc thành thơ lục bát: tối thiểu 2 cặp (4 câu), ý dài có thể 3 đến 4 cặp. Luật lục bát: các câu xen kẽ câu lục rồi câu bát, mỗi câu một dòng. Câu lục đúng 6 tiếng, câu bát đúng 8 tiếng (đếm từng tiếng/âm tiết, mỗi từ cách nhau bằng khoảng trắng là một tiếng). Tiếng cuối câu lục vần với tiếng thứ 6 của câu bát; tiếng cuối câu bát vần với tiếng cuối câu lục kế tiếp (nếu có). Các tiếng gieo vần đều là thanh bằng (không dấu hoặc dấu huyền); ở câu bát, tiếng 6 và tiếng 8 khác dấu (một tiếng huyền, một tiếng không dấu). Tiếng 2, 6, 8 thanh bằng; tiếng 4 thanh trắc (sắc, hỏi, ngã, nặng). Ngắt nhịp chẵn (2/2/2 và 2/2/2/2 hoặc 4/4). Không lặp lại cùng một chữ để gieo vần. Viết xong hãy tự đếm lại số tiếng từng câu và kiểm tra vần rồi sửa cho đúng trước khi trả lời. Bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng, dù đoạn gốc rất ngắn (nếu ý ít thì triển khai thêm hình ảnh và cảm xúc cho đủ câu, không bịa tên riêng, số liệu hay sự việc không có trong đó). Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
       "poem": true
     },
     {
@@ -173,7 +173,7 @@
       "group": "poem",
       "title": "Thơ tứ tuyệt",
       "summary": "Chuyển ý của đoạn văn thành một bài thơ tứ tuyệt 4 câu.",
-      "instruction": "Chuyển ý của đoạn gốc thành một bài thơ tứ tuyệt. Luật tứ tuyệt: ĐÚNG 4 câu, mỗi câu một dòng; ưu tiên thất ngôn (mỗi câu đúng 7 tiếng) hoặc ngũ ngôn (mỗi câu đúng 5 tiếng), cả bài phải cùng một loại. Bố cục khởi, thừa, chuyển, hợp: câu 1 mở ý, câu 2 nối ý, câu 3 chuyển ý, câu 4 kết gọn. Vần chân (ưu tiên vần bằng): tiếng cuối câu 2 vần với tiếng cuối câu 4, câu 1 vần theo càng tốt, câu 3 không vần. Không lặp lại cùng một chữ để gieo vần. Giọng cô đọng, hàm súc, giàu hình ảnh nhưng dễ hiểu. Viết xong hãy tự đếm lại số tiếng từng câu và kiểm tra vần rồi sửa cho đúng trước khi trả lời. Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
+      "instruction": "Chuyển ý của đoạn gốc thành một bài thơ tứ tuyệt. Luật tứ tuyệt: ĐÚNG 4 câu, mỗi câu một dòng; ưu tiên thất ngôn (mỗi câu đúng 7 tiếng) hoặc ngũ ngôn (mỗi câu đúng 5 tiếng), cả bài phải cùng một loại. Bố cục khởi, thừa, chuyển, hợp: câu 1 mở ý, câu 2 nối ý, câu 3 chuyển ý, câu 4 kết gọn. Vần chân (ưu tiên vần bằng): tiếng cuối câu 2 vần với tiếng cuối câu 4, câu 1 vần theo càng tốt, câu 3 không vần. Không lặp lại cùng một chữ để gieo vần. Giọng cô đọng, hàm súc, giàu hình ảnh nhưng dễ hiểu. Viết xong hãy tự đếm lại số tiếng từng câu và kiểm tra vần rồi sửa cho đúng trước khi trả lời. Bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng, dù đoạn gốc rất ngắn (nếu ý ít thì triển khai thêm hình ảnh và cảm xúc cho đủ câu, không bịa tên riêng, số liệu hay sự việc không có trong đó). Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.",
       "poem": true
     },
     {

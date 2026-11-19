@@ -89,7 +89,11 @@ static NSString* const kTuTuyetRules =
 static NSString* const kOccasionTail =
     @" Lấy nội dung dưới đây làm ý chính (có thể chỉ là vài ý hoặc một bản nháp). Không bịa thêm tên, số liệu hay sự việc không có trong đó. "
     @"Giữ nguyên cách xưng hô nếu có; nếu không thì chọn cách xưng hô tự nhiên, hợp với người nhận. Viết bằng ngôn ngữ của nội dung gốc.";
-static NSString* const kPoemTail = @" Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.";
+//Every poem has at least 4 lines (the owner's rule, 2026-11-19), however short the text it is made from: a text of one sentence gets the
+//images and feelings that fill the lines, but no name, number or event that is not in it.
+static NSString* const kPoemTail =
+    @" Bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng, dù đoạn gốc rất ngắn (nếu ý ít thì triển khai thêm hình ảnh và cảm xúc cho đủ câu, "
+    @"không bịa tên riêng, số liệu hay sự việc không có trong đó). Giữ đúng ý chính, tên riêng và thông tin; chỉ trả về các dòng thơ, không thêm tiêu đề hay giải thích.";
 
 @implementation AIPresets
 
@@ -136,12 +140,12 @@ static NSString* const kPoemTail = @" Giữ đúng ý chính, tên riêng và th
                  [@"Viết thành lời mời: nêu rõ sự kiện, thời gian, địa điểm và cách xác nhận tham dự nếu nội dung có nhắc; giọng điệu hợp dịp (họp, tiệc, cưới hỏi, khai trương…) và người nhận. Thông tin nào còn thiếu thì để chỗ trống trong dấu […] cho người dùng tự điền, không bịa." stringByAppendingString:kOccasionTail], NO),
             make(@"occasion", @"condolence", @"Chia buồn", @"Viết lời chia buồn hoặc động viên nhẹ nhàng, ngắn và ấm áp.",
                  [@"Viết lời chia buồn hoặc động viên chân thành, nhẹ nhàng, tôn trọng; ngắn và ấm áp, không dùng lời sáo rỗng, không so sánh với chuyện khác, không khuyên nhủ dài dòng." stringByAppendingString:kOccasionTail], NO),
-            make(@"poem", @"poetry", @"Thơ tự do", @"Chuyển ý của đoạn văn thành một bài thơ ngắn, có nhịp điệu.",
-                 [@"Chuyển ý của đoạn gốc thành một bài thơ ngắn có nhịp điệu, có thể có vần." stringByAppendingString:kPoemTail], YES),
-            make(@"poem", @"rhyme", @"Thơ vần", @"Chuyển ý của đoạn văn thành thơ vần 4 câu.",
+            make(@"poem", @"poetry", @"Thơ tự do", @"Chuyển ý của đoạn văn thành một bài thơ tự do, tối thiểu 4 câu, có nhịp điệu.",
+                 [@"Chuyển ý của đoạn gốc thành một bài thơ tự do từ 4 câu trở lên, có nhịp điệu, có thể có vần." stringByAppendingString:kPoemTail], YES),
+            make(@"poem", @"rhyme", @"Thơ vần", @"Chuyển ý của đoạn văn thành thơ vần, tối thiểu 4 câu.",
                  [NSString stringWithFormat:@"Chuyển ý của đoạn gốc thành thơ vần 4 câu (ý dài có thể 6 hoặc 8 câu). %@%@", kRhymeRules, kPoemTail], YES),
-            make(@"poem", @"lucBat", @"Thơ lục bát", @"Chuyển ý của đoạn văn thành thơ lục bát (câu 6 tiếng, câu 8 tiếng).",
-                 [NSString stringWithFormat:@"Chuyển ý của đoạn gốc thành thơ lục bát: 1 cặp (2 câu), ý dài có thể 2 đến 4 cặp. %@%@", kLucBatRules, kPoemTail], YES),
+            make(@"poem", @"lucBat", @"Thơ lục bát", @"Chuyển ý của đoạn văn thành thơ lục bát (câu 6 tiếng, câu 8 tiếng), tối thiểu 4 câu.",
+                 [NSString stringWithFormat:@"Chuyển ý của đoạn gốc thành thơ lục bát: tối thiểu 2 cặp (4 câu), ý dài có thể 3 đến 4 cặp. %@%@", kLucBatRules, kPoemTail], YES),
             make(@"poem", @"tuTuyet", @"Thơ tứ tuyệt", @"Chuyển ý của đoạn văn thành một bài thơ tứ tuyệt 4 câu.",
                  [NSString stringWithFormat:@"Chuyển ý của đoạn gốc thành một bài thơ tứ tuyệt. %@%@", kTuTuyetRules, kPoemTail], YES),
             make(@"length", @"short", @"Ngắn gọn", @"Rút gọn, giữ đủ ý chính, bỏ phần thừa.",

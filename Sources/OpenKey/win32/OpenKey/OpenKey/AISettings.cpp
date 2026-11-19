@@ -47,7 +47,8 @@ std::string defaultSystemPrompt() {
     return wideStringToUtf8(
         L"Bạn là trợ lý viết văn bản. Làm đúng yêu cầu của người dùng và chỉ trả về nội dung được yêu cầu, "
         L"không mở đầu, không giải thích thêm, không đặt trong dấu ngoặc kép hay khối code trừ khi được yêu cầu. "
-        L"Giữ ngôn ngữ của người dùng, trừ khi họ yêu cầu ngôn ngữ khác.");
+        L"Giữ ngôn ngữ của người dùng, trừ khi họ yêu cầu ngôn ngữ khác. "
+        L"Khi được yêu cầu làm thơ, bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng.");
 }
 
 std::string systemPrompt() {

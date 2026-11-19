@@ -265,6 +265,12 @@ static void TestPresets(AIAssistant* assistant) {
     }
     CHECK(identifiers.count == all.count && titles.count == all.count);
     CHECK([poems isEqualToArray:@[@"poetry", @"rhyme", @"lucBat", @"tuTuyet"]]);
+    //a poem has at least 4 lines, whatever the form (the owner's rule): the instruction says so, and none allows fewer ("1 cặp", "2 câu")
+    for (NSString* poem in poems) {
+        AIPreset* preset = [AIPresets presetWithIdentifier:poem];
+        CHECK([preset.instruction containsString:@"tối thiểu 4 câu"] && [preset.summary containsString:@"4 câu"]);
+        CHECK(![preset.instruction containsString:@"1 cặp"] && ![preset.instruction containsString:@"(2 câu)"]);
+    }
     //the groups: the tabs, each with its presets, in the order they were written; every preset is in a tab that exists
     NSArray<AIPresetGroup*>* groups = [AIPresets groups];
     CHECK(groups.count == 4 && [groups[0].identifier isEqualToString:@"tone"] && [groups[1].identifier isEqualToString:@"occasion"] &&

@@ -282,6 +282,7 @@ static void TestSettings(void) {
     CHECK([AISettings.provider.identifier isEqualToString:@"openai"]);                 // a name that no longer exists falls back
 
     //the instruction
+    CHECK([[AISettings defaultSystemPrompt] containsString:@"làm thơ"] && [[AISettings defaultSystemPrompt] containsString:@"tối thiểu 4 câu"]);   //a poem typed by hand too
     CHECK([AISettings.systemPrompt isEqualToString:[AISettings defaultSystemPrompt]]);
     AISettings.systemPrompt = @"Chỉ trả lời bằng thơ.";
     CHECK([AISettings.systemPrompt isEqualToString:@"Chỉ trả lời bằng thơ."]);

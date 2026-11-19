@@ -57,7 +57,8 @@ static AIConfiguration* Failure(NSError** error, VOKAIErrorCode code, NSString* 
 +(NSString*)defaultSystemPrompt {
     return @"Bạn là trợ lý viết văn bản. Làm đúng yêu cầu của người dùng và chỉ trả về nội dung được yêu cầu, "
            @"không mở đầu, không giải thích thêm, không đặt trong dấu ngoặc kép hay khối code trừ khi được yêu cầu. "
-           @"Giữ ngôn ngữ của người dùng, trừ khi họ yêu cầu ngôn ngữ khác.";
+           @"Giữ ngôn ngữ của người dùng, trừ khi họ yêu cầu ngôn ngữ khác. "
+           @"Khi được yêu cầu làm thơ, bài thơ phải có tối thiểu 4 câu, mỗi câu một dòng.";
 }
 
 +(NSString*)systemPrompt {

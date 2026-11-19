@@ -1,5 +1,8 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.29 (build 107): (19/11/2026)
+- feat(ai): add occasion presets in tabs and ready-made picture sizes
+
 ##### VOpenKey 3.7.28 (build 106): (13/11/2026)
 - Cập nhật phiên bản.
 
