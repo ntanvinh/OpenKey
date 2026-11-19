@@ -14,13 +14,18 @@
 //  - While the AI works the window moves and talks (AIProgress): a light runs round the place of the answer and sentences change as the
 //    time goes on, so that a long wait does not look like a hang. After a while at a high thinking level it offers to ask again at the
 //    lowest one, which is what makes the answer fast.
-//  - Under the box are ready-made conversions (AIPresets): Sửa lỗi, Lịch sự, Thân mật, Hài hước, Trang trọng, Lãng mạn, four kinds of
-//    poem, Ngắn gọn, Đầy đủ hơn, Dịch sang Anh/Việt. One click applies it to the text of the box and asks at once; the button stays lit,
-//    so that "Tạo lại" asks the same again, and goes out when the text is edited (what is typed then is a request of its own).
+//  - Under the box are ready-made conversions (AIPresets), in four tabs: Sửa & đổi giọng (Sửa lỗi, Lịch sự, Thân mật, Hài hước, Trang trọng,
+//    Lãng mạn), Hoàn cảnh (Chúc mừng, Công việc, Gửi sếp, Đồng nghiệp, Bạn bè, Gia đình, Khách hàng, Cảm ơn, Xin lỗi, Lời mời, Chia buồn: they
+//    take a few ideas or a draft and write the whole message in the tone that suits the occasion and the person), Thơ (four kinds of poem), and
+//    Độ dài & dịch (Ngắn gọn, Đầy đủ hơn, Dịch sang Anh/Việt). One click applies it to the text of the box and asks at once; the button stays
+//    lit, so that "Tạo lại" asks the same again, and goes out when the text is edited (what is typed then is a request of its own).
 //  - The gear in the header opens the settings of the AI at any time.
 //  - "Tạo ảnh" (Codex CLI only) asks Codex for a picture of what is in the box, with its imagegen skill named in the request, as it makes
 //    poor pictures otherwise. The picture is shown in the place of the answer; it can be copied, put into the application, or shown in the
 //    Finder. Codex keeps the file in its own folder (~/.codex/generated_images), which the window says.
+//  - Next to it is a menu of ready-made sizes (Instagram, Facebook, Story/Reels/TikTok, YouTube, X, LinkedIn, Pinterest, icons and logos,
+//    greeting cards, a poster): the AI is told the canvas, and the picture that comes back is cut to exactly that many pixels, which is
+//    what is shown, copied, inserted and saved. With "tự chọn" the picture is the one the AI drew, as it is.
 //  - Like the window of the snippets it does not make VOpenKey the frontmost application, and typing Vietnamese in it works like
 //    anywhere else. Nothing typed or received is kept: the text is gone when the window closes.
 //
@@ -95,8 +100,19 @@ typedef NS_ENUM(NSInteger, AIAssistantState) {
 @property (nonatomic, readonly) NSURL* resultImageURL;
 /// "Lưu": saves the picture in the Downloads folder.
 @property (nonatomic, readonly) NSButton* saveImageButton;
-/// The buttons of the ready-made conversions, in the order of +[AIPresets all], and the one that is chosen (nil when none is).
+/// The buttons of the ready-made conversions, in the order of +[AIPresets all] (all of them, also those of the tabs that are not shown), and
+/// the one that is chosen (nil when none is).
 @property (nonatomic, readonly) NSArray<NSButton*>* presetButtons;
+/// The tabs: one segment for each group of +[AIPresets groups]. Only the buttons of the selected one are shown.
+@property (nonatomic, readonly) NSSegmentedControl* presetGroupControl;
+@property (nonatomic, readonly) NSString* selectedPresetGroup;
+-(void)selectPresetGroupWithIdentifier:(NSString*)identifier;
+/// The menu of the sizes of the picture ("Kích thước: tự chọn" first), the one that is chosen (nil for "tự chọn"), and the pixels of the picture
+/// that is shown (zero when there is none).
+@property (nonatomic, readonly) NSPopUpButton* imageSizePopUp;
+@property (nonatomic, readonly) AIImageSize* selectedImageSize;
+-(void)selectImageSizeWithIdentifier:(NSString*)identifier;
+@property (nonatomic, readonly) NSSize resultImageSize;
 @property (nonatomic, readonly) AIPreset* activePreset;
 /// What a click on a conversion does: chooses it and asks at once. Does nothing while an answer is on its way; with nothing in the box it only says so.
 -(void)applyPresetWithIdentifier:(NSString*)identifier;

@@ -4,6 +4,7 @@
 //
 #include "stdafx.h"
 #include "PictureFile.h"
+#include "../../../engine/AIPresets.h"
 #include <wincodec.h>
 #include <shlobj.h>
 #include <shellapi.h>
@@ -147,6 +148,91 @@ void draw(HDC dc, const RECT& area, const Picture& picture, COLORREF background)
     SetBrushOrgEx(dc, 0, 0, NULL);
     StretchDIBits(dc, x, y, width, height, 0, 0, picture.width, picture.height, pixels, info, DIB_RGB_COLORS, SRCCOPY);
     SetStretchBltMode(dc, oldMode);
+}
+
+//the folder where the pictures that were cut to a size are kept for as long as the window shows them (VOpenKey AI, in the temporary folder)
+static std::wstring fittedFolder() {
+    wchar_t temp[MAX_PATH + 2];
+    DWORD length = GetTempPathW(MAX_PATH, temp);
+    if (length == 0 || length >= MAX_PATH)
+        return std::wstring();
+    return std::wstring(temp) + L"VOpenKey AI\\";
+}
+
+static const wchar_t kFittedPrefix[] = L"fit-";
+
+std::wstring fitToSize(const std::wstring& source, int width, int height) {
+    if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
+        return std::wstring();
+    std::wstring folder = fittedFolder();
+    if (folder.empty())
+        return std::wstring();
+    CreateDirectoryW(folder.c_str(), NULL);                      //it may be there already
+    static unsigned counter = 0;
+    std::wstring path = folder + kFittedPrefix + std::to_wstring(GetTickCount()) + L"-" + std::to_wstring(++counter) + L"-" + std::to_wstring(width) +
+                        L"x" + std::to_wstring(height) + L".png";
+    HRESULT com = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    bool ok = false;
+    IWICImagingFactory* factory = NULL;
+    IWICBitmapDecoder* decoder = NULL;
+    IWICBitmapFrameDecode* frame = NULL;
+    IWICFormatConverter* converter = NULL;
+    IWICBitmapClipper* clipper = NULL;
+    IWICBitmapScaler* scaler = NULL;
+    IWICStream* stream = NULL;
+    IWICBitmapEncoder* encoder = NULL;
+    IWICBitmapFrameEncode* target = NULL;
+    IPropertyBag2* options = NULL;
+    if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory))) &&
+        SUCCEEDED(factory->CreateDecoderFromFilename(source.c_str(), NULL, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder)) &&
+        SUCCEEDED(decoder->GetFrame(0, &frame))) {
+        UINT sourceWidth = 0, sourceHeight = 0;
+        int cropX = 0, cropY = 0, cropWidth = 0, cropHeight = 0;
+        if (SUCCEEDED(frame->GetSize(&sourceWidth, &sourceHeight)) && sourceWidth > 0 && sourceHeight > 0 && sourceWidth <= kMaxSide &&
+            sourceHeight <= kMaxSide && (unsigned long long)sourceWidth * sourceHeight <= kMaxPixels &&
+            vpreset::coverCrop((int)sourceWidth, (int)sourceHeight, width, height, cropX, cropY, cropWidth, cropHeight) &&
+            SUCCEEDED(factory->CreateFormatConverter(&converter)) &&
+            SUCCEEDED(converter->Initialize(frame, GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, NULL, 0.0, WICBitmapPaletteTypeCustom))) {
+            WICRect crop = {cropX, cropY, cropWidth, cropHeight};
+            WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
+            ok = SUCCEEDED(factory->CreateBitmapClipper(&clipper)) && SUCCEEDED(clipper->Initialize(converter, &crop)) &&
+                 SUCCEEDED(factory->CreateBitmapScaler(&scaler)) &&
+                 SUCCEEDED(scaler->Initialize(clipper, (UINT)width, (UINT)height, WICBitmapInterpolationModeFant)) &&
+                 SUCCEEDED(factory->CreateStream(&stream)) && SUCCEEDED(stream->InitializeFromFilename(path.c_str(), GENERIC_WRITE)) &&
+                 SUCCEEDED(factory->CreateEncoder(GUID_ContainerFormatPng, NULL, &encoder)) &&
+                 SUCCEEDED(encoder->Initialize(stream, WICBitmapEncoderNoCache)) &&
+                 SUCCEEDED(encoder->CreateNewFrame(&target, &options)) && SUCCEEDED(target->Initialize(options)) &&
+                 SUCCEEDED(target->SetSize((UINT)width, (UINT)height)) && SUCCEEDED(target->SetPixelFormat(&format)) &&
+                 SUCCEEDED(target->WriteSource(scaler, NULL)) && SUCCEEDED(target->Commit()) && SUCCEEDED(encoder->Commit());
+        }
+    }
+    release(options);
+    release(target);
+    release(encoder);
+    release(stream);                                              //the file is complete and closed only now
+    release(scaler);
+    release(clipper);
+    release(converter);
+    release(frame);
+    release(decoder);
+    release(factory);
+    if (SUCCEEDED(com))
+        CoUninitialize();
+    if (!ok) {
+        DeleteFileW(path.c_str());
+        return std::wstring();
+    }
+    return path;
+}
+
+void deleteFitted(const std::wstring& path) {
+    std::wstring folder = fittedFolder();
+    std::wstring prefix = folder + kFittedPrefix;
+    //only a file that fitToSize made: in its folder, under its kind of name, a PNG
+    if (folder.empty() || path.size() <= prefix.size() || _wcsnicmp(path.c_str(), prefix.c_str(), prefix.size()) != 0 || extensionOf(path) != L".png" ||
+        path.find(L"..") != std::wstring::npos)
+        return;
+    DeleteFileW(path.c_str());
 }
 
 static bool setClipboardBlock(UINT format, const std::vector<BYTE>& bytes) {

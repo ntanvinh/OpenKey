@@ -44,7 +44,10 @@ enum {
     kIdLabelInput,
     kIdLabelOutput,
     kIdPresetCaption,
-    kIdPresetFirst = 450         //one button for each ready-made conversion, in the order of engine/ai/ai-presets.json
+    kIdPresetFirst = 450,        //one button for each ready-made conversion, in the order of engine/ai/ai-presets.json
+    kIdGroupFirst = 500,         //one tab for each group of the conversions
+    kIdSizeCaption = 520,
+    kIdSize                      //the menu of the ready-made sizes of the picture
 };
 
 enum State { Idle, Generating, Done, Failed };
@@ -78,6 +81,16 @@ std::vector<int> g_presetWidths;
 std::vector<std::wstring> g_presetTips;
 int g_presetCaptionWidth = 0;
 int g_activePreset = -1;              //the one that the next "Tạo" applies; -1 none. Cleared when the text is edited and when the window opens.
+//the tabs of the conversions (one for each group of the file) and the buttons of the selected one; the ready-made sizes of the picture
+std::vector<HWND> g_groupButtons;
+std::vector<int> g_groupWidths;
+std::vector<int> g_presetGroups;      //for each button of a conversion, the index of its tab
+int g_activeGroup = 0;
+HWND g_sizeCaption = NULL, g_sizeCombo = NULL;
+std::vector<int> g_sizeRows;          //for each row of the menu of sizes: the index in vpreset::Presets::imageSizes, -1 for "Tự chọn", -2 for the title of a group
+int g_chosenSize = -1;                //the size chosen in the menu (an index of imageSizes), -1 when the AI chooses
+int g_requestedSize = -1;             //the size that the picture of this request, or of the last one, is cut to
+std::wstring g_fittedPath;            //the file of the picture that was cut to a size (made by PictureFile::fitToSize); deleted with the picture
 bool g_poemRequest = false;           //the request that is going on is for a poem: its rhymes and syllables are the AI's word, not checked here
 bool g_hintShown = false;             //the status line asks for a text: it goes as soon as one is typed
 
@@ -192,8 +205,10 @@ void updateButtons() {
     EnableWindow(g_insert, haveResult && !generating);
     EnableWindow(g_copy, haveResult && !generating);
     EnableWindow(g_provider, !generating);
-    //only Codex makes pictures
-    EnableWindow(g_image, !generating && AISettings::canMakeImages(chosenProvider()));
+    //only Codex makes pictures, and the menu of the sizes goes with the button
+    bool canImage = !generating && AISettings::canMakeImages(chosenProvider());
+    EnableWindow(g_image, canImage);
+    EnableWindow(g_sizeCombo, canImage);
     updatePresetButtons();
 }
 
@@ -215,10 +230,13 @@ void tickSeconds() {
 }
 
 void layout();
+void selectGroup(int index);
 
 //the answer box shows again where the picture was
 void forgetPicture() {
     g_picture = PictureFile::Picture();
+    PictureFile::deleteFitted(g_fittedPath);          //the cut picture is a file of ours in the temporary folder
+    g_fittedPath.clear();
     g_imageRequest = false;
     if (g_window) {
         ShowWindow(g_pictureView, SW_HIDE);
@@ -305,6 +323,9 @@ void askForImage() {
     }
     g_activePreset = -1; //a picture is made from the description in the box, not from a conversion
     updatePresetButtons();
+    //what is chosen now: the menu may be changed while the picture is made
+    g_requestedSize = g_chosenSize >= 0 && (size_t)g_chosenSize < g_presets.imageSizes.size() ? g_chosenSize : -1;
+    const vpreset::ImageSize* size = g_requestedSize >= 0 ? &g_presets.imageSizes[(size_t)g_requestedSize] : NULL;
     AISettings::setProviderId(provider.id);
     vai::Config config;
     std::wstring reason;
@@ -316,7 +337,8 @@ void askForImage() {
     SetWindowTextW(g_output, L"");
     forgetPicture();
     g_started = time(NULL);
-    std::string request = vai::agent::imagePromptForRequest(wideStringToUtf8(fromEdit(textOf(g_input))), AISettings::imagePrompt());
+    std::string request = vai::agent::imagePromptForRequest(vpreset::buildImageRequest(g_presets, size, wideStringToUtf8(fromEdit(textOf(g_input)))),
+                                                            AISettings::imagePrompt());
     unsigned id = AIClient::generateImage(config, request, g_window, reason);
     if (id == 0) {
         showFailure(reason);
@@ -325,15 +347,27 @@ void askForImage() {
     g_imageRequest = true;
     g_request = id;
     g_state = Generating;
-    setStatus(L"Đang tạo ảnh...");
+    setStatus(size != NULL ? L"Đang tạo ảnh " + utf8ToWideString(vpreset::imageSizeLabel(*size)) + L"..." : std::wstring(L"Đang tạo ảnh..."));
     updateButtons();
     SetTimer(g_window, kTimerSeconds, 1000, NULL);
 }
 
 //The picture is there: it takes the place of the answer box, with what can be done with it
 void showPictureFile(const std::wstring& path) {
+    //a size was chosen: the picture is cut to exactly that many pixels (the AI draws at sizes of its own), and the cut picture is what is shown,
+    //copied, inserted and saved. When it cannot be cut the picture of the AI is kept, and the window says so.
+    const vpreset::ImageSize* size = g_requestedSize >= 0 && (size_t)g_requestedSize < g_presets.imageSizes.size()
+                                         ? &g_presets.imageSizes[(size_t)g_requestedSize] : NULL;
     PictureFile::Picture picture;
-    if (!PictureFile::load(path, picture)) {
+    std::wstring fitted;
+    if (size != NULL) {
+        fitted = PictureFile::fitToSize(path, size->width, size->height);
+        if (!fitted.empty() && !PictureFile::load(fitted, picture)) {
+            PictureFile::deleteFitted(fitted);
+            fitted.clear();
+        }
+    }
+    if (fitted.empty() && !PictureFile::load(path, picture)) {
         vai::Config forText;
         forText.provider = chosenProvider();
         const wchar_t* name = PathFindFileNameW(path.c_str());
@@ -341,6 +375,7 @@ void showPictureFile(const std::wstring& path) {
         return;
     }
     g_picture = picture;
+    g_fittedPath = fitted;
     g_imageRequest = false;
     g_state = Done;
     ShowWindow(g_output, SW_HIDE);
@@ -352,7 +387,10 @@ void showPictureFile(const std::wstring& path) {
     wchar_t shown[MAX_PATH] = {0};
     if (!PathCompactPathExW(shown, path.c_str(), 64, 0))
         wcsncpy_s(shown, MAX_PATH, path.c_str(), _TRUNCATE);
-    setStatus(L"Xong. Ctrl+Shift+Enter để chèn ảnh, Ctrl+Shift+C để sao chép và đóng, bấm vào ảnh để xem lớn. Codex lưu ảnh ở " + std::wstring(shown));
+    std::wstring head = !fitted.empty() ? L"Xong · " + utf8ToWideString(vpreset::imageSizeLabel(*size)) + L". "
+                                        : (size != NULL ? L"Xong. Không cắt được ảnh đúng kích thước nên giữ ảnh của AI. " : L"Xong. ");
+    setStatus(head + L"Ctrl+Shift+Enter để chèn ảnh, Ctrl+Shift+C để sao chép và đóng, bấm vào ảnh để xem lớn. " +
+              (!fitted.empty() ? L"Codex lưu ảnh gốc, chưa cắt, ở " : L"Codex lưu ảnh ở ") + std::wstring(shown));
     updateButtons();
 }
 
@@ -388,6 +426,8 @@ void applyPreset(int index) {
         return;
     }
     g_activePreset = index;
+    if ((size_t)index < g_presetGroups.size())
+        selectGroup(g_presetGroups[(size_t)index]);           //the button that is down must be in view
     updatePresetButtons();
     SetFocus(g_input);          //the button that was clicked is about to be turned off while the answer comes, and Esc must still stop it
     ask();
@@ -467,16 +507,30 @@ void copyAndClose() {
         setStatus(L"Không sao chép được: chương trình khác đang giữ clipboard. Hãy thử lại.");
 }
 
-//The ready-made conversions: buttons in rows that break where the width of the window ends (a row of controls does not wrap by itself).
+//The ready-made conversions: a row with the caption and the tabs, and under it the buttons of the selected tab, in rows that break where the width
+//of the window ends (a row of controls does not wrap by itself). Without groups in the file there are no tabs and the buttons follow the caption.
 //With `move` false it only measures. Returns the height the rows need.
 int layoutPresets(int x, int y, int width, bool move) {
     if (g_presetButtons.empty())
         return 0;
     int gap = px(6), rowHeight = px(26);
-    int rowY = y, cx = x + g_presetCaptionWidth + gap, rowStart = cx;
+    bool tabs = !g_groupButtons.empty();
     if (move)
-        MoveWindow(g_presetCaption, x, rowY + px(4), g_presetCaptionWidth, px(20), TRUE);
+        MoveWindow(g_presetCaption, x, y + px(4), g_presetCaptionWidth, px(20), TRUE);
+    int rowY = y, cx = x + g_presetCaptionWidth + gap;
+    if (tabs) {
+        for (size_t i = 0; i < g_groupButtons.size(); i++) {
+            if (move)
+                MoveWindow(g_groupButtons[i], cx, y, g_groupWidths[i], rowHeight, TRUE);
+            cx += g_groupWidths[i] + gap;
+        }
+        rowY = y + rowHeight + px(4);
+        cx = x;
+    }
+    int rowStart = cx;
     for (size_t i = 0; i < g_presetButtons.size(); i++) {
+        if (tabs && g_presetGroups[i] != g_activeGroup)
+            continue;                                   //of another tab: hidden, and it takes no room
         int w = g_presetWidths[i];
         if (cx > rowStart && cx + w > x + width) {      //it does not fit: the next row, from the left edge
             rowY += rowHeight + px(4);
@@ -509,7 +563,7 @@ void layout() {
     MoveWindow(g_labelInput, pad, y, width - pad * 2, px(20), TRUE);
     y += px(20);
     int stripHeight = layoutPresets(pad, 0, width - pad * 2, false);
-    int inputHeight = (std::max)(px(90), (height - y - px(190) - (stripHeight > 0 ? stripHeight + gap : 0)) / 2);
+    int inputHeight = (std::max)(px(90), (height - y - px(226) - (stripHeight > 0 ? stripHeight + gap : 0)) / 2);
     MoveWindow(g_input, pad, y, width - pad * 2, inputHeight, TRUE);
     y += inputHeight + gap;
     if (stripHeight > 0) {
@@ -517,10 +571,15 @@ void layout() {
         y += stripHeight + gap;
     }
 
-    int askWidth = px(150), imageWidth = px(190);
+    //the picture: its size on the left, the button that makes it on the right
+    int askWidth = px(150), imageWidth = px(190), captionWidth = px(112);
+    MoveWindow(g_sizeCaption, pad, y + px(6), captionWidth, px(20), TRUE);
+    MoveWindow(g_sizeCombo, pad + captionWidth, y + px(2), (std::max)(px(200), width - pad * 2 - captionWidth - imageWidth - gap), px(300), TRUE);
+    MoveWindow(g_image, width - pad - imageWidth, y, imageWidth, rowHeight + px(4), TRUE);
+    y += rowHeight + px(4) + gap;
+
     MoveWindow(g_ask, pad, y, askWidth, rowHeight + px(4), TRUE);
-    MoveWindow(g_image, pad + askWidth + gap, y, imageWidth, rowHeight + px(4), TRUE);
-    int statusLeft = pad + askWidth + gap + imageWidth + gap;
+    int statusLeft = pad + askWidth + gap;
     MoveWindow(g_status, statusLeft, y + px(4), width - pad - statusLeft, px(36), TRUE);
     y += rowHeight + px(4) + gap;
 
@@ -579,6 +638,35 @@ LRESULT CALLBACK editProc(HWND edit, UINT message, WPARAM wParam, LPARAM lParam)
     return CallWindowProcW(original, edit, message, wParam, lParam);
 }
 
+//Shows the buttons of one tab of the conversions and hides the others, then lays the window out again
+void selectGroup(int index) {
+    if (g_groupButtons.empty() || index < 0 || (size_t)index >= g_groupButtons.size())
+        return;
+    g_activeGroup = index;
+    for (size_t i = 0; i < g_groupButtons.size(); i++)
+        SendMessageW(g_groupButtons[i], BM_SETCHECK, (int)i == index ? BST_CHECKED : BST_UNCHECKED, 0);
+    for (size_t i = 0; i < g_presetButtons.size(); i++)
+        ShowWindow(g_presetButtons[i], g_presetGroups[i] == index ? SW_SHOW : SW_HIDE);
+    layout();
+    InvalidateRect(g_window, NULL, TRUE);
+}
+
+//A row of the menu of sizes was chosen: "Tự chọn" and the sizes are choices, the title of a group is not (the choice goes back)
+void chooseSize() {
+    int row = (int)SendMessageW(g_sizeCombo, CB_GETCURSEL, 0, 0);
+    if (row < 0 || (size_t)row >= g_sizeRows.size())
+        return;
+    if (g_sizeRows[(size_t)row] == -2) {
+        int back = 0;
+        for (size_t i = 0; i < g_sizeRows.size(); i++)
+            if (g_sizeRows[i] == g_chosenSize)
+                back = (int)i;
+        SendMessageW(g_sizeCombo, CB_SETCURSEL, (WPARAM)back, 0);
+        return;
+    }
+    g_chosenSize = g_sizeRows[(size_t)row];
+}
+
 //The picture that Codex made, in the place of the answer box: as large as fits, a click opens it in the program of the user for it
 LRESULT CALLBACK pictureProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
@@ -612,8 +700,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         return 0;
     case WM_GETMINMAXINFO: {
         MINMAXINFO* info = (MINMAXINFO*)lParam;
-        info->ptMinTrackSize.x = px(600);      //wide enough for the conversions to fit in three rows
-        info->ptMinTrackSize.y = px(580);
+        info->ptMinTrackSize.x = px(600);      //wide enough for the conversions of a tab to fit in two rows
+        info->ptMinTrackSize.y = px(640);
         return 0;
     }
     case WM_ERASEBKGND: {
@@ -655,6 +743,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             copyAndClose();
         } else if (id >= kIdPresetFirst && id < kIdPresetFirst + (int)g_presetButtons.size() && HIWORD(wParam) == BN_CLICKED) {
             applyPreset(id - kIdPresetFirst);
+        } else if (id >= kIdGroupFirst && id < kIdGroupFirst + (int)g_groupButtons.size() && HIWORD(wParam) == BN_CLICKED) {
+            selectGroup(id - kIdGroupFirst);
+        } else if (id == kIdSize && HIWORD(wParam) == CBN_SELCHANGE) {
+            chooseSize();
         } else if (id == kIdInput && HIWORD(wParam) == EN_CHANGE) {
             //the text is no longer the one the conversion was chosen for: what is typed now is a request of its own
             g_activePreset = -1;
@@ -736,6 +828,15 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         g_presetWidths.clear();
         g_presetTips.clear();
         g_presetCaption = NULL;
+        g_groupButtons.clear();
+        g_groupWidths.clear();
+        g_presetGroups.clear();
+        g_activeGroup = 0;
+        g_sizeCaption = g_sizeCombo = NULL;
+        g_sizeRows.clear();
+        g_chosenSize = g_requestedSize = -1;
+        PictureFile::deleteFitted(g_fittedPath);
+        g_fittedPath.clear();
         return 0;
     }
     return DefWindowProcW(window, message, wParam, lParam);
@@ -747,6 +848,10 @@ void buildPresets() {
     g_presetWidths.clear();
     g_presetTips.clear();
     g_presetCaption = NULL;
+    g_groupButtons.clear();
+    g_groupWidths.clear();
+    g_presetGroups.clear();
+    g_activeGroup = 0;
     g_activePreset = -1;
     if (!vpreset::parse(FeatureStorage::resourceText(IDR_AI_PRESETS), g_presets) || g_presets.list.empty())
         return;
@@ -756,6 +861,15 @@ void buildPresets() {
     SIZE size = {0, 0};
     GetTextExtentPoint32W(dc, L"Chuyển đổi nhanh:", 17, &size);
     g_presetCaptionWidth = size.cx + px(6);
+    //the tabs: push-like check boxes (a radio group breaks when the control that ends it is hidden); the state is set by hand
+    for (size_t i = 0; i < g_presets.groups.size() && i < 8; i++) {
+        std::wstring title = utf8ToWideString(g_presets.groups[i].title);
+        HWND tab = child(L"BUTTON", title.c_str(), WS_TABSTOP | BS_CHECKBOX | BS_PUSHLIKE, kIdGroupFirst + (int)i);
+        GetTextExtentPoint32W(dc, title.c_str(), (int)title.size(), &size);
+        g_groupButtons.push_back(tab);
+        g_groupWidths.push_back(size.cx + px(24));
+        SendMessageW(tab, BM_SETCHECK, i == 0 ? BST_CHECKED : BST_UNCHECKED, 0);
+    }
     for (size_t i = 0; i < g_presets.list.size(); i++) {
         std::wstring title = utf8ToWideString(g_presets.list[i].title);
         HWND button = child(L"BUTTON", title.c_str(), WS_TABSTOP | BS_CHECKBOX | BS_PUSHLIKE, kIdPresetFirst + (int)i);
@@ -763,6 +877,15 @@ void buildPresets() {
         g_presetButtons.push_back(button);
         g_presetWidths.push_back(size.cx + px(24));
         g_presetTips.push_back(utf8ToWideString(g_presets.list[i].summary));
+        int group = -1;
+        for (size_t g = 0; g < g_presets.groups.size() && g < g_groupButtons.size(); g++)
+            if (g_presets.groups[g].id == g_presets.list[i].group)
+                group = (int)g;
+        if (group < 0 && !g_groupButtons.empty())
+            group = 0;                                  //a preset of a group that has no tab is in the first
+        g_presetGroups.push_back(group);
+        if (!g_groupButtons.empty() && group != g_activeGroup)
+            ShowWindow(button, SW_HIDE);                //only the first tab is shown at first
     }
     SelectObject(dc, old);
     ReleaseDC(g_window, dc);
@@ -781,6 +904,32 @@ void buildPresets() {
         info.lpszText = const_cast<wchar_t*>(g_presetTips[i].c_str());
         SendMessageW(tip, TTM_ADDTOOLW, 0, (LPARAM)&info);
     }
+}
+
+//The menu of the sizes of the picture: "Tự chọn" first, then the sizes under the title of their group (the file orders them by group)
+void buildSizeMenu() {
+    g_sizeRows.clear();
+    g_chosenSize = g_requestedSize = -1;
+    SendMessageW(g_sizeCombo, CB_RESETCONTENT, 0, 0);
+    SendMessageW(g_sizeCombo, CB_ADDSTRING, 0, (LPARAM)L"Tự chọn");
+    g_sizeRows.push_back(-1);
+    for (size_t g = 0; g < g_presets.imageGroups.size(); g++) {
+        bool titled = false;
+        for (size_t i = 0; i < g_presets.imageSizes.size(); i++) {
+            if (g_presets.imageSizes[i].group != g_presets.imageGroups[g].id)
+                continue;
+            if (!titled) {
+                std::wstring title = L"— " + utf8ToWideString(g_presets.imageGroups[g].title) + L" —";
+                SendMessageW(g_sizeCombo, CB_ADDSTRING, 0, (LPARAM)title.c_str());
+                g_sizeRows.push_back(-2);
+                titled = true;
+            }
+            std::wstring label = utf8ToWideString(vpreset::imageSizeLabel(g_presets.imageSizes[i]));
+            SendMessageW(g_sizeCombo, CB_ADDSTRING, 0, (LPARAM)label.c_str());
+            g_sizeRows.push_back((int)i);
+        }
+    }
+    SendMessageW(g_sizeCombo, CB_SETCURSEL, 0, 0);
 }
 
 bool create() {
@@ -828,8 +977,11 @@ bool create() {
     SendMessageW(g_input, EM_SETLIMITTEXT, 200000, 0);
     SetWindowLongPtrW(g_input, GWLP_USERDATA, SetWindowLongPtrW(g_input, GWLP_WNDPROC, (LONG_PTR)editProc));
     buildPresets();
-    g_ask = child(L"BUTTON", L"Tạo (Ctrl+Enter)", WS_TABSTOP | BS_DEFPUSHBUTTON, kIdAsk);
+    g_sizeCaption = child(L"STATIC", L"Kích thước ảnh:", SS_NOPREFIX, kIdSizeCaption);
+    g_sizeCombo = child(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, kIdSize);
+    buildSizeMenu();
     g_image = child(L"BUTTON", L"Tạo ảnh (Ctrl+Alt+Enter)", WS_TABSTOP | BS_PUSHBUTTON, kIdImage);
+    g_ask = child(L"BUTTON", L"Tạo (Ctrl+Enter)", WS_TABSTOP | BS_DEFPUSHBUTTON, kIdAsk);
     g_status = child(L"STATIC", L"", 0, kIdStatus);
     g_labelOutput = child(L"STATIC", L"Kết quả", 0, kIdLabelOutput);
     SendMessageW(g_labelOutput, WM_SETFONT, (WPARAM)g_boldFont, TRUE);

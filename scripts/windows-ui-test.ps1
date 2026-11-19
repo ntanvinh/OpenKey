@@ -176,11 +176,15 @@ try {
     Press 0x41 @("Ctrl", "Alt")
     if (WaitWindow "VOpenKeyAIAssistant" $true) {
         Report "AI window opens" "PASS" "after $($script:waited) ms"
-        # the ready-made conversions are buttons of the window: 14 of them and the 4 that were always there (settings, ask, insert, copy)
+        # the ready-made conversions are buttons of the window (hidden ones count too): 25 of them in 4 tabs (4 more buttons), and the 4 that were
+        # always there (settings, ask, insert, copy), plus the button of the picture; the sizes of the picture are a second combo box
         $ai = [VokInput]::FindWindow("VOpenKeyAIAssistant", [NullString]::Value)
         $buttons = 0; $c = [IntPtr]::Zero
         while ($true) { $c = [VokInput]::FindWindowEx($ai, $c, "Button", [NullString]::Value); if ($c -eq [IntPtr]::Zero) { break }; $buttons++ }
-        if ($buttons -ge 18) { Report "AI window has the 14 conversion buttons" "PASS" "$buttons buttons" } else { Report "AI window has the 14 conversion buttons" "FAIL" "only $buttons buttons" }
+        if ($buttons -ge 34) { Report "AI window has the 25 conversion buttons and 4 tabs" "PASS" "$buttons buttons" } else { Report "AI window has the 25 conversion buttons and 4 tabs" "FAIL" "only $buttons buttons" }
+        $combos = 0; $c = [IntPtr]::Zero
+        while ($true) { $c = [VokInput]::FindWindowEx($ai, $c, "ComboBox", [NullString]::Value); if ($c -eq [IntPtr]::Zero) { break }; $combos++ }
+        if ($combos -ge 2) { Report "AI window has the menu of picture sizes" "PASS" "$combos combo boxes" } else { Report "AI window has the menu of picture sizes" "FAIL" "only $combos combo boxes" }
         Shot "ai"; Press $Keys.Esc
     } else { Report "AI window opens" "FAIL" "" }
 }

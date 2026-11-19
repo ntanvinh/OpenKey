@@ -30,4 +30,13 @@
 /// The key that chooses row `index`: ⌥1 … ⌥9, ⌥0 for the tenth; nil when the row has none.
 +(NSString*)hintForIndex:(NSUInteger)index;
 
+/// The colours of the list. The panel is a blur of whatever is behind it, so the text must read on any backdrop: `veilColor` is drawn
+/// over the blur (translucent window colour) and the text attributes are opaque colours chosen against it. Public for the list view
+/// that draws with them and for the tests that check their contrast.
++(NSColor*)veilColor;
++(NSColor*)secondaryTextColor;
++(NSDictionary*)nameAttributes:(BOOL)lit;
++(NSDictionary*)hintAttributes:(BOOL)lit;
++(NSDictionary*)previewAttributes:(BOOL)lit;
+
 @end

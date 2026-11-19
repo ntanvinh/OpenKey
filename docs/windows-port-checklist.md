@@ -2,7 +2,7 @@
 
 The Windows version (x86 and x64) got the features of the macOS app: suggestion bar, snippets, case list, word restore,
 AI assistant (HTTP services), common abbreviations, plus a fix of the updater for x86. It was written on a Mac.
-Added 2026-10-29: the ready-made conversions of the AI window (14 buttons) and the donate window (VietQR and PayPal).
+Added 2026-10-29: the ready-made conversions of the AI window (14 buttons then, 25 in 4 tabs since 2026-11-19) and the donate window (VietQR and PayPal).
 
 ## Checked (on the Mac)
 
@@ -47,10 +47,13 @@ Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
 6. AI assistant: key saved and shown only as "saved", list of models, a request streams into the window, Esc stops, Ctrl+Shift+Enter
    inserts; a local Ollama needs no key; a wrong key shows the message; the key is not in the registry in the clear.
 7. Dark and light theme, 100% and 150% DPI, a second monitor.
-7a. Conversions in the AI window (Ctrl+Alt+A): 14 buttons under the box in 2 or 3 rows that follow the width of the window, none cut off at
-   the minimum size, off while the box is empty; a click on "Lịch sự" with a text in the box asks at once (the box keeps its text, the
-   button stays down), Ctrl+Enter asks the same again, typing a letter lifts the button; a poem says its rhymes were not checked; a tip
-   shows what a button does; the Tab key reaches the buttons.
+7a. Conversions in the AI window (Ctrl+Alt+A): 25 buttons in 4 tabs (Sửa & đổi giọng, Hoàn cảnh, Thơ, Độ dài & dịch; changed 2026-11-19, never run on
+   Windows) under the box; only the buttons of the selected tab are shown, in 1 or 2 rows that follow the width of the window, none cut off at
+   the minimum size, off while the box is empty; clicking a tab changes the rows and the window keeps its layout; a click on "Lịch sự" with a text
+   in the box asks at once (the box keeps its text, the button stays down), Ctrl+Enter asks the same again, typing a letter lifts the button; a
+   poem says its rhymes were not checked; a tip shows what a button does; the Tab key reaches the tabs and the buttons of the selected tab only.
+   In "Hoàn cảnh": type a few ideas ("sinh nhật chị Lan 30 tuổi, chúc sức khoẻ") and click "Chúc mừng" or "Gửi sếp": a whole message in the tone
+   of the occasion, without names or numbers that were not typed.
 7b. Donate window (tray menu "Ủng hộ VOpenKey AI", or the button "Ủng hộ VOpenKey AI..." in "Gợi ý, snippet và công cụ...", next to "Cài đặt AI..."): the QR code is sharp (no blur, whole pixels
    per module) and a banking app reads it from the screen at 100%, 125%, 150% and 200% DPI; the window fits a 1366x768 screen at 100% and
    125% (at 150% on that size it may not: then make the QR smaller, see `px(190)` in `DonationDialog.cpp`); "Sao chép" puts the account
@@ -110,6 +113,13 @@ Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
    it); a transparent PNG shows on white; Codex that makes no picture says so with what it said; `%CODEX_HOME%` set elsewhere is found;
    Settings > AI > Codex CLI shows "Lệnh tạo ảnh" and "Dùng lệnh mặc định" and keeps an edited sentence after a restart.
    Check the path `generated_images\<thread id>\*.png` on the real Windows build of Codex: it is taken from macOS.
+17a. Sizes of pictures (added 2026-11-19, never run on Windows): next to "Tạo ảnh" the menu "Kích thước ảnh:" starts with "Tự chọn", then the sizes
+   under three titles (— Mạng xã hội —, — Icon & logo —, — Thiệp & ấn phẩm —); a title cannot be chosen (the choice goes back); it is off with the
+   button when the AI is not Codex CLI and while a request runs. Choose "Story · Reels · TikTok · Shorts (1080×1920)" and make a picture: the
+   status says the size while it waits, the picture that appears is tall, and "Lưu vào Downloads" gives a PNG that is exactly 1080 x 1920 px (check
+   the file properties), also what Ctrl+Shift+C puts on the clipboard and Ctrl+Shift+Enter pastes; the status says where Codex kept the original;
+   "Hiện file ảnh" opens Explorer on the cut file in `%TEMP%\VOpenKey AI\`, which goes away when the window closes or a new picture is made;
+   "Tự chọn" shows the picture as Codex drew it. Try a very wide size (LinkedIn · Ảnh bìa 1584×396) and a small one (Favicon 512×512).
 
 Automatic version of most of this list: `scripts/windows-ui-test.ps1`, see docs/windows-testing.md.
 

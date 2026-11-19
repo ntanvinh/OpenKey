@@ -1,6 +1,7 @@
 #!/bin/zsh
-# Builds the case bar (CaseTransform, CaseBarPanel, CaseBar) and runs case_transform_test.m (the Unicode rules) and
-# case_bar_test.m (when the list shows, which keys it takes, what it pastes; the real panel, moved off screen at once).
+# Builds the case bar (CaseTransform, CaseBarPanel, CaseBar) and runs case_transform_test.m (the Unicode rules),
+# case_bar_colors_test.m (contrast of the text on any backdrop, no window) and case_bar_test.m (when the list shows, which keys it
+# takes, what it pastes; the real panel, moved off screen at once).
 #
 #   Sources/OpenKey/macOS/tests/run-case-bar-test.sh [directory for pictures of the panel]
 #
@@ -22,8 +23,13 @@ clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/Sugge
 for f in CaseTransform CaseBarPanel CaseBar AISelection CaretLocator SuggestionPanel; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
+# can the list be read on any backdrop? contrast of the name, the key and the preview, no window
+clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/case_bar_colors_test.m" -o case_bar_colors_test.o
+clang -framework Cocoa -framework QuartzCore CaseBarPanel.o SuggestionPanel.o case_bar_colors_test.o -o case_bar_colors_test
+./case_bar_colors_test "${1:+$1/colors}"
+
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/case_bar_test.m" -o case_bar_test.o
-clang++ -framework Cocoa -framework Carbon -framework ApplicationServices SnippetInserter.o SnippetSearch.o Suggest.o CaseTransform.o \
+clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices SnippetInserter.o SnippetSearch.o Suggest.o CaseTransform.o \
     CaseBarPanel.o CaseBar.o AISelection.o CaretLocator.o SuggestionPanel.o case_bar_test.o -o case_bar_test
 nohup ./case_bar_test "${1:-}" > output.txt 2>&1 &
 TEST=$!

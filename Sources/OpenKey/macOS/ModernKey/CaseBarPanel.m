@@ -46,26 +46,6 @@ static const NSTimeInterval kFadeIn = 0.12;
     return YES;
 }
 
--(NSDictionary*)nameAttributes:(BOOL)lit {
-    return @{NSFontAttributeName: [NSFont systemFontOfSize:13 weight:NSFontWeightMedium],
-             NSForegroundColorAttributeName: lit ? [NSColor alternateSelectedControlTextColor] : [NSColor labelColor]};
-}
-
--(NSDictionary*)hintAttributes:(BOOL)lit {
-    return @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:11 weight:NSFontWeightRegular],
-             NSForegroundColorAttributeName: lit ? [[NSColor alternateSelectedControlTextColor] colorWithAlphaComponent:0.8]
-                                                 : [NSColor secondaryLabelColor]};
-}
-
--(NSDictionary*)previewAttributes:(BOOL)lit {
-    NSMutableParagraphStyle* style = [[NSMutableParagraphStyle alloc] init];
-    style.lineBreakMode = NSLineBreakByTruncatingTail;
-    return @{NSFontAttributeName: [NSFont systemFontOfSize:13],
-             NSParagraphStyleAttributeName: style,
-             NSForegroundColorAttributeName: lit ? [[NSColor alternateSelectedControlTextColor] colorWithAlphaComponent:0.85]
-                                                 : [NSColor secondaryLabelColor]};
-}
-
 //one line: the line breaks of a text of several lines are shown as ⏎
 +(NSString*)previewLine:(NSString*)text {
     NSString* flat = [[text stringByReplacingOccurrencesOfString:@"\r\n" withString:@"\n"] stringByReplacingOccurrencesOfString:@"\n" withString:@" ⏎ "];
@@ -76,7 +56,7 @@ static const NSTimeInterval kFadeIn = 0.12;
     _offers = [offers copy];
     _nameWidth = 0;
     for (NSDictionary* offer in _offers)
-        _nameWidth = MAX(_nameWidth, ceil([offer[@"name"] sizeWithAttributes:[self nameAttributes:NO]].width));
+        _nameWidth = MAX(_nameWidth, ceil([offer[@"name"] sizeWithAttributes:[CaseBarPanel nameAttributes:NO]].width));
     self.needsDisplay = YES;
 }
 
@@ -115,6 +95,10 @@ static const NSTimeInterval kFadeIn = 0.12;
 }
 
 -(void)drawRect:(NSRect)dirtyRect {
+    //the veil first: it limits how much of what is behind the panel reaches the text (see +[CaseBarPanel veilColor])
+    [[CaseBarPanel veilColor] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:self.bounds xRadius:kBarRadius yRadius:kBarRadius] fill];
+
     //hairline around the list, drawn here so that its colour follows light and dark
     NSBezierPath* outline = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds, 0.25, 0.25) xRadius:kBarRadius yRadius:kBarRadius];
     outline.lineWidth = 0.5;
@@ -137,8 +121,8 @@ static const NSTimeInterval kFadeIn = 0.12;
         }
 
         NSString* hint = [CaseBarPanel hintForIndex:i];
-        NSDictionary* hintAttributes = [self hintAttributes:lit];
-        NSDictionary* nameAttributes = [self nameAttributes:lit];
+        NSDictionary* hintAttributes = [CaseBarPanel hintAttributes:lit];
+        NSDictionary* nameAttributes = [CaseBarPanel nameAttributes:lit];
         NSSize nameSize = [offer[@"name"] sizeWithAttributes:nameAttributes];
         //the key hint, the name and the preview are different sizes of text on one baseline, centred as a whole on the row
         NSFont* nameFont = nameAttributes[NSFontAttributeName];
@@ -151,7 +135,7 @@ static const NSTimeInterval kFadeIn = 0.12;
         [offer[@"name"] drawAtPoint:NSMakePoint(left, baseline - nameFont.ascender) withAttributes:nameAttributes];
         left += _nameWidth + kColumnGap;
 
-        NSDictionary* previewAttributes = [self previewAttributes:lit];
+        NSDictionary* previewAttributes = [CaseBarPanel previewAttributes:lit];
         NSFont* previewFont = previewAttributes[NSFontAttributeName];
         NSString* preview = [CaseBarListView previewLine:offer[@"text"]];
         [preview drawInRect:NSMakeRect(left, baseline - previewFont.ascender, NSMaxX(item) - kItemPadding - left, previewFont.ascender - previewFont.descender + 2)
@@ -224,6 +208,54 @@ static NSImage* ListMask(void) {
     if (index > 9)
         return nil;
     return [NSString stringWithFormat:@"⌥%lu", (unsigned long)((index + 1) % 10)];
+}
+
+#pragma mark Colours
+
+//The panel is a blur of what is behind it, and what is behind it can be anything: a white page, black, a saturated photo. The system's
+//secondaryLabelColor is about half transparent, so the key and the preview were as readable as the backdrop allowed. Two things make
+//them readable on any backdrop: a veil of the window colour over the blur (it bounds the influence of the backdrop to what 20% of
+//black or white can do) and text colours that are opaque and chosen against that bounded range, 4.5:1 at least (case_bar_colors_test.m
+//checks it against black and against white, which bound every other backdrop, in light and dark).
+static const CGFloat kVeilAlpha = 0.8;
+
+//windowBackgroundColor with an alpha, still following light and dark: colorWithAlphaComponent: on the system colour would fix it to the
+//appearance that is current when it is made (a dark veil under dark text in light mode), so it is resolved when it is drawn
++(NSColor*)veilColor {
+    return [NSColor colorWithName:nil dynamicProvider:^NSColor*(NSAppearance* appearance) {
+        __block NSColor* veil = nil;
+        [appearance performAsCurrentDrawingAppearance:^{
+            veil = [[[NSColor windowBackgroundColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]] colorWithAlphaComponent:kVeilAlpha];
+        }];
+        return veil;
+    }];
+}
+
+//the key and the preview of a row that is not lit: opaque, one grey for light and one for dark
++(NSColor*)secondaryTextColor {
+    return [NSColor colorWithName:nil dynamicProvider:^NSColor*(NSAppearance* appearance) {
+        NSAppearanceName name = [appearance bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+        return [name isEqualToString:NSAppearanceNameDarkAqua] ? [NSColor colorWithWhite:0.80 alpha:1] : [NSColor colorWithWhite:0.22 alpha:1];
+    }];
+}
+
++(NSDictionary*)nameAttributes:(BOOL)lit {
+    return @{NSFontAttributeName: [NSFont systemFontOfSize:13 weight:NSFontWeightMedium],
+             NSForegroundColorAttributeName: lit ? [NSColor alternateSelectedControlTextColor] : [NSColor labelColor]};
+}
+
+//the lit row is an opaque accent colour, so its text does not depend on the backdrop: full strength, the size and the font tell the three apart
++(NSDictionary*)hintAttributes:(BOOL)lit {
+    return @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:11 weight:NSFontWeightMedium],
+             NSForegroundColorAttributeName: lit ? [NSColor alternateSelectedControlTextColor] : [self secondaryTextColor]};
+}
+
++(NSDictionary*)previewAttributes:(BOOL)lit {
+    NSMutableParagraphStyle* style = [[NSMutableParagraphStyle alloc] init];
+    style.lineBreakMode = NSLineBreakByTruncatingTail;
+    return @{NSFontAttributeName: [NSFont systemFontOfSize:13],
+             NSParagraphStyleAttributeName: style,
+             NSForegroundColorAttributeName: lit ? [NSColor alternateSelectedControlTextColor] : [self secondaryTextColor]};
 }
 
 -(instancetype)init {

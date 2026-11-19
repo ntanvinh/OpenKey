@@ -59,11 +59,19 @@ int main() {
     Presets real;
     std::string why;
     CHECK(parse(ss.str(), real, &why));
-    CHECK(real.list.size() == 14);
-    const char* expected[] = {"fix", "polite", "friendly", "humorous", "formal", "romantic", "poetry", "rhyme", "lucBat", "tuTuyet",
-                              "short", "longer", "toEnglish", "toVietnamese"};
-    for (size_t i = 0; i < real.list.size() && i < 14; i++)
+    CHECK(real.list.size() == 25);
+    // by group: tones, the occasions, poems, length and translation
+    const char* expected[] = {"fix", "polite", "friendly", "humorous", "formal", "romantic",
+                              "congrats", "work", "boss", "colleague", "friend", "family", "customer", "thanks", "apology", "invite", "condolence",
+                              "poetry", "rhyme", "lucBat", "tuTuyet", "short", "longer", "toEnglish", "toVietnamese"};
+    for (size_t i = 0; i < real.list.size() && i < 25; i++)
         CHECK(real.list[i].id == expected[i]);
+    CHECK(real.groups.size() == 4 && real.groups[0].id == "tone" && real.groups[1].id == "occasion" && real.groups[2].id == "poem" && real.groups[3].id == "length");
+    CHECK(inGroup(real, "tone").size() == 6 && inGroup(real, "occasion").size() == 11 && inGroup(real, "poem").size() == 4 && inGroup(real, "length").size() == 4);
+    CHECK(inGroup(real, "nope").empty());
+    for (size_t g = 0; g < real.groups.size(); g++)
+        CHECK(!real.groups[g].title.empty() && !inGroup(real, real.groups[g].id).empty());       // no tab is empty
+    CHECK(find(real, "congrats")->group == "occasion" && find(real, "lucBat")->group == "poem" && find(real, "fix")->group == "tone");
     std::set<std::string> titles;
     for (size_t i = 0; i < real.list.size(); i++) {
         const Preset& preset = real.list[i];
@@ -77,8 +85,78 @@ int main() {
         CHECK(prompt.find("{text}") == std::string::npos && prompt.find("{instruction}") == std::string::npos);
     }
     CHECK(titles.size() == real.list.size());
+    // the presets for an occasion write a whole message from a few ideas, and say not to invent ("Khong bia them")
+    for (size_t i = 0; i < real.list.size(); i++)
+        if (real.list[i].group == "occasion")
+            CHECK(real.list[i].instruction.find("Kh\xC3\xB4ng b\xE1\xBB\x8B" "a th\xC3\xAAm") != std::string::npos);
     CHECK(find(real, "lucBat") != NULL && find(real, "lucBat")->instruction.find("2/2/2") != std::string::npos);   // the rules of the form are in it
     CHECK(find(real, "toEnglish") != NULL && find(real, "toEnglish")->instruction.find("D\xE1\xBB\x8B" "ch sang ti\xE1\xBA\xBF" "ng Anh") == 0);
+
+
+    // --- the sizes of pictures
+    CHECK(real.imageGroups.size() == 3 && real.imageGroups[0].id == "social" && real.imageGroups[1].id == "icon" && real.imageGroups[2].id == "card");
+    CHECK(real.imageSizes.size() == 18);
+    std::set<std::string> sizeIds, labels;
+    for (size_t i = 0; i < real.imageSizes.size(); i++) {
+        const ImageSize& size = real.imageSizes[i];
+        sizeIds.insert(size.id);
+        labels.insert(imageSizeLabel(size));
+        CHECK(!size.title.empty() && !size.summary.empty() && !size.ratio.empty() && size.hint.size() > 20);
+        CHECK(size.width >= 256 && size.width <= 2560 && size.height >= 256 && size.height <= 2560);   // what a model can be asked for
+        bool listed = false;
+        for (size_t g = 0; g < real.imageGroups.size(); g++)
+            listed |= real.imageGroups[g].id == size.group;
+        CHECK(listed);
+        // the picture is cut to this size: from a canvas of the model, never more than 2x its smaller side, so it is not blown up much
+        int x, y, w, h;
+        CHECK(coverCrop(1536, 1024, size.width, size.height, x, y, w, h) && w >= 1 && h >= 1 && x >= 0 && y >= 0 && x + w <= 1536 && y + h <= 1024);
+        long long off = (long long)w * size.height - (long long)h * size.width;                     // 0 when the proportions are exactly those of the size
+        if (off < 0) off = -off;
+        CHECK(off <= ((size.width > size.height ? size.width : size.height) + 1) / 2);              // never more than half a pixel off
+    }
+    CHECK(sizeIds.size() == real.imageSizes.size() && labels.size() == real.imageSizes.size());
+    const ImageSize* square = findImageSize(real, "squarePost");
+    CHECK(square != NULL && square->width == 1080 && square->height == 1080 && square->ratio == "1:1");
+    const ImageSize* thumb = findImageSize(real, "youtubeThumbnail");
+    CHECK(thumb != NULL && thumb->width == 1280 && thumb->height == 720);
+    const ImageSize* story = findImageSize(real, "story");
+    CHECK(story != NULL && story->width == 1080 && story->height == 1920);
+    CHECK(findImageSize(real, "appIcon") != NULL && findImageSize(real, "cardPortrait") != NULL && findImageSize(real, "nope") == NULL);
+    CHECK(imageSizeLabel(*square).find(" (1080\xC3\x97" "1080)") != std::string::npos);
+
+    // the request for a picture: the description, then the canvas; no size = the description alone
+    CHECK(buildImageRequest(real, NULL, "\n  a cat \n") == "a cat");
+    std::string request = buildImageRequest(real, story, "  a cat on a roof \n");
+    CHECK(request.compare(0, 21, "a cat on a roof\n\nCanv") == 0);
+    CHECK(request.find("1080 x 1920 px") != std::string::npos && request.find("9:16") != std::string::npos && request.find(story->hint) != std::string::npos);
+    CHECK(request.find("{width}") == std::string::npos && request.find("{height}") == std::string::npos &&
+          request.find("{ratio}") == std::string::npos && request.find("{hint}") == std::string::npos);
+    // done in one pass: a place to fill inside the description is left alone
+    CHECK(buildImageRequest(real, story, "{width}").compare(0, 7, "{width}") == 0);
+
+    // cutting to a size: the part that is kept has the proportions of the size, is centred, and is as large as can be
+    int cx, cy, cw, ch;
+    CHECK(coverCrop(1536, 1024, 1080, 1080, cx, cy, cw, ch) && cx == 256 && cy == 0 && cw == 1024 && ch == 1024);      // a wide picture to a square: the sides go
+    CHECK(coverCrop(1024, 1536, 1080, 1080, cx, cy, cw, ch) && cx == 0 && cy == 256 && cw == 1024 && ch == 1024);      // a tall picture to a square: the top and bottom go
+    CHECK(coverCrop(1024, 1024, 1584, 396, cx, cy, cw, ch) && cx == 0 && cy == 384 && cw == 1024 && ch == 256);        // 4:1 banner from a square
+    CHECK(coverCrop(1024, 1536, 1000, 1500, cx, cy, cw, ch) && cx == 0 && cy == 0 && cw == 1024 && ch == 1536);        // same proportions (2:3): nothing is cut
+    CHECK(coverCrop(1000, 1000, 1000, 1000, cx, cy, cw, ch) && cw == 1000 && ch == 1000);
+    CHECK(!coverCrop(0, 10, 10, 10, cx, cy, cw, ch) && !coverCrop(10, 10, 10, 0, cx, cy, cw, ch));
+
+    // what is refused in the sizes
+    Presets sizeBad;
+    const std::string base = std::string("{") + kTemplate + ", \"presets\": [{\"id\":\"a\",\"title\":\"A\",\"instruction\":\"x\"}], ";
+    const std::string note = "\"imageNote\": \"{width} {height} {ratio} {hint}\", ";
+    const std::string one = "{\"id\":\"s\",\"title\":\"S\",\"width\":100,\"height\":200,\"ratio\":\"1:2\",\"hint\":\"h\"}";
+    CHECK(parse(base + note + "\"imageSizes\": [" + one + "]}", sizeBad) && sizeBad.imageSizes.size() == 1 && sizeBad.imageSizes[0].height == 200);
+    CHECK(!parse(base + "\"imageSizes\": [" + one + "]}", sizeBad));                                                   // no note
+    CHECK(!parse(base + "\"imageNote\": \"{width} {height} {ratio}\", \"imageSizes\": [" + one + "]}", sizeBad));      // note without {hint}
+    CHECK(!parse(base + note + "\"imageSizes\": [{\"id\":\"s\",\"title\":\"S\",\"width\":0,\"height\":200,\"ratio\":\"r\"}]}", sizeBad));    // a side of 0
+    CHECK(!parse(base + note + "\"imageSizes\": [{\"id\":\"s\",\"title\":\"S\",\"width\":100,\"height\":9000,\"ratio\":\"r\"}]}", sizeBad));  // too large
+    CHECK(!parse(base + note + "\"imageSizes\": [" + one + "," + one + "]}", sizeBad));                                // an id twice
+    CHECK(!parse(base + note + "\"imageGroups\": [{\"id\":\"g\",\"title\":\"G\"}], \"imageSizes\": [" + one + "]}", sizeBad));   // group not listed
+    CHECK(!parse(std::string("{") + kTemplate + ", \"groups\": [{\"id\":\"g\",\"title\":\"G\"}], \"presets\": [{\"id\":\"a\",\"group\":\"h\",\"title\":\"A\",\"instruction\":\"x\"}]}", sizeBad));
+    CHECK(sizeBad.imageSizes.empty());
 
     if (failures == 0)
         printf("ai_presets_test: all passed\n");

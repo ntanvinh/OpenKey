@@ -96,6 +96,7 @@ void BarHost::hideCandidates() {
     BOOL _locating;              //the application is being asked where the caret is
     BOOL _locateAgain;           //the word changed meanwhile
     int _staleAnswers;           //answers in a row that described text from before the typing
+    NSString* _placementSignature; //what the diagnostics log said last about where the bar went, so it is not repeated on every key
     NSUInteger _generation;      //changes every time the bar is hidden, so late answers are ignored
     dispatch_queue_t _accessibilityQueue;
 }
@@ -517,6 +518,40 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     });
 }
 
+//For the diagnostics log: the index in NSScreen.screens of the screen that holds a point, -1 when none does
+static NSInteger ScreenIndexOfPoint(NSPoint point) {
+    NSArray<NSScreen*>* screens = NSScreen.screens;
+    for (NSUInteger i = 0; i < screens.count; i++) {
+        if (NSPointInRect(point, screens[i].frame))
+            return (NSInteger)i;
+    }
+    return -1;
+}
+
+//Where the bar was put, and from what: the caret, the text field, or the mouse pointer. Coordinates only, never text. It is written
+//when the source or one of the two screens changes (the screen the line is on, the screen the bar ended up on), not on every key.
+//A bar on another screen than its line means the screen was chosen wrongly, or the window was moved by macOS.
+-(void)logPlacement:(NSString*)source line:(NSRect)line location:(CaretLocation*)location {
+    if (!vDiagnostics || !_panel)
+        return;
+    NSRect bar = _panel.frame;
+    NSInteger lineScreen = ScreenIndexOfPoint(line.origin);
+    NSInteger barScreen = ScreenIndexOfPoint(NSMakePoint(NSMidX(bar), NSMidY(bar)));
+    NSString* signature = [NSString stringWithFormat:@"%@ %ld %ld", source, (long)lineScreen, (long)barScreen];
+    if ([signature isEqualToString:_placementSignature])
+        return;
+    _placementSignature = signature;
+    NSMutableString* screens = [NSMutableString string];
+    NSArray<NSScreen*>* all = NSScreen.screens;
+    for (NSUInteger i = 0; i < all.count; i++)
+        [screens appendFormat:@"%@#%lu%@", i ? @" " : @"", (unsigned long)i, NSStringFromRect(all[i].frame)];
+    NSUInteger windowScreen = _panel.screen ? [all indexOfObject:_panel.screen] : NSNotFound;
+    VOKDiag(@"suggest", @"bar placed by %@: line %@ (screen %ld), bar %@ (screen %ld, window says %ld), caret %@ field %@, screens %@",
+            source, NSStringFromRect(line), (long)lineScreen, NSStringFromRect(bar), (long)barScreen,
+            windowScreen == NSNotFound ? -1L : (long)windowScreen, NSStringFromRect(location.caret),
+            NSStringFromRect(location.field), screens);
+}
+
 -(void)placeBarFor:(CaretLocation*)location typed:(NSString*)typed {
     BOOL known = !NSIsEmptyRect(location.caret);
     if (known && (location.textMatches || !location.canCheckText)) {
@@ -524,6 +559,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         _anchorValid = YES;
         _staleAnswers = 0;
         [_panel showBelowRect:_lastLine];
+        [self logPlacement:@"caret" line:_lastLine location:location];
         return;
     }
     if (known && _staleAnswers < 5) {
@@ -542,10 +578,13 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
         _lastLine = NSMakeRect(location.field.origin.x + 8, location.field.origin.y, 0, 0);
         _anchorValid = YES;
         [_panel showBelowRect:_lastLine];
+        [self logPlacement:@"field" line:_lastLine location:location];
         return;
     }
     //...and when even that is unknown, under the mouse pointer
-    [_panel showNearPoint:[NSEvent mouseLocation]];
+    NSPoint pointer = [NSEvent mouseLocation];
+    [_panel showNearPoint:pointer];
+    [self logPlacement:@"mouse" line:NSMakeRect(pointer.x, pointer.y - 22, 0, 22) location:location];
 }
 
 -(void)hideBar {
@@ -556,6 +595,7 @@ static void LoadFile(vsuggest::Engine& engine, NSString* path, vsuggest::Target 
     _anchorValid = NO;
     _locateAgain = NO;
     _staleAnswers = 0;
+    _placementSignature = nil;
     _lastWords = nil;
     [_panel orderOut:nil];
 }

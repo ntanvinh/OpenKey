@@ -107,7 +107,13 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     NSButton* _gearButton;
     NSButton* _speedButton;
     NSStackView* _presetStrip;              //the ready-made conversions under the box: a caption, then one button per preset
-    NSArray<NSButton*>* _presetButtons;
+    NSArray<NSButton*>* _presetButtons;     //all of them, in the order of +[AIPresets all]
+    NSSegmentedControl* _groupControl;      //the tabs of the conversions, one for each group of AIPresets
+    NSArray<NSStackView*>* _groupStacks;    //the rows of buttons of each group, in the order of the tabs; only that of the selected tab is shown
+    NSPopUpButton* _sizePopUp;              //the ready-made sizes of the picture
+    AIImageSize* _imageSize;                //the one that is chosen in it (nil: the AI chooses)
+    AIImageSize* _requestedImageSize;       //the size that the picture of this request, or of the last one, is cut to (nil: as the AI drew it)
+    NSSize _resultPixelSize;                //the pixels of the picture that is shown
     AIPreset* _activePreset;                //the one the next "Tạo" applies; cleared when the text is edited and when the window opens
     BOOL _inputHintShown;                   //the status line asks for a text: it goes as soon as one is typed
     NSButton* _imageButton;
@@ -212,6 +218,10 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
 -(NSButton*)saveImageButton { [self buildIfNeeded]; return _saveImageButton; }
 -(NSImageView*)imageView { [self buildIfNeeded]; return _imageView; }
 -(NSURL*)resultImageURL { return _resultImageURL; }
+-(NSSegmentedControl*)presetGroupControl { [self buildIfNeeded]; return _groupControl; }
+-(NSPopUpButton*)imageSizePopUp { [self buildIfNeeded]; return _sizePopUp; }
+-(AIImageSize*)selectedImageSize { return _imageSize; }
+-(NSSize)resultImageSize { return _resultPixelSize; }
 -(AIAssistantState)state { return _state; }
 -(NSString*)resultText { return [_result copy]; }
 
@@ -306,7 +316,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _contextLabel.hidden = YES;
 
     //the request
-    _inputPlaceholder = VOKLabel(@"Bạn muốn viết gì? Ví dụ: “Viết email xin nghỉ phép ngày mai”. Hoặc dán một đoạn văn (hay chọn nó rồi bấm phím tắt) và bấm một kiểu chuyển đổi bên dưới: sửa lỗi, đổi giọng, dịch, làm thơ…",
+    _inputPlaceholder = VOKLabel(@"Bạn muốn viết gì? Ví dụ: “Viết email xin nghỉ phép ngày mai”. Hoặc dán một đoạn văn (hay chọn nó rồi bấm phím tắt) và bấm một kiểu chuyển đổi bên dưới: sửa lỗi, đổi giọng, chúc mừng, viết cho sếp, làm thơ, dịch… Muốn có ảnh? Mô tả ảnh, chọn kích thước rồi bấm Tạo ảnh.",
                                  13, NSFontWeightRegular, [NSColor placeholderTextColor]);
     _inputPlaceholder.preferredMaxLayoutWidth = kWidth - 2 * kInset - 22;
     NSTextView* inputView = nil;
@@ -336,10 +346,31 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     VOKSetButtonSymbol(_imageButton, @"photo.badge.plus", 12);
     _imageButton.enabled = NO;
     [self setKeyEquivalent:@"\r" mask:NSEventModifierFlagCommand | NSEventModifierFlagOption forButton:_imageButton];
-    NSStackView* askRow = [NSStackView stackViewWithViews:@[_infoLabel, spacer2, _imageButton, _actionButton]];
+    NSStackView* askRow = [NSStackView stackViewWithViews:@[_infoLabel, spacer2, _actionButton]];
     askRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     askRow.alignment = NSLayoutAttributeCenterY;
     askRow.spacing = 8;
+
+    //the picture: its size, and the button that makes it (kept out of the row of "Tạo", where a long name of a size would crowd the line that says
+    //where the text goes)
+    NSTextField* sizeCaption = [NSTextField labelWithString:@"Kích thước ảnh:"];
+    sizeCaption.font = [NSFont systemFontOfSize:11];
+    sizeCaption.textColor = [NSColor secondaryLabelColor];
+    sizeCaption.translatesAutoresizingMaskIntoConstraints = NO;
+    _sizePopUp = [[NSPopUpButton alloc] init];
+    _sizePopUp.controlSize = NSControlSizeSmall;
+    _sizePopUp.font = [NSFont systemFontOfSize:11];
+    _sizePopUp.target = self;
+    _sizePopUp.action = @selector(imageSizeChosen:);
+    _sizePopUp.translatesAutoresizingMaskIntoConstraints = NO;
+    [_sizePopUp setAccessibilityLabel:@"Kích thước ảnh"];
+    [self fillSizeMenu];
+    NSView* spacerImage = [[NSView alloc] init];
+    [spacerImage setContentHuggingPriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
+    NSStackView* imageRow = [NSStackView stackViewWithViews:@[sizeCaption, _sizePopUp, spacerImage, _imageButton]];
+    imageRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    imageRow.alignment = NSLayoutAttributeCenterY;
+    imageRow.spacing = 8;
 
     //the answer
     _outputPlaceholder = [AIShimmerLabel wrappingLabelWithString:kOutputPlaceholder];
@@ -424,7 +455,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     bottom.alignment = NSLayoutAttributeCenterY;
     bottom.spacing = 8;
 
-    _stack = [NSStackView stackViewWithViews:@[header, _contextLabel, _inputScroll, _presetStrip, askRow, _outputScroll, statusRow, bottom]];
+    _stack = [NSStackView stackViewWithViews:@[header, _contextLabel, _inputScroll, _presetStrip, imageRow, askRow, _outputScroll, statusRow, bottom]];
     _stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     _stack.alignment = NSLayoutAttributeLeading;
     _stack.spacing = 10;
@@ -450,9 +481,10 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [_panel setContentSize:size];
 }
 
-//The ready-made conversions: small buttons in rows that break where the width of the window ends (a stack view does not wrap by
-//itself, and the width of the window never changes, so the rows are cut once, here). The one that was chosen is filled with the accent
-//colour. A caption says what they are.
+//The ready-made conversions: a row of tabs (one for each group of presets), and under it the small buttons of the tab that is selected, in rows
+//that break where the width of the window ends (a stack view does not wrap by itself, and the width of the window never changes, so the rows
+//are cut once, here). The one that was chosen is filled with the accent colour. A caption says what they are. The buttons of all the tabs
+//exist (a test and the accessibility tree reach them); the rows of the others are hidden, and a hidden row takes no room.
 -(NSStackView*)buildPresetStripWithWidth:(CGFloat)width {
     const CGFloat gap = 6;
     //one line, not a wrapping label: a wrapping label has no width of its own and was laid out as narrow as one word
@@ -460,6 +492,25 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     caption.font = [NSFont systemFontOfSize:11];
     caption.textColor = [NSColor secondaryLabelColor];
     caption.translatesAutoresizingMaskIntoConstraints = NO;
+
+    NSArray<AIPresetGroup*>* groups = [AIPresets groups];
+    NSMutableArray<NSString*>* titles = [NSMutableArray array];
+    for (AIPresetGroup* group in groups)
+        [titles addObject:group.title];
+    _groupControl = [NSSegmentedControl segmentedControlWithLabels:titles trackingMode:NSSegmentSwitchTrackingSelectOne target:self
+                                                            action:@selector(presetGroupChosen:)];
+    _groupControl.controlSize = NSControlSizeSmall;
+    _groupControl.font = [NSFont systemFontOfSize:11];
+    _groupControl.translatesAutoresizingMaskIntoConstraints = NO;
+    _groupControl.selectedSegment = 0;
+    [_groupControl setAccessibilityLabel:@"Nhóm chuyển đổi"];
+    for (NSUInteger i = 0; i < groups.count; i++)
+        [_groupControl setToolTip:[NSString stringWithFormat:@"Nhóm “%@”", groups[i].title] forSegment:(NSInteger)i];
+    NSStackView* tabRow = [NSStackView stackViewWithViews:@[caption, _groupControl]];
+    tabRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    tabRow.alignment = NSLayoutAttributeCenterY;
+    tabRow.spacing = 8;
+
     NSMutableArray<NSButton*>* buttons = [NSMutableArray array];
     for (AIPreset* preset in [AIPresets all]) {
         NSButton* button = [NSButton buttonWithTitle:preset.title target:self action:@selector(presetPressed:)];
@@ -479,27 +530,43 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     //The width a view takes in a row is its intrinsic one (that of its alignment rect: the bezel and the shadow of a rounded button stand
     //outside it, and a stack view does not count them)
     CGFloat (^widthInRow)(NSView*) = ^CGFloat(NSView* view) { return ceil(view.intrinsicContentSize.width); };
-    NSMutableArray<NSStackView*>* rows = [NSMutableArray array];
-    NSMutableArray<NSView*>* line = [NSMutableArray arrayWithObject:caption];
-    CGFloat used = widthInRow(caption);
-    for (NSButton* button in buttons) {
-        CGFloat need = widthInRow(button);
-        if (line.count > 0 && used + gap + need > width) {
-            [rows addObject:[NSStackView stackViewWithViews:line]];
-            line = [NSMutableArray array];
-            used = -gap;
+    NSMutableArray<NSStackView*>* stacks = [NSMutableArray array];
+    NSArray<AIPreset*>* all = [AIPresets all];
+    for (AIPresetGroup* group in groups) {
+        NSMutableArray<NSStackView*>* rows = [NSMutableArray array];
+        NSMutableArray<NSView*>* line = [NSMutableArray array];
+        CGFloat used = -gap;
+        for (NSUInteger i = 0; i < buttons.count; i++) {
+            if (![all[i].group isEqualToString:group.identifier])
+                continue;
+            CGFloat need = widthInRow(buttons[i]);
+            if (line.count > 0 && used + gap + need > width) {
+                [rows addObject:[NSStackView stackViewWithViews:line]];
+                line = [NSMutableArray array];
+                used = -gap;
+            }
+            [line addObject:buttons[i]];
+            used += gap + need;
         }
-        [line addObject:button];
-        used += gap + need;
+        if (line.count > 0)
+            [rows addObject:[NSStackView stackViewWithViews:line]];
+        for (NSStackView* row in rows) {
+            row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+            row.alignment = NSLayoutAttributeCenterY;
+            row.spacing = gap;
+        }
+        NSStackView* stack = [NSStackView stackViewWithViews:rows];
+        stack.orientation = NSUserInterfaceLayoutOrientationVertical;
+        stack.alignment = NSLayoutAttributeLeading;
+        stack.spacing = 4;
+        stack.hidden = stacks.count != 0;                       //the first tab is the one shown
+        [stacks addObject:stack];
     }
-    if (line.count > 0)
-        [rows addObject:[NSStackView stackViewWithViews:line]];
-    for (NSStackView* row in rows) {
-        row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
-        row.alignment = NSLayoutAttributeCenterY;
-        row.spacing = gap;
-    }
-    NSStackView* strip = [NSStackView stackViewWithViews:rows];
+    _groupStacks = stacks;
+
+    NSMutableArray<NSView*>* parts = [NSMutableArray arrayWithObject:tabRow];
+    [parts addObjectsFromArray:stacks];
+    NSStackView* strip = [NSStackView stackViewWithViews:parts];
     strip.orientation = NSUserInterfaceLayoutOrientationVertical;
     strip.alignment = NSLayoutAttributeLeading;
     strip.spacing = 4;
@@ -1011,6 +1078,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _saveImageButton.hidden = YES;
     _resultImageURL = nil;
     _resultImagePNG = nil;
+    _resultPixelSize = NSZeroSize;
     _imageView.image = nil;
     _imageView.hidden = YES;
     _revealButton.hidden = YES;
@@ -1045,15 +1113,17 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _output.string = @"";
     [self forgetImage];
     _imageRequest = YES;
+    _requestedImageSize = _imageSize;                       //what is chosen now: the menu may be changed while the picture is made
     _state = AIAssistantStateGenerating;
     [self beginProgress];
-    [self showMessage:@"Đang tạo ảnh…" error:NO];
+    [self showMessage:_requestedImageSize != nil ? [NSString stringWithFormat:@"Đang tạo ảnh %@…", _requestedImageSize.label] : @"Đang tạo ảnh…" error:NO];
     [self updateInterface];
 
     AIClient* client = [[AIClient alloc] initWithConfiguration:configuration];
     _client = client;
     __weak AIAssistant* weakSelf = self;
-    [client generateImageWithPrompt:[AIAgentCLI imagePromptForRequest:request template:AISettings.imagePrompt]
+    [client generateImageWithPrompt:[AIAgentCLI imagePromptForRequest:[AIPresets imageRequestForSize:_requestedImageSize description:request]
+                                                             template:AISettings.imagePrompt]
                              onNote:^(NSString* note) {}                //what the agent says on the way is not shown: the words of the wait are
                          completion:^(NSURL* image, NSError* error) {
         AIAssistant* strong = weakSelf;
@@ -1084,13 +1154,29 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         NSBitmapImageRep* rep = [NSBitmapImageRep imageRepWithData:data];
         png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] ?: data;
     }
+    //a size was chosen: the picture is cut to exactly that many pixels (the AI draws at sizes of its own), and this is the picture that is
+    //shown, copied, inserted and saved. When it cannot be cut the picture of the AI is kept, and the window says so.
+    BOOL cut = NO;
+    if (_requestedImageSize != nil) {
+        NSData* fitted = [AIPresets pngByFittingImageData:png toSize:_requestedImageSize];
+        NSImage* fittedImage = fitted != nil ? [[NSImage alloc] initWithData:fitted] : nil;
+        if (fittedImage != nil) {
+            png = fitted;
+            image = fittedImage;
+            cut = YES;
+        }
+    }
+    NSBitmapImageRep* pixels = [NSBitmapImageRep imageRepWithData:png];
+    _resultPixelSize = pixels != nil ? NSMakeSize(pixels.pixelsWide, pixels.pixelsHigh) : image.size;
     _resultImageURL = url;
     _resultImagePNG = png;
     _imageView.image = image;
     _imageView.hidden = NO;
     _state = AIAssistantStateDone;
     NSString* shown = [url.path stringByAbbreviatingWithTildeInPath];
-    [self showMessage:[NSString stringWithFormat:@"Xong. ⇧⌘↩ để chèn ảnh. Codex lưu ảnh ở %@", shown] error:NO];
+    NSString* head = cut ? [NSString stringWithFormat:@"Xong · %@. ", _requestedImageSize.label]
+                         : (_requestedImageSize != nil ? @"Xong. Không cắt được ảnh đúng kích thước nên giữ ảnh của AI. " : @"Xong. ");
+    [self showMessage:[NSString stringWithFormat:@"%@⇧⌘↩ để chèn ảnh. %@ %@", head, cut ? @"Codex lưu ảnh gốc, chưa cắt, ở" : @"Codex lưu ảnh ở", shown] error:NO];
     _revealButton.hidden = NO;
     _saveImageButton.hidden = NO;
     [self updatePlaceholders];
@@ -1104,7 +1190,8 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     AILightbox* box = [AILightbox shared];
     box.offscreenForTesting = self.offscreenForTesting;
     box.pasteboard = _inserter.pasteboard;
-    [box showImage:_imageView.image png:_resultImagePNG name:_resultImageURL.lastPathComponent over:_panel];
+    NSString* name = _requestedImageSize != nil ? [NSString stringWithFormat:@"%@.png", _requestedImageSize.label] : _resultImageURL.lastPathComponent;
+    [box showImage:_imageView.image png:_resultImagePNG name:name over:_panel];
 }
 
 -(void)saveImagePressed:(id)sender { [self saveImage]; }
@@ -1224,6 +1311,78 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     [self applyPresetWithIdentifier:sender.identifier];
 }
 
+-(NSString*)selectedPresetGroup {
+    NSArray<AIPresetGroup*>* groups = [AIPresets groups];
+    NSInteger index = _groupControl.selectedSegment;
+    return index >= 0 && index < (NSInteger)groups.count ? groups[(NSUInteger)index].identifier : nil;
+}
+
+//Only the rows of the selected tab are shown; the window grows or shrinks to fit them
+-(void)showPresetGroupAtIndex:(NSInteger)index {
+    for (NSUInteger i = 0; i < _groupStacks.count; i++)
+        _groupStacks[i].hidden = (NSInteger)i != index;
+    _groupControl.selectedSegment = index;
+    [self resizeToFit];
+}
+
+-(void)presetGroupChosen:(NSSegmentedControl*)sender {
+    [self showPresetGroupAtIndex:sender.selectedSegment];
+}
+
+-(void)selectPresetGroupWithIdentifier:(NSString*)identifier {
+    [self buildIfNeeded];
+    NSArray<AIPresetGroup*>* groups = [AIPresets groups];
+    for (NSUInteger i = 0; i < groups.count; i++)
+        if ([groups[i].identifier isEqualToString:identifier])
+            [self showPresetGroupAtIndex:(NSInteger)i];
+}
+
+#pragma mark Sizes of the picture
+
+-(void)fillSizeMenu {
+    [_sizePopUp removeAllItems];
+    _sizePopUp.menu.autoenablesItems = NO;
+    NSMenuItem* automatic = [[NSMenuItem alloc] initWithTitle:@"Tự chọn" action:nil keyEquivalent:@""];
+    automatic.representedObject = @"";
+    automatic.toolTip = @"AI tự chọn kích thước và tỉ lệ; ảnh được giữ nguyên như AI vẽ.";
+    [_sizePopUp.menu addItem:automatic];
+    for (AIPresetGroup* group in [AIPresets imageGroups]) {
+        [_sizePopUp.menu addItem:[NSMenuItem separatorItem]];
+        NSMenuItem* header = nil;
+        if (@available(macOS 14.0, *)) {
+            header = [NSMenuItem sectionHeaderWithTitle:group.title];
+        } else {
+            header = [[NSMenuItem alloc] initWithTitle:group.title action:nil keyEquivalent:@""];
+            header.enabled = NO;
+        }
+        [_sizePopUp.menu addItem:header];
+        for (AIImageSize* size in [AIPresets allImageSizes]) {
+            if (![size.group isEqualToString:group.identifier])
+                continue;
+            NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:size.label action:nil keyEquivalent:@""];
+            item.representedObject = size.identifier;
+            item.toolTip = size.summary;
+            [_sizePopUp.menu addItem:item];
+        }
+    }
+    [_sizePopUp selectItemAtIndex:0];
+    [_sizePopUp sizeToFit];
+}
+
+-(void)imageSizeChosen:(NSPopUpButton*)sender {
+    NSString* identifier = sender.selectedItem.representedObject;
+    _imageSize = identifier.length > 0 ? [AIPresets imageSizeWithIdentifier:identifier] : nil;
+}
+
+-(void)selectImageSizeWithIdentifier:(NSString*)identifier {
+    [self buildIfNeeded];
+    NSInteger index = identifier.length > 0 ? [_sizePopUp indexOfItemWithRepresentedObject:identifier] : 0;
+    if (index < 0)
+        return;
+    [_sizePopUp selectItemAtIndex:index];
+    [self imageSizeChosen:_sizePopUp];
+}
+
 -(void)applyPresetWithIdentifier:(NSString*)identifier {
     AIPreset* preset = [AIPresets presetWithIdentifier:identifier];
     BOOL hasText = [_input.string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length > 0;
@@ -1234,6 +1393,7 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
         return;
     }
     _activePreset = preset;
+    [self selectPresetGroupWithIdentifier:preset.group];      //the button that is lit must be in view
     [self updatePresetButtons];
     [self ask];
 }
@@ -1332,8 +1492,11 @@ static NSView* TextArea(CGFloat height, NSTextField* placeholder, NSTextView** t
     _actionButton.title = generating ? @"Dừng" : (hasText ? @"Tạo lại" : @"Tạo");
     //pictures are for Codex only: for the other AIs the button is there, off, and says why
     _imageButton.enabled = _canMakeImages && !generating;
-    _imageButton.toolTip = _canMakeImages ? @"Tạo ảnh bằng Codex (kỹ năng imagegen) từ mô tả ở ô trên. ⌥⌘↩"
+    _imageButton.toolTip = _canMakeImages ? @"Tạo ảnh bằng Codex (kỹ năng imagegen) từ mô tả ở ô trên, theo kích thước đã chọn. ⌥⌘↩"
                                           : @"Chỉ dùng được khi chọn Codex CLI ở góc trên của cửa sổ.";
+    _sizePopUp.enabled = _canMakeImages && !generating;
+    _sizePopUp.toolTip = _canMakeImages ? @"Kích thước của ảnh khi bấm “Tạo ảnh”: AI vẽ, rồi ảnh được cắt đúng kích thước này. “Tự chọn” giữ nguyên ảnh của AI."
+                                        : @"Chỉ dùng được khi chọn Codex CLI ở góc trên của cửa sổ.";
     //⌘↩ asks; while an answer is on its way the same place is ⌘. as everywhere in macOS
     if (generating)
         [self setKeyEquivalent:@"." mask:NSEventModifierFlagCommand forButton:_actionButton];

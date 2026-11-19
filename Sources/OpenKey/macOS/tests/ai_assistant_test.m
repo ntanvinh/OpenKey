@@ -211,10 +211,36 @@ static void TestPresetsFileMatches(void) {
         CHECK([list[i][@"summary"] isEqualToString:all[i].summary]);
         CHECK([list[i][@"instruction"] isEqualToString:all[i].instruction]);
         CHECK([list[i][@"poem"] boolValue] == all[i].isPoem);
+        CHECK([list[i][@"group"] isEqualToString:all[i].group]);
         //the request: the template of the file with the instruction and the text put in is the prompt of this program
         NSString* made = [[file[@"promptTemplate"] stringByReplacingOccurrencesOfString:@"{instruction}" withString:all[i].instruction]
                           stringByReplacingOccurrencesOfString:@"{text}" withString:@"xin chao"];
         CHECK([made isEqualToString:[AIPresets promptForPreset:all[i] draft:@"  xin chao \n"]]);
+    }
+    //the tabs, and the sizes of the pictures with the note that tells the AI the canvas
+    NSArray* groups = file[@"groups"];
+    CHECK(groups.count == [AIPresets groups].count);
+    for (NSUInteger i = 0; i < groups.count && i < [AIPresets groups].count; i++)
+        CHECK([groups[i][@"id"] isEqualToString:[AIPresets groups][i].identifier] && [groups[i][@"title"] isEqualToString:[AIPresets groups][i].title]);
+    NSArray* imageGroups = file[@"imageGroups"];
+    CHECK(imageGroups.count == [AIPresets imageGroups].count);
+    for (NSUInteger i = 0; i < imageGroups.count && i < [AIPresets imageGroups].count; i++)
+        CHECK([imageGroups[i][@"id"] isEqualToString:[AIPresets imageGroups][i].identifier] && [imageGroups[i][@"title"] isEqualToString:[AIPresets imageGroups][i].title]);
+    CHECK([file[@"imageNote"] isEqualToString:[AIPresets imageNoteTemplate]]);
+    NSArray* sizes = file[@"imageSizes"];
+    NSArray<AIImageSize*>* allSizes = [AIPresets allImageSizes];
+    CHECK(sizes.count == allSizes.count);
+    for (NSUInteger i = 0; i < sizes.count && i < allSizes.count; i++) {
+        CHECK([sizes[i][@"id"] isEqualToString:allSizes[i].identifier] && [sizes[i][@"group"] isEqualToString:allSizes[i].group]);
+        CHECK([sizes[i][@"title"] isEqualToString:allSizes[i].title] && [sizes[i][@"summary"] isEqualToString:allSizes[i].summary]);
+        CHECK([sizes[i][@"width"] integerValue] == allSizes[i].width && [sizes[i][@"height"] integerValue] == allSizes[i].height);
+        CHECK([sizes[i][@"ratio"] isEqualToString:allSizes[i].ratio] && [sizes[i][@"hint"] isEqualToString:allSizes[i].hint]);
+        //the request for a picture: the note of the file with the numbers put in is what this program sends
+        NSString* note = [[[[[file[@"imageNote"] stringByReplacingOccurrencesOfString:@"{width}" withString:[NSString stringWithFormat:@"%ld", (long)allSizes[i].width]]
+                             stringByReplacingOccurrencesOfString:@"{height}" withString:[NSString stringWithFormat:@"%ld", (long)allSizes[i].height]]
+                            stringByReplacingOccurrencesOfString:@"{ratio}" withString:allSizes[i].ratio]
+                           stringByReplacingOccurrencesOfString:@"{hint}" withString:allSizes[i].hint] copy];
+        CHECK([[AIPresets imageRequestForSize:allSizes[i] description:@"  mot con meo \n"] isEqualToString:[@"mot con meo\n\n" stringByAppendingString:note]]);
     }
 }
 
@@ -225,7 +251,7 @@ static void TestPresets(AIAssistant* assistant) {
     NSArray<AIPreset*>* all = [AIPresets all];
 
     //the list itself: one button each, nothing repeated, no empty instruction, the poems are the ones that say so
-    CHECK(all.count == 14);
+    CHECK(all.count == 25);
     NSMutableSet* identifiers = [NSMutableSet set];
     NSMutableSet* titles = [NSMutableSet set];
     NSMutableArray* poems = [NSMutableArray array];
@@ -239,6 +265,22 @@ static void TestPresets(AIAssistant* assistant) {
     }
     CHECK(identifiers.count == all.count && titles.count == all.count);
     CHECK([poems isEqualToArray:@[@"poetry", @"rhyme", @"lucBat", @"tuTuyet"]]);
+    //the groups: the tabs, each with its presets, in the order they were written; every preset is in a tab that exists
+    NSArray<AIPresetGroup*>* groups = [AIPresets groups];
+    CHECK(groups.count == 4 && [groups[0].identifier isEqualToString:@"tone"] && [groups[1].identifier isEqualToString:@"occasion"] &&
+          [groups[2].identifier isEqualToString:@"poem"] && [groups[3].identifier isEqualToString:@"length"]);
+    CHECK([AIPresets presetsInGroup:@"tone"].count == 6 && [AIPresets presetsInGroup:@"occasion"].count == 11 &&
+          [AIPresets presetsInGroup:@"poem"].count == 4 && [AIPresets presetsInGroup:@"length"].count == 4 && [AIPresets presetsInGroup:@"x"].count == 0);
+    NSUInteger counted = 0;
+    for (AIPresetGroup* group in groups) {
+        CHECK(group.title.length > 0);
+        counted += [AIPresets presetsInGroup:group.identifier].count;
+    }
+    CHECK(counted == all.count);
+    //the presets for an occasion take ideas or a draft and write the message; they say not to invent
+    for (AIPreset* preset in [AIPresets presetsInGroup:@"occasion"])
+        CHECK([preset.instruction containsString:@"Không bịa thêm"] && !preset.isPoem);
+    CHECK([[AIPresets presetWithIdentifier:@"congrats"].instruction containsString:@"sinh nhật"] && [[AIPresets presetWithIdentifier:@"boss"].instruction containsString:@"cấp trên"]);
     CHECK([AIPresets presetWithIdentifier:@"nope"] == nil);
     NSString* sample = [AIPresets promptForPreset:[AIPresets presetWithIdentifier:@"polite"] draft:@"\n\n  xin chào anh  \n"];
     CHECK([sample hasPrefix:[AIPresets presetWithIdentifier:@"polite"].instruction]);
@@ -248,6 +290,9 @@ static void TestPresets(AIAssistant* assistant) {
     //an empty box: the buttons are there, off; a click (not possible with the mouse, possible from code) only says what is missing
     [assistant presentWithSelection:nil application:nil];
     CHECK(assistant.presetButtons.count == all.count && assistant.activePreset == nil);
+    //the tabs: the first is shown at first, and only its buttons are in view
+    CHECK(assistant.presetGroupControl.segmentCount == 4 && assistant.presetGroupControl.selectedSegment == 0 && [assistant.selectedPresetGroup isEqualToString:@"tone"]);
+    CHECK([[assistant.presetGroupControl labelForSegment:1] isEqualToString:@"Hoàn cảnh"] && assistant.presetGroupControl.accessibilityLabel.length > 0);
     for (NSUInteger i = 0; i < all.count; i++) {
         NSButton* button = assistant.presetButtons[i];
         CHECK([button.title isEqualToString:all[i].title] && !button.isEnabled && button.state == NSControlStateValueOff);
@@ -267,21 +312,38 @@ static void TestPresets(AIAssistant* assistant) {
 
     Snapshot(assistant, @"ai-presets-typed", NO);
     Snapshot(assistant, @"ai-presets-typed", YES);
-    //the buttons fit in the width of the window, in rows, without one over another
-    [assistant.panel.contentView layoutSubtreeIfNeeded];
-    NSView* strip = assistant.presetButtons[0].superview.superview;
-    NSMutableSet* rows = [NSMutableSet set];
-    for (NSButton* button in assistant.presetButtons) {
-        //the alignment rect is what the layout works with: the bezel and shadow of a button stand outside it
-        NSRect frame = [button.superview convertRect:[button alignmentRectForFrame:button.frame] toView:strip];
-        //inside the strip, and as wide as the button wants to be: a row that is too long squeezes its last buttons to a sliver
-        BOOL inside = NSMaxX(frame) <= strip.bounds.size.width + 0.5 && NSMinX(frame) >= -0.5 && frame.size.width >= button.intrinsicContentSize.width - 0.5;
-        if (!inside)
-            printf("   %s is at %s, the strip is %.0f wide\n", button.title.UTF8String, NSStringFromRect(frame).UTF8String, strip.bounds.size.width);
-        CHECK(inside);
-        [rows addObject:@((NSInteger)round(NSMidY(frame)))];
+    //the buttons of every tab fit in the width of the window, in rows, without one over another
+    for (AIPresetGroup* group in [AIPresets groups]) {
+        [assistant selectPresetGroupWithIdentifier:group.identifier];
+        CHECK([assistant.selectedPresetGroup isEqualToString:group.identifier]);
+        [assistant.panel.contentView layoutSubtreeIfNeeded];
+        NSView* strip = assistant.presetButtons[0].superview.superview.superview;
+        NSMutableSet* rows = [NSMutableSet set];
+        for (NSButton* button in assistant.presetButtons) {
+            BOOL inThisTab = [[AIPresets presetWithIdentifier:button.identifier].group isEqualToString:group.identifier];
+            CHECK(button.isHiddenOrHasHiddenAncestor == !inThisTab);                 //only the buttons of the tab that is selected are in view
+            if (!inThisTab)
+                continue;
+            //the alignment rect is what the layout works with: the bezel and shadow of a button stand outside it
+            NSRect frame = [button.superview convertRect:[button alignmentRectForFrame:button.frame] toView:strip];
+            //inside the strip, and as wide as the button wants to be: a row that is too long squeezes its last buttons to a sliver
+            BOOL inside = NSMaxX(frame) <= strip.bounds.size.width + 0.5 && NSMinX(frame) >= -0.5 && frame.size.width >= button.intrinsicContentSize.width - 0.5;
+            if (!inside)
+                printf("   %s is at %s, the strip is %.0f wide\n", button.title.UTF8String, NSStringFromRect(frame).UTF8String, strip.bounds.size.width);
+            CHECK(inside);
+            [rows addObject:@((NSInteger)round(NSMidY(frame)))];
+        }
+        CHECK(rows.count >= 1 && rows.count <= 2);
+        CHECK(assistant.panel.frame.size.height < 600);                              //the window stays low enough for a laptop screen
+        if ([group.identifier isEqualToString:@"tone"] || [group.identifier isEqualToString:@"occasion"]) {
+            NSString* snapshot = [NSString stringWithFormat:@"ai-presets-tab-%@", group.identifier];
+            Snapshot(assistant, snapshot, NO);
+            Snapshot(assistant, snapshot, YES);
+        }
     }
-    CHECK(rows.count >= 2 && rows.count <= 3);
+    [assistant selectPresetGroupWithIdentifier:@"tone"];
+    [assistant selectPresetGroupWithIdentifier:@"nope"];                             //no such tab: nothing changes
+    CHECK([assistant.selectedPresetGroup isEqualToString:@"tone"]);
 
     //one click: chosen, lit, and asked at once. What the server gets is the instruction and the text; the box is left as it was.
     NSString* typed = assistant.inputView.string;
@@ -312,6 +374,16 @@ static void TestPresets(AIAssistant* assistant) {
     [assistant ask];
     WaitForState(assistant, AIAssistantStateDone);
     CHECK([LastRequest()[@"body"][@"messages"][1][@"content"] isEqualToString:expected]);
+
+    //an occasion: the tab of it comes into view, and what is sent is the instruction and the ideas of the user
+    [assistant selectPresetGroupWithIdentifier:@"tone"];
+    [assistant applyPresetWithIdentifier:@"boss"];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK([assistant.selectedPresetGroup isEqualToString:@"occasion"] && [assistant.activePreset.identifier isEqualToString:@"boss"]);
+    CHECK([[LastRequest()[@"body"][@"messages"][1][@"content"] description] hasPrefix:[AIPresets presetWithIdentifier:@"boss"].instruction]);
+    CHECK([[LastRequest()[@"body"][@"messages"][1][@"content"] description] containsString:@"xin nghi phep"]);
+    CHECK(assistant.presetButtons[[all indexOfObject:[AIPresets presetWithIdentifier:@"boss"]]].state == NSControlStateValueOn);
+    CHECK([assistant.statusLabel.stringValue isEqualToString:@"Xong. ⇧⌘↩ để dùng kết quả."]);                      //not a poem
 
     //another conversion takes over
     [assistant applyPresetWithIdentifier:@"toEnglish"];
@@ -353,6 +425,85 @@ static void TestPresets(AIAssistant* assistant) {
     for (NSButton* button in assistant.presetButtons)
         CHECK(button.state == NSControlStateValueOff);
     [assistant hideAssistant];
+}
+
+//The sizes of the pictures: the list, the request for a picture, what part of a picture is kept when it is cut to a size, and the picture that
+//comes out has exactly the pixels of the size and the right side up
+static NSData* StripedPNG(int width, int height, NSColor* top, NSColor* bottom, NSColor* left, NSColor* right) {
+    NSBitmapImageRep* rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:width pixelsHigh:height bitsPerSample:8 samplesPerPixel:4
+                                                                      hasAlpha:YES isPlanar:NO colorSpaceName:NSCalibratedRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
+    for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++) {
+            NSColor* color = left != nil ? (x < width / 2 ? left : right) : (y < height / 2 ? top : bottom);     //the first row is the top
+            [rep setColor:color atX:x y:y];
+        }
+    return [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+}
+
+static BOOL IsColor(NSColor* color, CGFloat red, CGFloat green, CGFloat blue) {
+    NSColor* rgb = [color colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+    return fabs(rgb.redComponent - red) < 0.12 && fabs(rgb.greenComponent - green) < 0.12 && fabs(rgb.blueComponent - blue) < 0.12;
+}
+
+static void TestImageSizes(void) {
+    printf("-- sizes of pictures\n");
+    NSArray<AIImageSize*>* all = [AIPresets allImageSizes];
+    CHECK(all.count == 18 && [AIPresets imageGroups].count == 3);
+    NSMutableSet* ids = [NSMutableSet set];
+    NSMutableSet* labels = [NSMutableSet set];
+    for (AIImageSize* size in all) {
+        [ids addObject:size.identifier];
+        [labels addObject:size.label];
+        CHECK(size.title.length > 0 && size.summary.length > 0 && size.hint.length > 20 && size.ratio.length > 0);
+        CHECK(size.width >= 256 && size.width <= 2560 && size.height >= 256 && size.height <= 2560);
+        CHECK([AIPresets imageSizeWithIdentifier:size.identifier] == size);
+        BOOL listed = NO;
+        for (AIPresetGroup* group in [AIPresets imageGroups])
+            listed |= [group.identifier isEqualToString:size.group];
+        CHECK(listed);
+    }
+    CHECK(ids.count == all.count && labels.count == all.count && [AIPresets imageSizeWithIdentifier:@"nope"] == nil);
+    AIImageSize* story = [AIPresets imageSizeWithIdentifier:@"story"];
+    CHECK(story.width == 1080 && story.height == 1920 && [story.label isEqualToString:@"Story · Reels · TikTok · Shorts (1080×1920)"]);
+    CHECK([AIPresets imageSizeWithIdentifier:@"youtubeThumbnail"].width == 1280 && [AIPresets imageSizeWithIdentifier:@"appIcon"].height == 1024);
+
+    //the request: the description, then the canvas; with no size, the description alone
+    CHECK([[AIPresets imageRequestForSize:nil description:@"  con mèo \n"] isEqualToString:@"con mèo"]);
+    NSString* request = [AIPresets imageRequestForSize:story description:@"con mèo"];
+    CHECK([request hasPrefix:@"con mèo\n\nCanvas: exactly 1080 x 1920 px, aspect ratio 9:16."] && [request containsString:story.hint]);
+    CHECK(![request containsString:@"{"]);
+
+    //which part is kept
+    CHECK(NSEqualRects([AIPresets coverCropOfSourceSize:NSMakeSize(1536, 1024) forTargetSize:NSMakeSize(1080, 1080)], NSMakeRect(256, 0, 1024, 1024)));
+    CHECK(NSEqualRects([AIPresets coverCropOfSourceSize:NSMakeSize(1024, 1536) forTargetSize:NSMakeSize(1080, 1080)], NSMakeRect(0, 256, 1024, 1024)));
+    CHECK(NSEqualRects([AIPresets coverCropOfSourceSize:NSMakeSize(1024, 1024) forTargetSize:NSMakeSize(1584, 396)], NSMakeRect(0, 384, 1024, 256)));
+    CHECK(NSEqualRects([AIPresets coverCropOfSourceSize:NSMakeSize(1024, 1536) forTargetSize:NSMakeSize(1000, 1500)], NSMakeRect(0, 0, 1024, 1536)));
+
+    //a wide picture, red on the left and blue on the right, cut to a square: the middle is kept, and it is as wide as it is high
+    NSColor *red = [NSColor colorWithCalibratedRed:1 green:0 blue:0 alpha:1], *blue = [NSColor colorWithCalibratedRed:0 green:0 blue:1 alpha:1];
+    NSColor *green = [NSColor colorWithCalibratedRed:0 green:1 blue:0 alpha:1], *yellow = [NSColor colorWithCalibratedRed:1 green:1 blue:0 alpha:1];
+    AIImageSize* square = [AIPresets imageSizeWithIdentifier:@"squarePost"];
+    NSData* cut = [AIPresets pngByFittingImageData:StripedPNG(300, 100, nil, nil, red, blue) toSize:square];
+    NSBitmapImageRep* rep = [NSBitmapImageRep imageRepWithData:cut];
+    CHECK(rep != nil && rep.pixelsWide == 1080 && rep.pixelsHigh == 1080);
+    CHECK(IsColor([rep colorAtX:20 y:540], 1, 0, 0) && IsColor([rep colorAtX:1060 y:540], 0, 0, 1));        //both colours are in the cut, half each
+    CHECK(IsColor([rep colorAtX:500 y:300], 1, 0, 0) && IsColor([rep colorAtX:580 y:300], 0, 0, 1));
+    //a tall picture, green above and yellow below, cut to a banner: the middle band is kept and the top stays at the top
+    AIImageSize* banner = [AIPresets imageSizeWithIdentifier:@"linkedinBanner"];
+    cut = [AIPresets pngByFittingImageData:StripedPNG(400, 400, green, yellow, nil, nil) toSize:banner];
+    rep = [NSBitmapImageRep imageRepWithData:cut];
+    CHECK(rep != nil && rep.pixelsWide == 1584 && rep.pixelsHigh == 396);
+    CHECK(IsColor([rep colorAtX:800 y:20], 0, 1, 0) && IsColor([rep colorAtX:800 y:380], 1, 1, 0));             //green above, yellow below: not upside down
+    //a picture of the right proportions is only scaled
+    AIImageSize* pin = [AIPresets imageSizeWithIdentifier:@"pinterest"];
+    cut = [AIPresets pngByFittingImageData:StripedPNG(200, 300, green, yellow, nil, nil) toSize:pin];
+    rep = [NSBitmapImageRep imageRepWithData:cut];
+    CHECK(rep.pixelsWide == 1000 && rep.pixelsHigh == 1500 && IsColor([rep colorAtX:500 y:100], 0, 1, 0) && IsColor([rep colorAtX:500 y:1400], 1, 1, 0));
+    //it is a PNG
+    CHECK(cut.length > 8 && memcmp(cut.bytes, "\x89PNG", 4) == 0);
+    //what is not a picture, and nothing to do
+    CHECK([AIPresets pngByFittingImageData:[@"not a picture" dataUsingEncoding:NSUTF8StringEncoding] toSize:square] == nil);
+    CHECK([AIPresets pngByFittingImageData:[NSData data] toSize:square] == nil && [AIPresets pngByFittingImageData:cut toSize:nil] == nil);
 }
 
 static void TestUsingTheAnswer(AIAssistant* assistant, NSPasteboard* board) {
@@ -1020,9 +1171,9 @@ static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
     [assistant presentWithSelection:nil application:nil];
     CHECK(assistant.imageButton.enabled && [assistant.imageButton.toolTip containsString:@"imagegen"]);
     Choose(assistant.providerPopUp, @"Claude Code CLI (Claude)");
-    CHECK(!assistant.imageButton.enabled);
+    CHECK(!assistant.imageButton.enabled && !assistant.imageSizePopUp.enabled);                   //the menu of the sizes goes with the button
     Choose(assistant.providerPopUp, @"Codex CLI (ChatGPT)");
-    CHECK(assistant.imageButton.enabled);
+    CHECK(assistant.imageButton.enabled && assistant.imageSizePopUp.enabled);
 
     //nothing described: nothing asked
     assistant.inputView.string = @"  ";
@@ -1152,6 +1303,49 @@ static void TestImages(AIAssistant* assistant, NSPasteboard* board) {
     [assistant hideAssistant];
     CHECK(assistant.imageView.hidden && assistant.resultImageURL == nil);                                           //nothing is kept in the window
 
+    //a size: the AI is told the canvas, and the picture that comes back is cut to exactly it (the fake Codex draws 16 x 16 pixels)
+    AgentMode(@"image");
+    [assistant hideAssistant];
+    [assistant presentWithSelection:nil application:nil];
+    CHECK(assistant.selectedImageSize == nil && [assistant.imageSizePopUp.titleOfSelectedItem isEqualToString:@"Tự chọn"]);
+    CHECK(assistant.imageSizePopUp.numberOfItems == 1 + 3 * 2 + 18);                                //"Tự chọn", then a separator and a header for each group, then the sizes
+    [assistant selectImageSizeWithIdentifier:@"story"];
+    CHECK([assistant.selectedImageSize.identifier isEqualToString:@"story"] && [assistant.imageSizePopUp.titleOfSelectedItem containsString:@"1080×1920"]);
+    [assistant selectImageSizeWithIdentifier:@"no-such-size"];                                       //not a size: the choice stays
+    CHECK([assistant.selectedImageSize.identifier isEqualToString:@"story"]);
+    assistant.inputView.string = @"một chú mèo";
+    [assistant askForImage];
+    CHECK(assistant.state == AIAssistantStateGenerating && [assistant.statusLabel.stringValue containsString:@"1080×1920"] && !assistant.imageSizePopUp.enabled);
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(NSEqualSizes(assistant.resultImageSize, NSMakeSize(1080, 1920)) && !assistant.imageView.hidden);
+    CHECK([AgentLog()[@"stdin_head"] containsString:@"một chú mèo\n\nCanvas: exactly 1080 x 1920 px, aspect ratio 9:16."]);
+    CHECK([AgentLog()[@"stdin_head"] containsString:[AIPresets imageSizeWithIdentifier:@"story"].hint]);
+    CHECK([assistant.statusLabel.stringValue containsString:@"(1080×1920)"] && [assistant.statusLabel.stringValue containsString:@"Codex lưu ảnh gốc, chưa cắt, ở"]);
+    CHECK(assistant.imageSizePopUp.enabled && assistant.saveImageButton.hidden == NO);
+    Snapshot(assistant, @"ai-image-size-story", NO);
+    Snapshot(assistant, @"ai-image-size-story", YES);
+    //the picture that is put on the clipboard is the cut one, not the file of Codex
+    [assistant copyResult];
+    NSBitmapImageRep* copied = [NSBitmapImageRep imageRepWithData:[board dataForType:NSPasteboardTypePNG]];
+    CHECK(copied != nil && copied.pixelsWide == 1080 && copied.pixelsHigh == 1920);
+    //another size, chosen while nothing is on the way; and "tự chọn": the picture of the AI as it is
+    [assistant presentWithSelection:nil application:nil];
+    [assistant selectImageSizeWithIdentifier:@"linkedinBanner"];
+    assistant.inputView.string = @"một chú mèo";
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(NSEqualSizes(assistant.resultImageSize, NSMakeSize(1584, 396)));
+    [assistant selectImageSizeWithIdentifier:@""];
+    CHECK(assistant.selectedImageSize == nil);
+    [assistant askForImage];
+    WaitForState(assistant, AIAssistantStateDone);
+    CHECK(NSEqualSizes(assistant.resultImageSize, NSMakeSize(16, 16)) && ![AgentLog()[@"stdin_head"] containsString:@"Canvas:"]);
+    [assistant hideAssistant];
+    CHECK(NSEqualSizes(assistant.resultImageSize, NSZeroSize));
+    [assistant presentWithSelection:nil application:nil];
+    [assistant selectImageSizeWithIdentifier:@""];
+    [assistant hideAssistant];
+
     //what goes wrong: no picture, an error; stopping
     AgentMode(@"image-none");
     [assistant presentWithSelection:nil application:nil];
@@ -1223,6 +1417,7 @@ int main(int argc, char** argv) {
         //VOK_ONLY=presets runs that part alone, to work on it without waiting for the whole test
         if (getenv("VOK_ONLY") != NULL && strcmp(getenv("VOK_ONLY"), "presets") == 0) {
             TestPresetsFileMatches();
+            TestImageSizes();
             TestPresets(assistant);
             [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:[NSProcessInfo processInfo].processName];
             printf(failures ? "\n%d FAILURES\n" : "ALL OK\n", failures);
@@ -1232,6 +1427,7 @@ int main(int argc, char** argv) {
         CHECK(boundaries >= 2);                                              // told when it opened and closed
         TestAsking(assistant);
         TestPresetsFileMatches();
+        TestImageSizes();
         TestPresets(assistant);
         TestUsingTheAnswer(assistant, board);
         TestStopping(assistant);

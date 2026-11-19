@@ -25,6 +25,14 @@ struct Picture {
 /// Reads the picture of a file. False when it cannot be read (not a picture, too big, no decoder). `png` is kept only for a PNG up to 30 MB.
 bool load(const std::wstring& path, Picture& out);
 
+/// Cuts the picture of `source` to the proportions of width x height (the middle is kept, as large as can be) and scales it to exactly that many
+/// pixels, as a PNG in a new file of the temporary folder of the user ("VOpenKey AI\fit-....png"). This is what the ready-made sizes of
+/// pictures do (the AI draws at sizes of its own). Returns the path; empty when it did not work (not a picture, too big, no encoder, no room).
+std::wstring fitToSize(const std::wstring& source, int width, int height);
+
+/// Deletes a file that fitToSize made. Any other path is left alone.
+void deleteFitted(const std::wstring& path);
+
 /// Draws the picture as large as fits in `area`, with its proportions, centred; the rest of `area` is `background`.
 void draw(HDC dc, const RECT& area, const Picture& picture, COLORREF background);
 
