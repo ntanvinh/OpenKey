@@ -6,13 +6,15 @@
 #import "DictionaryPalette.h"
 #import "AISelection.h"
 #import "VOKUI.h"
+#import "WordSpeaker.h"
 #import <Carbon/Carbon.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 static const CGFloat kPanelWidth = 760;
 static const CGFloat kPanelHeight = 500;
 static const CGFloat kLeftColWidth = 258;
-static const CGFloat kCornerRadius = 12;
+static const CGFloat kCornerRadius = 14;    //the same as the snippet palette and the AI assistant, the other two large floating panels
+static const CGFloat kHairline = 0.5;       //the edge of a panel is one device pixel on a Retina screen, as in the case bar and the suggestion bar
 
 static DictionaryPalette* sSharedPalette = nil;
 static dispatch_block_t sTypingBoundary = nil;
@@ -69,8 +71,10 @@ static NSTextField* DictLabel(NSString* text, CGFloat size, NSFontWeight weight,
     [self.effectiveAppearance performAsCurrentDrawingAppearance:^{
         self.layer.backgroundColor = VeilColor().CGColor;
         self.layer.cornerRadius = kCornerRadius;
-        self.layer.borderWidth = 1.0;
-        self.layer.borderColor = [NSColor.separatorColor colorWithAlphaComponent:0.55].CGColor;
+        self.layer.borderWidth = kHairline;
+        //the system separator as it is: -colorWithAlphaComponent: does not multiply, it REPLACES the alpha (0.12 in dark), so the
+        //0.55 that was here drew a white line of 55% (black in light): 4 to 5 times heavier than every other edge of the app
+        self.layer.borderColor = NSColor.separatorColor.CGColor;
     }];
 }
 -(void)viewDidChangeEffectiveAppearance {
@@ -123,6 +127,7 @@ static NSString* SafeDisplayText(NSString* s) {
 
 @interface VOKDictPanel : NSPanel
 @property (nonatomic, copy) void (^onCancelKey)(void);
+@property (nonatomic, copy) void (^onSpeakKey)(void);
 @end
 
 @implementation VOKDictPanel
@@ -130,6 +135,16 @@ static NSString* SafeDisplayText(NSString* s) {
 -(BOOL)canBecomeMainWindow { return NO; }
 -(void)cancelOperation:(id)sender {
     if (self.onCancelKey) self.onCancelKey();
+}
+//⌘P reads the word aloud, also while the search field has the keyboard (the field would not use it: there is nothing to print here)
+-(BOOL)performKeyEquivalent:(NSEvent*)event {
+    NSEventModifierFlags flags = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask &
+                                 (NSEventModifierFlagCommand | NSEventModifierFlagShift | NSEventModifierFlagOption | NSEventModifierFlagControl);
+    if (flags == NSEventModifierFlagCommand && [event.charactersIgnoringModifiers.lowercaseString isEqualToString:@"p"]) {
+        if (self.onSpeakKey) self.onSpeakKey();
+        return YES;
+    }
+    return [super performKeyEquivalent:event];
 }
 @end
 
@@ -166,6 +181,7 @@ static NSString* SafeDisplayText(NSString* s) {
     NSView* _rightPane;
     NSView* _defActionBar;
     NSTextField* _defSummaryLabel;
+    NSButton* _speakButton;
     NSButton* _copyDefButton;
     NSScrollView* _defScroll;
     NSTextView* _definitionView;
@@ -197,6 +213,7 @@ static NSString* SafeDisplayText(NSString* s) {
     BOOL _showingManager;
     BOOL _openingFileDialog;
     NSString* _selectedFilterDictId;
+    NSString* _speakText;           //what the speaker button reads for the word on show; nil when it is not an English word
     NSArray<VOKDictionaryCatalogItem*>* _catalogItems;
     NSMutableSet<NSString*>* _checkedIDs;
     NSArray<VOKDictionarySearchHit*>* _hits;
@@ -265,6 +282,9 @@ static NSString* SafeDisplayText(NSString* s) {
 -(NSTextField*)searchField { return _searchField; }
 -(NSTableView*)resultsTable { return _resultsTable; }
 -(NSTextView*)definitionView { return _definitionView; }
+-(NSButton*)speakButton { return _speakButton; }
+-(NSString*)speakText { return _speakText; }
+-(NSButton*)copyButton { return _copyDefButton; }
 -(BOOL)showingManager { return _showingManager; }
 -(NSString*)selectedFilterDictId { return _selectedFilterDictId; }
 -(NSArray<VOKDictionarySearchHit*>*)currentHits { return _hits; }
@@ -289,6 +309,7 @@ static NSString* SafeDisplayText(NSString* s) {
     _panel.delegate = self;
     __weak DictionaryPalette* weakSelf = self;
     _panel.onCancelKey = ^{ [weakSelf handleEscape]; };
+    _panel.onSpeakKey = ^{ [weakSelf speakCurrentWord]; };
     [_panel setAccessibilityLabel:@"Từ điển VOpenKey AI"];
 
     _effectView = [[NSVisualEffectView alloc] initWithFrame:frame];
@@ -429,6 +450,16 @@ static NSString* SafeDisplayText(NSString* s) {
 
     _defSummaryLabel = DictLabel(@"", 11.5, NSFontWeightMedium, SecondaryTextColor());
     [_defActionBar addSubview:_defSummaryLabel];
+
+    //the speaker: shown only for an English word (see displayHitAtRow:), next to the copy button as in the Dictionary app of the Mac
+    _speakButton = [NSButton buttonWithTitle:@"" target:self action:@selector(speakPressed:)];
+    _speakButton.bezelStyle = NSBezelStyleRounded;
+    _speakButton.controlSize = NSControlSizeSmall;
+    VOKSetButtonSymbol(_speakButton, @"speaker.wave.2", 12);
+    _speakButton.toolTip = VOKTooltip(@"Nghe phát âm tiếng Anh (⌘P)");
+    [_speakButton setAccessibilityLabel:@"Nghe phát âm từ tiếng Anh"];
+    _speakButton.hidden = YES;
+    [_defActionBar addSubview:_speakButton];
 
     _copyDefButton = [NSButton buttonWithTitle:@"Sao chép nghĩa" target:self action:@selector(copyDefinitionPressed:)];
     _copyDefButton.bezelStyle = NSBezelStyleRounded;
@@ -578,8 +609,9 @@ static NSString* SafeDisplayText(NSString* s) {
     CGFloat rw = w - kLeftColWidth - 1;
     _rightPane.frame = NSMakeRect(kLeftColWidth + 1, 0, rw, bodyH);
     _defActionBar.frame = NSMakeRect(0, bodyH - 34, rw, 34);
-    _defSummaryLabel.frame = NSMakeRect(18, 8, rw - 150, 18);
+    _defSummaryLabel.frame = NSMakeRect(18, 8, rw - 150 - 38, 18);
     _copyDefButton.frame = NSMakeRect(rw - 128, 6, 114, 22);
+    _speakButton.frame = NSMakeRect(rw - 128 - 6 - 32, 6, 32, 22);
     _defScroll.frame = NSMakeRect(0, 0, rw, bodyH - 34);
     _definitionView.frame = NSMakeRect(0, 0, rw, MAX(bodyH - 34, _definitionView.frame.size.height));
 
@@ -707,6 +739,7 @@ static NSString* SafeDisplayText(NSString* s) {
 -(void)hide {
     if (_closing || !_panel.visible) return;
     _closing = YES;
+    [[WordSpeaker shared] stop];
     [_panel orderOut:nil];
     _closing = NO;
 }
@@ -743,7 +776,7 @@ static NSString* SafeDisplayText(NSString* s) {
         [self updateDownloadSelectedButton];
         _footerRightLabel.stringValue = @"Esc Đóng · Hỗ trợ StarDict .zip / .ifo";
     } else {
-        _footerRightLabel.stringValue = @"↑↓ Chọn từ · ⌘C Chép nghĩa · Esc Đóng";
+        _footerRightLabel.stringValue = @"↑↓ Chọn từ · ⌘P Phát âm · ⏎ Chép nghĩa · Esc Đóng";
     }
     [self updateFooterStatus];
 }
@@ -859,7 +892,29 @@ static NSString* SafeDisplayText(NSString* s) {
     }
 }
 
+//The speaker is for the headword when a dictionary that has it is English (or has no language): "hello" from an English-Vietnamese
+//dictionary, not "ba" from a Vietnamese-English one. What was being read belongs to the word that is no longer shown.
+-(void)updateSpeakerForHit:(VOKDictionarySearchHit*)hit definitions:(NSArray<VOKDictionaryDefinition*>*)defs {
+    [[WordSpeaker shared] stop];
+    NSMutableArray<NSString*>* langs = [NSMutableArray array];
+    for (VOKDictionaryDefinition* def in defs) {
+        NSString* lang = @"";
+        for (VOKDictionaryCatalogItem* item in _catalogItems) {
+            if ([item.dictId isEqualToString:def.dictId]) {
+                lang = item.sourceLang ?: @"";
+                break;
+            }
+        }
+        [langs addObject:lang];
+    }
+    _speakText = [WordSpeaker textToSpeakForHeadword:hit.headword sourceLangs:langs];
+    _speakButton.hidden = (_speakText.length == 0);
+}
+
 -(void)showEmptyStateWithTitle:(NSString*)title hint:(NSString*)hint showButton:(BOOL)showButton {
+    [[WordSpeaker shared] stop];
+    _speakText = nil;
+    _speakButton.hidden = YES;
     _defActionBar.hidden = YES;
     _defScroll.hidden = YES;
     _emptyOverlay.hidden = NO;
@@ -890,6 +945,7 @@ static NSString* SafeDisplayText(NSString* s) {
         ? defs[0].dictName
         : [NSString stringWithFormat:@"Khớp ở %lu bộ từ điển", (unsigned long)defs.count];
     [_copyDefButton setTitle:@"Sao chép nghĩa"];
+    [self updateSpeakerForHit:hit definitions:defs];
 
     NSMutableAttributedString* rendered = [[NSMutableAttributedString alloc] init];
 
@@ -1082,6 +1138,18 @@ static NSString* SafeDisplayText(NSString* s) {
 
 -(void)filterPillPressed:(NSButton*)sender {
     [self selectFilterDictId:sender.identifier.length > 0 ? sender.identifier : nil];
+}
+
+-(void)speakPressed:(id)sender {
+    [self speakCurrentWord];
+}
+
+//Reads the headword that is shown, when it is an English word. A Mac without an English voice says so in the footer.
+-(void)speakCurrentWord {
+    if (_speakText.length == 0 || _showingManager)
+        return;
+    if (![[WordSpeaker shared] speak:_speakText])
+        _footerLeftLabel.stringValue = @"Chưa có giọng đọc tiếng Anh · Cài ở Cài đặt › Trợ năng";
 }
 
 -(void)copyDefinitionPressed:(id)sender {

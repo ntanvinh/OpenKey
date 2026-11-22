@@ -148,16 +148,17 @@ for i in {1..50}; do
 done
 [ -f "$WORK/ready" ] || { echo "mock server failed to start"; exit 1; }
 
-for f in DictCatalog DictInflate DictStore MiniJson Suggest; do
+for f in DictCatalog DictInflate DictStore MiniJson Suggest WordSpeech; do
     clang++ -std=c++17 -O2 -g -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
 done
 clang++ -std=c++17 -fobjc-arc -g -I"$MAC" -I"$ENGINE" -c "$MAC/DictionaryService.mm" -o DictionaryService.o
+clang++ -std=c++17 -fobjc-arc -g -I"$MAC" -I"$ENGINE" -c "$MAC/WordSpeaker.mm" -o WordSpeaker.o
 clang++ -std=c++17 -fobjc-arc -g -I"$MAC" -I"$ENGINE" -c "$MAC/SnippetInserter.mm" -o SnippetInserter.o
 clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/SnippetSearch.cpp" -o SnippetSearch.o
 for f in DictionaryPalette AISelection CaretLocator CaseTransform CaseBarPanel CaseBar SuggestionPanel VOKUI; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/dictionary_test.m" -o dictionary_test.o
-clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices *.o -o dictionary_test
+clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices -framework AVFoundation *.o -o dictionary_test
 
 ./dictionary_test "$WORK/catalog.json" "$WORK/local-wordnet.zip" "${1:-}"

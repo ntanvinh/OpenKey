@@ -30,11 +30,17 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSTextField* searchField;
 @property (nonatomic, readonly) NSTableView* resultsTable;
 @property (nonatomic, readonly) NSTextView* definitionView;
+@property (nonatomic, readonly) NSButton* speakButton;
+@property (nonatomic, readonly) NSButton* copyButton;
+/// What the speaker button reads for the word that is shown (⌘P does the same); nil when it is not an English word.
+@property (nonatomic, copy, readonly, nullable) NSString* speakText;
 @property (nonatomic, readonly) BOOL showingManager;
 @property (nonatomic, copy, readonly, nullable) NSString* selectedFilterDictId;
 @property (nonatomic, copy, readonly) NSArray<VOKDictionarySearchHit*>* currentHits;
 @property (nonatomic, strong, nullable) id testWindow;
 
+/// Reads the English word that is shown, aloud (the speaker button and ⌘P).
+-(void)speakCurrentWord;
 -(void)setShowingManager:(BOOL)showingManager;
 -(void)selectFilterDictId:(nullable NSString*)dictId;
 -(void)reloadResultsAndSelectFirst:(BOOL)selectFirst;

@@ -1,5 +1,8 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.30 (build 108): (22/11/2026)
+- feat(dictionary): add offline dictionary lookup with a catalog
+
 ##### VOpenKey 3.7.29 (build 107): (19/11/2026)
 - feat(ai): add occasion presets in tabs and ready-made picture sizes
 

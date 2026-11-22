@@ -18,7 +18,7 @@ for arch in ${1:-x64 x86}; do
     sources=($(ls $SRC/*.cpp) $ENG/ConvertTool.cpp $ENG/Engine.cpp $ENG/Macro.cpp $ENG/SmartSwitchKey.cpp $ENG/Vietnamese.cpp \
               $ENG/MiniJson.cpp $ENG/SnippetSearch.cpp $ENG/SnippetStore.cpp $ENG/Suggest.cpp $ENG/SuggestSession.cpp $ENG/SensitiveField.cpp \
               $ENG/CaseTransform.cpp $ENG/MacroPresets.cpp $ENG/AIProtocol.cpp $ENG/AIPresets.cpp $ENG/SuggestAppearance.cpp $ENG/AppExclusions.cpp $ENG/AIAgent.cpp $ENG/CapsLockIcon.cpp \
-              $ENG/DictCatalog.cpp $ENG/DictInflate.cpp $ENG/DictStore.cpp)
+              $ENG/DictCatalog.cpp $ENG/DictInflate.cpp $ENG/DictStore.cpp $ENG/WordSpeech.cpp)
     pids=()
     for f in "${sources[@]}"; do
         o="$dir/$(basename "$f" .cpp).o"; objs+=("$o"); rm -f "$o"
@@ -31,7 +31,7 @@ for arch in ${1:-x64 x86}; do
     for o in "${objs[@]}"; do [ -f "$o" ] || { status=1; }; done
     [ $status -ne 0 ] && continue
     if ! $cc -municode -mwindows -static -o "$dir/OpenKey.exe" "${objs[@]}" \
-        -lcomctl32 -limm32 -lpsapi -lshell32 -lwinhttp -lcrypt32 -loleacc -lole32 -loleaut32 -luuid -lshlwapi -lurlmon \
+        -lcomctl32 -limm32 -lpsapi -lshell32 -lwinhttp -lcrypt32 -loleacc -lole32 -loleaut32 -luuid -lsapi -lshlwapi -lurlmon \
         -lversion -lnormaliz -lwindowscodecs -luxtheme -lgdi32 -luser32 -ladvapi32 -lcomdlg32 -lwininet 2>"$dir/link.log"; then
         echo "LINK FAILED ($arch):"; grep -E "undefined reference|cannot find" "$dir/link.log" | sort | uniq | head -40; status=1
     else

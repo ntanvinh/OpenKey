@@ -9,6 +9,8 @@
 #include "FeatureWindows.h"
 #include "TextInserter.h"
 #include "CaseTransformWindows.h"
+#include "WordSpeaker.h"
+#include "../../../engine/WordSpeech.h"
 #include <commdlg.h>
 #include <richedit.h>
 #include <set>
@@ -38,6 +40,7 @@ enum {
     kIdRowToggle = 113,
     kIdRowRemove = 114,
     kIdEmptyBtn = 115,
+    kIdSpeak = 116,
     kIdFilterFirst = 200 // up to 215
 };
 
@@ -54,6 +57,7 @@ HWND g_closeBtn = NULL;
 HWND g_results = NULL;
 HWND g_defHeader = NULL;
 HWND g_copyDefBtn = NULL;
+HWND g_speakBtn = NULL;
 HWND g_defView = NULL;
 HWND g_emptyBtn = NULL;
 
@@ -92,6 +96,7 @@ std::set<std::string> g_checkedIds;
 bool g_defaultsSeeded = false;
 std::wstring g_renderedPlainText;
 std::wstring g_customStatusBanner;
+std::wstring g_speakText;       // what the speaker button reads for the word on show; empty when it is not an English word
 
 int px(int at96) {
     return FeatureTheme::scale(at96, g_dpi);
@@ -284,10 +289,45 @@ void rebuildFilterStrip() {
     }
 }
 
+// The speaker is for the headword when a dictionary that has it is English (or has no language): "hello" from an English-Vietnamese
+// dictionary, not "ba" from a Vietnamese-English one. What was being read belongs to the word that is no longer shown.
+void clearSpeaker() {
+    WordSpeaker::stop();
+    g_speakText.clear();
+    ShowWindow(g_speakBtn, SW_HIDE);
+}
+
+void updateSpeaker(const vdict::SearchItem& item, const std::vector<vdict::DefinitionSection>& secs) {
+    WordSpeaker::stop();
+    std::vector<DictionaryService::CatalogStatusItem> installed = DictionaryService::installedDictionaries();
+    std::vector<std::string> langs;
+    for (size_t i = 0; i < secs.size(); ++i) {
+        std::string lang;
+        for (size_t k = 0; k < installed.size(); ++k) {
+            if (installed[k].dictId == secs[i].dictId) {
+                lang = installed[k].sourceLang;
+                break;
+            }
+        }
+        langs.push_back(lang);
+    }
+    g_speakText = DictionaryService::utf8ToWide(vspeech::TextToSpeak(item.headword, langs));
+    ShowWindow(g_speakBtn, (!g_showingManager && !g_speakText.empty()) ? SW_SHOW : SW_HIDE);
+}
+
+// Reads the headword that is shown, when it is an English word. A PC without an English voice says so in the footer.
+void speakCurrentWord() {
+    if (g_speakText.empty() || g_showingManager)
+        return;
+    if (!WordSpeaker::speak(g_speakText))
+        SetWindowTextW(g_footerLeft, L"Chưa có giọng đọc tiếng Anh · Cài ở Cài đặt › Giọng nói");
+}
+
 void displayHit(int row) {
     if (row < 0 || (size_t)row >= g_hits.size()) {
         SetWindowTextW(g_defHeader, L"");
         EnableWindow(g_copyDefBtn, FALSE);
+        clearSpeaker();
         bool hasDict = DictionaryService::hasInstalledDictionary();
         ShowWindow(g_emptyBtn, hasDict ? SW_HIDE : SW_SHOW);
         setRichOrPlainText(hasDict
@@ -303,11 +343,13 @@ void displayHit(int row) {
     if (secs.empty()) {
         SetWindowTextW(g_defHeader, L"");
         EnableWindow(g_copyDefBtn, FALSE);
+        clearSpeaker();
         setRichOrPlainText(L"Không đọc được nội dung mục từ này.", NULL, L"", L"");
         return;
     }
 
     EnableWindow(g_copyDefBtn, TRUE);
+    updateSpeaker(item, secs);
     SetWindowTextW(g_defHeader, secs.size() == 1
         ? DictionaryService::utf8ToWide(secs[0].dictName).c_str()
         : (L"Khớp ở " + std::to_wstring(secs.size()) + L" bộ từ điển").c_str());
@@ -420,6 +462,7 @@ void syncModeVisibility() {
     ShowWindow(g_results, lShow);
     ShowWindow(g_defHeader, lShow);
     ShowWindow(g_copyDefBtn, lShow);
+    ShowWindow(g_speakBtn, (!g_showingManager && !g_speakText.empty()) ? SW_SHOW : SW_HIDE);
     ShowWindow(g_defView, lShow);
     if (g_showingManager) ShowWindow(g_emptyBtn, SW_HIDE);
 
@@ -435,7 +478,7 @@ void syncModeVisibility() {
     SetWindowTextW(g_mgrBtn, g_showingManager ? L"Tra cứu" : L"Bộ từ điển");
     SetWindowTextW(g_footerRight, g_showingManager
         ? L"Space Chọn · Hỗ trợ StarDict .zip/.ifo · Esc Đóng"
-        : L"\u2191\u2193 Chọn từ · Ctrl+C Chép · Esc Đóng");
+        : L"\u2191\u2193 Chọn từ · Ctrl+P Phát âm · Enter Chép nghĩa · Esc Đóng");
 
     rebuildFilterStrip();
     if (g_showingManager) {
@@ -516,6 +559,10 @@ LRESULT CALLBACK searchSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         if (wParam == VK_RETURN) {
             copyDefinitionToClipboard();
+            return 0;
+        }
+        if (wParam == 'P' && (GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_SHIFT) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000)) {
+            speakCurrentWord();
             return 0;
         }
     }
@@ -701,6 +748,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
             ShowWindow(g_backBtn, SW_SHOW);
         return 0;
     }
+    case WM_SHOWWINDOW:
+        if (!wParam)
+            WordSpeaker::stop();    // the window is hidden by Esc, the close button or losing the focus: stop reading
+        break;
     case WM_ACTIVATE:
         if (LOWORD(wParam) == WA_INACTIVE && !g_openingDialog) {
             ShowWindow(window, SW_HIDE);
@@ -737,6 +788,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
             displayHit((int)SendMessageW(g_results, LB_GETCURSEL, 0, 0));
         } else if (id == kIdCopyDef) {
             copyDefinitionToClipboard();
+        } else if (id == kIdSpeak) {
+            speakCurrentWord();
         } else if (id >= kIdFilterFirst && id < kIdFilterFirst + (int)g_filterIds.size()) {
             g_selectedFilterId = g_filterIds[(size_t)(id - kIdFilterFirst)];
             rebuildFilterStrip();
@@ -826,8 +879,11 @@ void ensureCreated() {
                          px(12), bodyTop, leftW, bodyH, kIdResults);
     int rx = leftW + px(22);
     int rw = w - rx - px(12);
-    g_defHeader = makeCtrl(L"STATIC", L"", SS_LEFT | SS_NOPREFIX, rx, bodyTop + px(4), rw - px(136), px(20), 0);
+    g_defHeader = makeCtrl(L"STATIC", L"", SS_LEFT | SS_NOPREFIX, rx, bodyTop + px(4), rw - px(136) - px(92), px(20), 0);
     g_copyDefBtn = makeCtrl(L"BUTTON", L"Sao chép nghĩa", BS_PUSHBUTTON | WS_TABSTOP, rx + rw - px(130), bodyTop, px(130), px(24), kIdCopyDef);
+    // shown only for an English word (see updateSpeaker), left of the copy button
+    g_speakBtn = makeCtrl(L"BUTTON", L"Phát âm", BS_PUSHBUTTON | WS_TABSTOP, rx + rw - px(130) - px(6) - px(84), bodyTop, px(84), px(24), kIdSpeak);
+    ShowWindow(g_speakBtn, SW_HIDE);
     g_emptyBtn = makeCtrl(L"BUTTON", L"Mở Bộ từ điển", BS_PUSHBUTTON | WS_TABSTOP, rx + px(120), bodyTop + px(140), px(150), px(30), kIdEmptyBtn);
 
     if (!g_richEditDll)

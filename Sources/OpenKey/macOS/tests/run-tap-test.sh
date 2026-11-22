@@ -13,19 +13,19 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 cd "$WORK"
 
-for f in Engine Vietnamese Macro SmartSwitchKey ConvertTool Suggest SuggestSession SnippetSearch DictCatalog DictInflate DictStore MiniJson; do
+for f in Engine Vietnamese Macro SmartSwitchKey ConvertTool Suggest SuggestSession SnippetSearch DictCatalog DictInflate DictStore MiniJson WordSpeech; do
     clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
 done
 # the event tap itself: what it posts goes to Posted() of the test instead of the system, and the list of windows (is Spotlight open?)
 # comes from CountedWindowList() of the test, which counts the questions
 clang++ -std=c++17 -fobjc-arc -g -DCGEventTapPostEvent=Posted -DCGWindowListCopyWindowInfo=CountedWindowList -I"$MAC" -I"$ENGINE" -c "$MAC/OpenKey.mm" -o OpenKey.o
-for f in SuggestionController SnippetStore SnippetInserter DictionaryService; do
+for f in SuggestionController SnippetStore SnippetInserter DictionaryService WordSpeaker; do
     clang++ -std=c++17 -fobjc-arc -g -I"$MAC" -I"$ENGINE" -c "$MAC/$f.mm" -o $f.o
 done
 for f in Diagnostics CaretLocator SuggestionPanel SecureInputMonitor SecureInputHolder SensitiveField ShortcutRecorder VOKUI SnippetPalette SnippetEditorController WordRestore ShortcutConflicts AIProvider AIKeychain AISettings AIClient AIAgentCLI AIAgentProcess AIAgentRunner AIProgress AILightbox AIHardware AIOllama AIOllamaInstaller AIOllamaRuntime AISelection AIPresets AIAssistant CaseTransform CaseBarPanel CaseBar DictionaryPalette; do
     clang -fobjc-arc -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 clang++ -std=c++17 -fobjc-arc -g -Wno-incomplete-implementation -I"$MAC" -I"$ENGINE" -c "$HERE/tap_test.mm" -o tap_test.o
-clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices -framework Security -framework IOKit *.o -o tap_test
+clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices -framework Security -framework IOKit -framework AVFoundation *.o -o tap_test
 
 perl -e 'alarm 120; exec @ARGV' ./tap_test

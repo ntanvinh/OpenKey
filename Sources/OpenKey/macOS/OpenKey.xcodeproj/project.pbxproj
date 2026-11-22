@@ -107,6 +107,9 @@
 		5EC0DE3220261122000E /* DictionaryPalette.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3220261122000D /* DictionaryPalette.m */; };
 		5EC0DE32202611220011 /* catalog.json in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220010 /* catalog.json */; };
 		5EC0DE32202611220013 /* MiniJson.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220012 /* MiniJson.cpp */; };
+		5EC0DE33202611230002 /* WordSpeaker.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE33202611230001 /* WordSpeaker.mm */; };
+		5EC0DE33202611230005 /* WordSpeech.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE33202611230004 /* WordSpeech.cpp */; };
+		5EC0DE33202611230008 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE33202611230007 /* AVFoundation.framework */; };
 		5EC0DE30202610170001 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23A984BE220ED07E000914A2 /* IOKit.framework */; };
 		5EC0DE40202610190012 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190011 /* QuartzCore.framework */; };
 		5EC0DE31202610180004 /* AILocalControl.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE31202610180003 /* AILocalControl.m */; };
@@ -326,6 +329,11 @@
 		5EC0DE32202611220010 /* catalog.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = catalog.json; path = dictionaries/catalog.json; sourceTree = "<group>"; };
 		5EC0DE32202611220012 /* MiniJson.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MiniJson.cpp; sourceTree = "<group>"; };
 		5EC0DE32202611220014 /* MiniJson.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MiniJson.h; sourceTree = "<group>"; };
+		5EC0DE33202611230001 /* WordSpeaker.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = WordSpeaker.mm; sourceTree = "<group>"; };
+		5EC0DE33202611230003 /* WordSpeaker.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WordSpeaker.h; sourceTree = "<group>"; };
+		5EC0DE33202611230004 /* WordSpeech.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WordSpeech.cpp; sourceTree = "<group>"; };
+		5EC0DE33202611230006 /* WordSpeech.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WordSpeech.h; sourceTree = "<group>"; };
+		5EC0DE33202611230007 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -337,6 +345,7 @@
 				233C4A6E231F923D00DD7052 /* AppKit.framework in Frameworks */,
 				5EC0DE30202610170001 /* IOKit.framework in Frameworks */,
 				5EC0DE40202610190012 /* QuartzCore.framework in Frameworks */,
+				5EC0DE33202611230008 /* AVFoundation.framework in Frameworks */,
 				23963B5022040C720097189E /* ServiceManagement.framework in Frameworks */,
 				5EC0DE1D20261015000A0002 /* Security.framework in Frameworks */,
 				5EC0DE1520261018000A0002 /* UniformTypeIdentifiers.framework in Frameworks */,
@@ -447,6 +456,8 @@
 				5EC0DE3220261122000C /* DictionaryService.h */,
 				5EC0DE3220261122000D /* DictionaryPalette.m */,
 				5EC0DE3220261122000F /* DictionaryPalette.h */,
+				5EC0DE33202611230001 /* WordSpeaker.mm */,
+				5EC0DE33202611230003 /* WordSpeaker.h */,
 				5EC0DE1A20261014000B /* SnippetPalette.m */,
 				5EC0DE1A202610140009 /* SnippetPalette.h */,
 				5EC0DE1A202610140007 /* SnippetInserter.mm */,
@@ -571,6 +582,7 @@
 				233C4A6D231F923D00DD7052 /* AppKit.framework */,
 				23A984BE220ED07E000914A2 /* IOKit.framework */,
 				5EC0DE40202610190011 /* QuartzCore.framework */,
+				5EC0DE33202611230007 /* AVFoundation.framework */,
 				23963B4F22040C720097189E /* ServiceManagement.framework */,
 				5EC0DE1D20261015000A0001 /* Security.framework */,
 				5EC0DE1520261018000A0001 /* UniformTypeIdentifiers.framework */,
@@ -611,6 +623,8 @@
 				5EC0DE32202611220009 /* DictStore.h */,
 				5EC0DE32202611220012 /* MiniJson.cpp */,
 				5EC0DE32202611220014 /* MiniJson.h */,
+				5EC0DE33202611230004 /* WordSpeech.cpp */,
+				5EC0DE33202611230006 /* WordSpeech.h */,
 				5EC0DE1A202610140013 /* SnippetSearch.cpp */,
 				5EC0DE1A202610140011 /* SnippetSearch.h */,
 				5EC0DE19202610140003 /* default-snippets.json */,
@@ -761,6 +775,8 @@
 				5EC0DE3220261122000B /* DictionaryService.mm in Sources */,
 				5EC0DE3220261122000E /* DictionaryPalette.m in Sources */,
 				5EC0DE32202611220013 /* MiniJson.cpp in Sources */,
+				5EC0DE33202611230002 /* WordSpeaker.mm in Sources */,
+				5EC0DE33202611230005 /* WordSpeech.cpp in Sources */,
 				5EC0DE1A20261014000C /* SnippetPalette.m in Sources */,
 				5EC0DE1A202610140008 /* SnippetInserter.mm in Sources */,
 				5EC0DE1A202610140004 /* SnippetStore.mm in Sources */,
@@ -956,7 +972,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 107;
+				CURRENT_PROJECT_VERSION = 108;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -966,7 +982,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.29;
+				MARKETING_VERSION = 3.7.30;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -984,7 +1000,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 107;
+				CURRENT_PROJECT_VERSION = 108;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -994,7 +1010,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.29;
+				MARKETING_VERSION = 3.7.30;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

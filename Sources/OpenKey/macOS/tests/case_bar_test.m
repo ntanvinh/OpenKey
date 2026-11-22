@@ -21,6 +21,20 @@ static NSRect sLine;                 //where the stand-in says the selection is
 static BOOL sReaderAllowCopy;
 static int sReads;
 
+//CaseBar.m is compiled with IsSecureEventInputEnabled replaced by this (run-case-bar-test.sh). The real answer is the state of the
+//Mac that runs the test: while the screen is locked loginwindow holds secure input, and every "shows by itself" check failed.
+static BOOL sFakeSecure;
+Boolean FakeSecureInput(void) { return sFakeSecure ? true : false; }
+
+//The same for the application that is in front: CaseBar.m listens to NSWorkspaceDidActivateApplicationNotification (any other application
+//coming to the front puts the list away), and the real notification comes from whoever uses this Mac while the test runs (an unlock, a
+//click in another window) and can hide the list in the middle of a check. The runner replaces the name; the test posts its own.
+NSNotificationName const kTestActivation = @"VOKCaseBarTestActivation";
+static void Activate(NSRunningApplication* application) {
+    [[[NSWorkspace sharedWorkspace] notificationCenter] postNotificationName:kTestActivation object:nil
+                                                                    userInfo:@{NSWorkspaceApplicationKey: application}];
+}
+
 static void Spin(NSTimeInterval seconds) {
     NSDate* until = [NSDate dateWithTimeIntervalSinceNow:seconds];
     while ([until timeIntervalSinceNow] > 0)
@@ -226,6 +240,29 @@ int main(int argc, const char* argv[]) {
         Park();
         [CaseBar scrolled];
         CHECK(![CaseBar isVisible], "scrolling puts it away");
+
+        //a password field has the keyboard (secure input): no other application sees the keys, so the list could not be put away.
+        //It does not come by itself and does not even read the selection; the shortcut still works
+        sFakeSecure = YES;
+        int readsBefore = sReads;
+        [CaseBar mouseDown];
+        [CaseBar mouseUpWithClickCount:2 flags:0];
+        Spin(0.45);
+        CHECK(![CaseBar isVisible], "secure input: a double click does not show it");
+        CHECK(sReads == readsBefore, "secure input: the selection is not even read (%d reads)", sReads - readsBefore);
+        [CaseBar show];
+        Spin(0.1);
+        CHECK([CaseBar isVisible], "secure input: the shortcut still shows it");
+        Park();
+        [CaseBar hide];
+        sFakeSecure = NO;
+
+        //the list belongs to the application whose text it is about: that one coming to the front keeps it, another one puts it away
+        Present(@"xin chào thế giới", YES);
+        Activate(other);
+        CHECK([CaseBar isVisible], "the application of the text coming to the front keeps the list");
+        Activate([NSRunningApplication currentApplication]);
+        CHECK(![CaseBar isVisible], "another application coming to the front puts the list away");
 
         //by itself: after the keyboard
         CHECK(!Key(123, kCGEventFlagMaskShift), "shift+left is the application's");
