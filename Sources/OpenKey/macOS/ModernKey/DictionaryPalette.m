@@ -94,6 +94,53 @@ static NSColor* BadgeBackgroundColor(BOOL accent) {
     }];
 }
 
+//A macOS tag: a capsule (radius = half the height) with a tinted fill, the text centred on both axes. The old badge was a
+//wrapping label with a layer fill: such a label draws its text from the top, so it sat high in the pill, and the layer colour was
+//frozen at the appearance it was created in.
+@interface VOKDictBadgeView : NSView
+@property(nonatomic, strong) NSColor* fill;
+@end
+
+@implementation VOKDictBadgeView
+-(BOOL)allowsVibrancy { return NO; }
+-(BOOL)wantsUpdateLayer { return YES; }
+-(void)updateLayer {
+    [self.effectiveAppearance performAsCurrentDrawingAppearance:^{
+        self.layer.backgroundColor = self.fill.CGColor;
+        self.layer.cornerRadius = NSHeight(self.bounds) / 2.0;
+    }];
+}
+-(void)setFrame:(NSRect)frame { [super setFrame:frame]; self.needsDisplay = YES; }
+-(void)viewDidChangeEffectiveAppearance { [super viewDidChangeEffectiveAppearance]; self.needsDisplay = YES; }
+@end
+
+static CGFloat const kBadgeHeight = 18;
+
+static NSView* DictBadge(NSString* text, NSColor* textColor, NSColor* fill, CGFloat minW, CGFloat maxW, CGFloat x, CGFloat y) {
+    NSFont* font = [NSFont systemFontOfSize:10.5 weight:NSFontWeightSemibold];
+    NSTextField* label = [NSTextField labelWithString:text ?: @""];
+    label.font = font;
+    label.textColor = textColor;
+    label.alignment = NSTextAlignmentCenter;
+    label.lineBreakMode = NSLineBreakByTruncatingTail;
+    [label sizeToFit];
+    CGFloat w = MIN(maxW, MAX(minW, ceil(NSWidth(label.frame)) + 14));
+    VOKDictBadgeView* box = [[VOKDictBadgeView alloc] initWithFrame:NSMakeRect(x, y, w, kBadgeHeight)];
+    box.wantsLayer = YES;
+    box.fill = fill;
+    CGFloat lh = ceil(NSHeight(label.frame));
+    label.frame = NSMakeRect(5, floor((kBadgeHeight - lh) / 2.0), w - 10, lh);
+    [box addSubview:label];
+    return box;
+}
+
+static NSColor* BadgeTintColor(NSColor* base) {
+    return [NSColor colorWithName:nil dynamicProvider:^NSColor*(NSAppearance* app) {
+        BOOL dark = [app bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]] == NSAppearanceNameDarkAqua;
+        return [base colorWithAlphaComponent:dark ? 0.22 : 0.14];
+    }];
+}
+
 static NSString* SafeDisplayText(NSString* s) {
     return s ?: @"";
 }
@@ -1280,14 +1327,10 @@ static NSParagraphStyle* HangingStyle(CGFloat first, CGFloat head, CGFloat befor
     title.lineBreakMode = NSLineBreakByTruncatingTail;
     title.maximumNumberOfLines = 1;
 
-    NSTextField* badge = DictLabel(hit.badgesSummary, 10, NSFontWeightSemibold, SecondaryTextColor());
-    badge.alignment = NSTextAlignmentCenter;
-    badge.wantsLayer = YES;
-    badge.layer.backgroundColor = BadgeBackgroundColor(hit.isExact).CGColor;
-    badge.layer.cornerRadius = 4;
-
-    CGFloat badgeW = MIN(92, MAX(42, ceil([hit.badgesSummary sizeWithAttributes:@{NSFontAttributeName: badge.font}].width) + 12));
-    badge.frame = NSMakeRect(kLeftColWidth - 14 - badgeW, hit.subtitle.length > 0 ? 22 : 14, badgeW, 18);
+    NSView* badge = DictBadge(hit.badgesSummary, hit.isExact ? [NSColor systemBlueColor] : SecondaryTextColor(),
+                              BadgeBackgroundColor(hit.isExact), 42, 92, 0, hit.subtitle.length > 0 ? 22 : 14);
+    CGFloat badgeW = NSWidth(badge.frame);
+    badge.frame = NSMakeRect(kLeftColWidth - 14 - badgeW, NSMinY(badge.frame), badgeW, kBadgeHeight);
     title.frame = NSMakeRect(16, hit.subtitle.length > 0 ? 22 : 13, kLeftColWidth - 38 - badgeW, 20);
     [cell addSubview:title];
     if (hit.badgesSummary.length > 0)
@@ -1328,13 +1371,9 @@ static NSParagraphStyle* HangingStyle(CGFloat first, CGFloat head, CGFloat befor
     }
 
     // Badge
-    NSTextField* badge = DictLabel(item.badge.length > 0 ? item.badge : @"DICT", 10, NSFontWeightBold,
-                                   item.priority <= 30 ? [NSColor systemBlueColor] : SecondaryTextColor());
-    badge.alignment = NSTextAlignmentCenter;
-    badge.wantsLayer = YES;
-    badge.layer.backgroundColor = BadgeBackgroundColor(item.priority <= 30).CGColor;
-    badge.layer.cornerRadius = 5;
-    badge.frame = NSMakeRect(60, 44, 54, 18);
+    BOOL accent = item.priority <= 30;
+    NSView* badge = DictBadge(item.badge.length > 0 ? item.badge : @"DICT", accent ? [NSColor systemBlueColor] : SecondaryTextColor(),
+                              BadgeBackgroundColor(accent), 54, 54, 60, 44);
     [cell addSubview:badge];
 
     // Title + meta line
@@ -1347,10 +1386,9 @@ static NSParagraphStyle* HangingStyle(CGFloat first, CGFloat head, CGFloat befor
     [cell addSubview:title];
 
     if (item.recommended) {
-        NSTextField* rec = DictLabel(@"Khuyên dùng", 10, NSFontWeightSemibold, [NSColor systemGreenColor]);
-        rec.alignment = NSTextAlignmentCenter;
-        rec.frame = NSMakeRect(122 + titleW + 8, 45, 78, 16);
-        if (rec.frame.origin.x + 80 < cw - 140)
+        NSView* rec = DictBadge(@"Khuyên dùng", [NSColor systemGreenColor], BadgeTintColor([NSColor systemGreenColor]), 0, 110,
+                                122 + titleW + 8, 44);
+        if (NSMaxX(rec.frame) < cw - 140)
             [cell addSubview:rec];
     }
 
