@@ -405,6 +405,170 @@ static void testFoldingAndFormatting() {
     CHECK(mLines[3].kind == vdict::BlockKind::Example && mLines[3].text == "say hello" && mLines[3].secondary.find("ch\xC3\xA0o") != std::string::npos);
 }
 
+// ------------------------------------------------------------------------------------------------------------
+// How an entry is shown: the samples are cut from the real dictionaries of the catalog (Thich Hoc, OVDP, WordNet, Ho Ngoc Duc,
+// Han-Viet), each one of a different family. What none of them may show: markup, style sheets, marks of the source.
+// ------------------------------------------------------------------------------------------------------------
+
+typedef std::vector<vdict::FormattedLine> Lines;
+
+static int countKind(const Lines& l, vdict::BlockKind k) {
+    int n = 0;
+    for (size_t i = 0; i < l.size(); ++i) if (l[i].kind == k) ++n;
+    return n;
+}
+
+//the first line of that kind whose text contains `part`; NULL when there is none
+static const vdict::FormattedLine* findLine(const Lines& l, vdict::BlockKind k, const char* part) {
+    for (size_t i = 0; i < l.size(); ++i)
+        if (l[i].kind == k && l[i].text.find(part) != std::string::npos) return &l[i];
+    return NULL;
+}
+
+static bool showsMarkup(const Lines& l) {
+    for (size_t i = 0; i < l.size(); ++i) {
+        const std::string t = l[i].text + " " + l[i].secondary;
+        if (t.find("font-") != std::string::npos || t.find("margin:") != std::string::npos || t.find(";}") != std::string::npos ||
+            t.find("</") != std::string::npos || t.find("<br") != std::string::npos || t.find("<div") != std::string::npos ||
+            t.find("<span") != std::string::npos || t.find("&#") != std::string::npos || t.find("&nbsp") != std::string::npos ||
+            t.find("{{") != std::string::npos || t.find("[syn:") != std::string::npos)
+            return true;
+    }
+    return false;
+}
+
+static void testEntryFormatting() {
+    printf("-- testEntryFormatting\n");
+
+    // Thich Hoc: the style sheet is not text; <b>1.</b> numbers the senses; one sense has no number
+    {
+        std::string html = "<style>body{font-family:serif;margin:0;padding:0;}.hw{font-size:1.2em;font-weight:bold;}</style>"
+                           "<div class=\"e\"><div class=\"hw\">hood <span class=\"ipa\">/h\xCA\x8A" "d/</span></div>"
+                           "<div class=\"blk\"><span class=\"pos\">n.</span> <span class=\"sn\"><b>1.</b> mui xe <b>2.</b> c\xC3\xA1i m\xC5\xA9 tr\xC3\xB9m</span></div>"
+                           "<div class=\"blk\"><span class=\"pos\">v.</span> <span class=\"sn\">tr\xC3\xB9m m\xC5\xA9</span></div></div>";
+        Lines l = vdict::parseEntryRichText(html, 'h', "hood");
+        CHECK(!showsMarkup(l));
+        CHECK(countKind(l, vdict::BlockKind::PartOfSpeech) == 2);
+        CHECK(countKind(l, vdict::BlockKind::Sense) == 3);
+        CHECK(findLine(l, vdict::BlockKind::Phonetic, "d/") != NULL);
+        const vdict::FormattedLine* one = findLine(l, vdict::BlockKind::Sense, "mui xe");
+        const vdict::FormattedLine* two = findLine(l, vdict::BlockKind::Sense, "m\xC5\xA9 tr\xC3\xB9m");
+        const vdict::FormattedLine* alone = findLine(l, vdict::BlockKind::Sense, "tr\xC3\xB9m m\xC5\xA9");
+        CHECK(one && one->marker == "1." && two && two->marker == "2.");
+        CHECK(alone && alone->marker.empty());       // a part of speech with one sense has no number
+        CHECK(findLine(l, vdict::BlockKind::Headword, "hood") == NULL);   // the headword is not said twice
+    }
+
+    // OVDP in one line: part of speech with its forms, numbered senses, examples with translation, idiom, field, no space after "*"
+    {
+        std::string flat = "*  t\xC3\xADnh t\xE1\xBB\xAB better,  best - t\xE1\xBB\x91t, hay =very good!+ r\xE1\xBA\xA5t t\xE1\xBB\x91t! =a good friend+ b\xE1\xBA\xA1n t\xE1\xBB\x91t"
+                           " - t\xE1\xBB\xAD t\xE1\xBA\xBF =to be good to someone+ t\xE1\xBB\x91t b\xE1\xBB\xA5ng !to have a good time - vui th\xC3\xAD" "ch"
+                           " *danh t\xE1\xBB\xAB - l\xE1\xBB\xA3i \xC3\xAD" "ch - ph\xC3\xBA" "c l\xE1\xBB\xA3i @Chuy\xC3\xAAn ng\xC3\xA0nh k\xE1\xBB\xB9 thu\xE1\xBA\xADt - l\xE1\xBB\xA3i \xC3\xAD" "ch kh\xC3\xA1" "c";
+        Lines l = vdict::parseEntryRichText(flat, 'm', "good");
+        CHECK(!showsMarkup(l));
+        CHECK(countKind(l, vdict::BlockKind::PartOfSpeech) == 2);
+        const vdict::FormattedLine* pos = findLine(l, vdict::BlockKind::PartOfSpeech, "t\xC3\xADnh t\xE1\xBB\xAB");
+        CHECK(pos && pos->text == "t\xC3\xADnh t\xE1\xBB\xAB" && pos->secondary == "better, best");
+        const vdict::FormattedLine* s1 = findLine(l, vdict::BlockKind::Sense, "t\xE1\xBB\x91t, hay");
+        const vdict::FormattedLine* s2 = findLine(l, vdict::BlockKind::Sense, "t\xE1\xBB\xAD t\xE1\xBA\xBF");
+        CHECK(s1 && s1->marker == "1." && s2 && s2->marker == "2.");
+        const vdict::FormattedLine* ex = findLine(l, vdict::BlockKind::Example, "a good friend");
+        CHECK(ex && ex->secondary == "b\xE1\xBA\xA1n t\xE1\xBB\x91t");
+        const vdict::FormattedLine* idiom = findLine(l, vdict::BlockKind::Idiom, "to have a good time");
+        CHECK(idiom && idiom->secondary == "vui th\xC3\xAD" "ch");                     // the meaning of the idiom is on its line
+        CHECK(findLine(l, vdict::BlockKind::Sense, "vui th\xC3\xAD" "ch") == NULL);
+        CHECK(findLine(l, vdict::BlockKind::Section, "Chuy\xC3\xAAn ng\xC3\xA0nh") != NULL);
+        const vdict::FormattedLine* n1 = findLine(l, vdict::BlockKind::Sense, "l\xE1\xBB\xA3i \xC3\xAD" "ch");
+        const vdict::FormattedLine* n2 = findLine(l, vdict::BlockKind::Sense, "ph\xC3\xBA" "c l\xE1\xBB\xA3i");
+        CHECK(n1 && n1->marker == "1." && n2 && n2->marker == "2.");      // the senses of the second part of speech are counted again
+        const vdict::FormattedLine* field = findLine(l, vdict::BlockKind::Sense, "l\xE1\xBB\xA3i \xC3\xAD" "ch kh\xC3\xA1" "c");
+        CHECK(field && field->marker.empty());     // after a field, one sense alone has no number
+    }
+    // OVDP: the field of use "<hoa>" is not a tag; a hyphen inside a word does not start a sense; "{{x}}" is a reference
+    {
+        Lines l = vdict::parseEntryRichText("* danh t\xE1\xBB\xAB - <th\xE1\xBB\xB1" "c> well-known x-ray plant{{plant}} &#957;", 'm', "plant");
+        CHECK(!showsMarkup(l));
+        CHECK(countKind(l, vdict::BlockKind::Sense) == 1);
+        const vdict::FormattedLine* s = findLine(l, vdict::BlockKind::Sense, "well-known x-ray");
+        CHECK(s && s->text.find("(th\xE1\xBB\xB1" "c)") != std::string::npos && s->text.find("plant plant") != std::string::npos);
+        Lines ref = vdict::parseEntryRichText("*{{jonque}}", 'm', "jonque");
+        CHECK(ref.size() == 1 && ref[0].kind == vdict::BlockKind::Note && ref[0].text.find("jonque") != std::string::npos);
+    }
+    // OVDP with line breaks (FVDP) still reads as before, "@headword /ipa/" included
+    {
+        Lines l = vdict::parseEntryRichText("@hello /he'lou/\n* danh t\xE1\xBB\xAB\n- l\xE1\xBB\x9Di ch\xC3\xA0o\n=say hello+ n\xC3\xB3i xin ch\xC3\xA0o", 'm', "hello");
+        CHECK(l.size() == 4 && l[0].kind == vdict::BlockKind::Phonetic && l[1].kind == vdict::BlockKind::PartOfSpeech);
+    }
+
+    // WordNet: "n 1: gloss; "example" [syn: {a}]", an inflected form that starts with its base word, senses without a <br/>
+    {
+        std::string wn = "ring <br/> n 1: a sound; \"it has the ring of sincerity\" [syn: {tone}, {note}] [ant: {silence}] <br/> 2: a shape"
+                         " <br/> v 1: make a sound; \"the bell rang\" 2: encircle 3: call by telephone";
+        Lines l = vdict::parseEntryRichText(wn, 'h', "rung");
+        CHECK(!showsMarkup(l));
+        CHECK(l.size() > 0 && l[0].kind == vdict::BlockKind::Headword && l[0].text == "ring");
+        CHECK(findLine(l, vdict::BlockKind::PartOfSpeech, "noun") != NULL && findLine(l, vdict::BlockKind::PartOfSpeech, "verb") != NULL);
+        const vdict::FormattedLine* n1 = findLine(l, vdict::BlockKind::Sense, "a sound");
+        CHECK(n1 && n1->marker == "1.");
+        CHECK(findLine(l, vdict::BlockKind::Example, "it has the ring of sincerity") != NULL);
+        CHECK(findLine(l, vdict::BlockKind::Note, "Synonyms: tone, note") != NULL);
+        CHECK(findLine(l, vdict::BlockKind::Note, "Antonyms: silence") != NULL);
+        const vdict::FormattedLine* v2 = findLine(l, vdict::BlockKind::Sense, "encircle");
+        const vdict::FormattedLine* v3 = findLine(l, vdict::BlockKind::Sense, "call by telephone");
+        CHECK(v2 && v2->marker == "2." && v3 && v3->marker == "3.");      // "... 2: encircle 3: ..." in one segment
+        Lines see = vdict::parseEntryRichText("See {ring}", 'h', "rung");
+        CHECK(see.size() == 1 && see[0].kind == vdict::BlockKind::Note && see[0].text == "See ring");
+    }
+
+    // Viet-Viet (Ho Ngoc Duc): rows with numbers, "I"/"II", labels, other words after <hr/><h3>, white text that is not for the reader
+    {
+        std::string v = "- \xC4\x91g. 1 B\xE1\xBB\x8B rung \xC4\x91\xE1\xBB\x99ng nh\xE1\xBA\xB9. 2 (Gi\xE1\xBB\x8Dng n\xC3\xB3i) kh\xC3\xB4ng b\xC3\xACnh th\xC6\xB0\xE1\xBB\x9Dng. "
+                        "<hr/> <h3>r\xC3\xB9n</h3> - \xC4\x91g. R\xE1\xBB\xA5t l\xE1\xBA\xA1i: R\xC3\xB9n c\xE1\xBB\x95. <br> - (\xC4\x91ph) d.Nh. G\xE1\xBB\xA5. "
+                        "<br> - - d. Th\xC3\xB9ng. <font color=\"white\">run</font>";
+        Lines l = vdict::parseEntryRichText(v, 'h', "run");
+        CHECK(!showsMarkup(l));
+        CHECK(findLine(l, vdict::BlockKind::Plain, "") == NULL);                    // nothing is left as a bare line
+        for (size_t i = 0; i < l.size(); ++i) CHECK(l[i].text != "run");          // the white text is dropped
+        const vdict::FormattedLine* a = findLine(l, vdict::BlockKind::Sense, "B\xE1\xBB\x8B rung");
+        const vdict::FormattedLine* b = findLine(l, vdict::BlockKind::Sense, "Gi\xE1\xBB\x8Dng n\xC3\xB3i");
+        CHECK(a && a->marker == "1." && b && b->marker == "2.");
+        CHECK(findLine(l, vdict::BlockKind::Headword, "r\xC3\xB9n") != NULL);       // "run" and "rùn" are two words
+        const vdict::FormattedLine* ex = findLine(l, vdict::BlockKind::Example, "R\xC3\xB9n c\xE1\xBB\x95");
+        CHECK(ex != NULL);                                                          // "sense: example"
+        CHECK(findLine(l, vdict::BlockKind::Sense, "(\xC4\x91ph)") != NULL);
+        CHECK(findLine(l, vdict::BlockKind::Sense, "Th\xC3\xB9ng") != NULL);
+        // a number in a sentence is not a numbered part
+        Lines n = vdict::parseEntryRichText("- d. \xC4\x90i 5 H\xC3\xA0 N\xE1\xBB\x99i v\xC3\xA0 v\xE1\xBB\x81", 'h', "x");
+        CHECK(countKind(n, vdict::BlockKind::Sense) == 1);
+    }
+
+    // Han-Viet: the character, the radical line, the reading, <li> that are never closed, ◇ ◎ for quotations and § for notes
+    {
+        std::string han = "\xE6\xA7\x83<br>B\xE1\xBB\x99 75 \xE6\x9C\xA8 m\xE1\xBB\x99" "c [10, 14] U+69C3<br>p\xC3\xA1n <br><ol>"
+                          "<li>(danh) C\xC3\xA1i m\xC3\xA2m. C\xC5\xA9ng nh\xC6\xB0 <i>b\xC3\xA0n</i> \xE7\x9B\xA4. \xE2\x97\x87L\xE1\xBB\xA5" "c Du: Th\xE1\xBB\xA7 tu\xE1\xBA\xBF"
+                          "<li>(danh) Nh\xE1\xBA\xA1" "c kh\xC3\xAD. \xE2\x97\x8EN\xC6\xB0: k\xC3\xAC b\xC3\xA0n \xC2\xA7 Th\xC3\xB4ng b\xC3\xA0n</li></li></ol>";
+        Lines l = vdict::parseEntryRichText(han, 'h', "b\xC3\xA0n");
+        CHECK(!showsMarkup(l));
+        CHECK(l.size() > 3 && l[0].kind == vdict::BlockKind::Headword && l[0].text == "\xE6\xA7\x83");
+        CHECK(findLine(l, vdict::BlockKind::Note, "B\xE1\xBB\x99 75") != NULL);
+        CHECK(findLine(l, vdict::BlockKind::Phonetic, "p\xC3\xA1n") != NULL);
+        CHECK(countKind(l, vdict::BlockKind::Sense) == 2);
+        const vdict::FormattedLine* first = findLine(l, vdict::BlockKind::Sense, "C\xC3\xA1i m\xC3\xA2m");
+        CHECK(first && first->marker == "1." && first->text.find("\xE2\x97") == std::string::npos);
+        CHECK(findLine(l, vdict::BlockKind::Example, "L\xE1\xBB\xA5" "c Du") != NULL);
+        CHECK(findLine(l, vdict::BlockKind::Example, "k\xC3\xAC b\xC3\xA0n") != NULL);
+        CHECK(findLine(l, vdict::BlockKind::Note, "Th\xC3\xB4ng b\xC3\xA0n") != NULL);
+    }
+
+    // Han-Viet (Thieu Chuu): the reading, then "1. ..." lines
+    {
+        Lines l = vdict::parseEntryRichText("nh\xC3\xA2n<br>1. Ng\xC6\xB0\xE1\xBB\x9Di. <br>2. Ti\xE1\xBA\xBFng \xC4\x91\xE1\xBB\x91i l\xE1\xBA\xA1i.", 'h', "\xE4\xBA\xBA");
+        CHECK(l.size() == 3 && l[0].kind == vdict::BlockKind::Headword);
+        CHECK(l[1].kind == vdict::BlockKind::Sense && l[1].marker == "1." && l[1].text == "Ng\xC6\xB0\xE1\xBB\x9Di.");
+        CHECK(l[2].marker == "2.");
+    }
+}
+
 static void testMultiDictAndCompile() {
     printf("-- testMultiDictAndCompile\n");
     std::string dir = makeTempDir();
@@ -590,6 +754,7 @@ int main() {
     testCatalog();
     testInflateAndZip();
     testFoldingAndFormatting();
+    testEntryFormatting();
     testMultiDictAndCompile();
     testLargePerformanceBenchmark();
     printf("%s\n", gFailures == 0 ? "ALL OK" : "FAILED");

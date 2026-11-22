@@ -36,14 +36,16 @@ enum class BlockKind : uint8_t {
     SubSense = 4,
     Example = 5,
     Note = 6,
-    Plain = 7
+    Plain = 7,
+    Idiom = 8,      // a phrase of the entry; `secondary` is what it means
+    Section = 9     // a field the senses below belong to ("Chuyen nganh ky thuat")
 };
 
 struct FormattedLine {
     BlockKind kind = BlockKind::Plain;
     std::string text;
     std::string secondary; // Optional translation/note (e.g. Vietnamese part of an example line)
-    std::string marker;    // Optional bullet/number
+    std::string marker;    // The number of a sense ("1.", "2."): only set when its part of speech has several
 };
 
 /// Parses a raw dictionary entry (typeTag: 'h', 'm', 'x', 'g', 't') into clean display lines.

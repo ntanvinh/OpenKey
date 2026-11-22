@@ -94,14 +94,6 @@ static NSColor* BadgeBackgroundColor(BOOL accent) {
     }];
 }
 
-static NSColor* ExampleBackgroundColor(void) {
-    return [NSColor colorWithName:nil dynamicProvider:^NSColor*(NSAppearance* app) {
-        BOOL dark = [app bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]] == NSAppearanceNameDarkAqua;
-        return dark ? [NSColor colorWithCalibratedWhite:1.0 alpha:0.05]
-                    : [NSColor colorWithCalibratedWhite:0.0 alpha:0.035];
-    }];
-}
-
 static NSString* SafeDisplayText(NSString* s) {
     return s ?: @"";
 }
@@ -947,142 +939,146 @@ static NSString* SafeDisplayText(NSString* s) {
     [_copyDefButton setTitle:@"Sao chép nghĩa"];
     [self updateSpeakerForHit:hit definitions:defs];
 
-    NSMutableAttributedString* rendered = [[NSMutableAttributedString alloc] init];
+    [_definitionView.textStorage setAttributedString:[self renderedDefinitions:defs forHit:hit]];
+    [_definitionView scrollToBeginningOfDocument:nil];
+}
 
-    // Main Headword Banner
-    NSMutableParagraphStyle* hwPara = [[NSMutableParagraphStyle alloc] init];
-    hwPara.paragraphSpacing = 4;
-    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[SafeDisplayText(hit.headword) stringByAppendingString:@"\n"]
-                                                                     attributes:@{
-        NSFontAttributeName: [NSFont systemFontOfSize:22 weight:NSFontWeightBold],
-        NSForegroundColorAttributeName: PrimaryTextColor(),
-        NSParagraphStyleAttributeName: hwPara
-    }]];
+#pragma mark - Rendering an entry
 
+//An entry as the Dictionary app of the Mac sets it: the headword large, the phonetic under it, the part of speech in bold italic, the senses
+//numbered with a hanging indent (the text lines up after the number, not under it), examples in italic, idioms after a ▸, the field a group
+//of senses belongs to as a small heading. The system font, the colours of the system: light and dark follow by themselves.
+static const CGFloat kNumberColumn = 24;
+
+static NSFont* ItalicFont(NSFont* font) {
+    return [[NSFontManager sharedFontManager] convertFont:font toHaveTrait:NSItalicFontMask] ?: font;
+}
+
+static NSParagraphStyle* HangingStyle(CGFloat first, CGFloat head, CGFloat before, CGFloat after, BOOL withTab) {
+    NSMutableParagraphStyle* p = [[NSMutableParagraphStyle alloc] init];
+    p.firstLineHeadIndent = first;
+    p.headIndent = head;
+    p.paragraphSpacingBefore = before;
+    p.paragraphSpacing = after;
+    p.lineSpacing = 2.5;
+    if (withTab)
+        p.tabStops = @[[[NSTextTab alloc] initWithType:NSLeftTabStopType location:head]];
+    p.defaultTabInterval = head > 0 ? head : 28;
+    return p;
+}
+
+-(NSAttributedString*)renderedDefinitions:(NSArray<VOKDictionaryDefinition*>*)defs forHit:(VOKDictionarySearchHit*)hit {
+    NSMutableAttributedString* out = [[NSMutableAttributedString alloc] init];
+    NSColor* primary = PrimaryTextColor();
+    NSColor* secondary = SecondaryTextColor();
+
+    void (^add)(NSString*, NSFont*, NSColor*, NSParagraphStyle*) = ^(NSString* text, NSFont* font, NSColor* color, NSParagraphStyle* style) {
+        if (text.length == 0) return;
+        [out appendAttributedString:[[NSAttributedString alloc] initWithString:text attributes:@{
+            NSFontAttributeName: font, NSForegroundColorAttributeName: color, NSParagraphStyleAttributeName: style}]];
+    };
+    NSFont* body = [NSFont systemFontOfSize:14 weight:NSFontWeightRegular];
+
+    // headword banner
+    add([SafeDisplayText(hit.headword) stringByAppendingString:@"\n"], [NSFont systemFontOfSize:26 weight:NSFontWeightBold], primary,
+        HangingStyle(0, 0, 0, 2, NO));
     if (hit.subtitle.length > 0) {
-        NSMutableParagraphStyle* subPara = [[NSMutableParagraphStyle alloc] init];
-        subPara.paragraphSpacing = 10;
         NSString* cleanSub = [hit.subtitle stringByReplacingOccurrencesOfString:@"<- " withString:@"Từ gốc cho dạng: "];
-        [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[cleanSub stringByAppendingString:@"\n"]
-                                                                         attributes:@{
-            NSFontAttributeName: [NSFont systemFontOfSize:12 weight:NSFontWeightMedium],
-            NSForegroundColorAttributeName: SecondaryTextColor(),
-            NSParagraphStyleAttributeName: subPara
-        }]];
+        add([cleanSub stringByAppendingString:@"\n"], [NSFont systemFontOfSize:12 weight:NSFontWeightMedium], secondary, HangingStyle(0, 0, 0, 6, NO));
     }
 
     for (NSUInteger i = 0; i < defs.count; ++i) {
         VOKDictionaryDefinition* sec = defs[i];
-        NSMutableParagraphStyle* dictHdrPara = [[NSMutableParagraphStyle alloc] init];
-        dictHdrPara.paragraphSpacingBefore = (i == 0) ? 8 : 16;
-        dictHdrPara.paragraphSpacing = 6;
-        NSString* hdrText = sec.badge.length > 0
-            ? [NSString stringWithFormat:@"[%@]  %@", sec.badge, sec.dictName]
-            : sec.dictName;
+
+        // the dictionary this part comes from: its kind of translation in the accent colour, its name quiet
+        CGFloat before = (i == 0) ? 10 : 22;
+        if (sec.badge.length > 0)
+            add([sec.badge stringByAppendingString:@"  "], [NSFont systemFontOfSize:11 weight:NSFontWeightSemibold], NSColor.controlAccentColor,
+                HangingStyle(0, 0, before, 6, NO));
+        NSString* name = sec.dictName;
         if (sec.matchedVia.length > 0)
-            hdrText = [hdrText stringByAppendingFormat:@"  (qua “%@”)", sec.matchedVia];
+            name = [name stringByAppendingFormat:@"  (qua “%@”)", sec.matchedVia];
+        add([name stringByAppendingString:@"\n"], [NSFont systemFontOfSize:11 weight:NSFontWeightSemibold], secondary,
+            HangingStyle(0, 0, sec.badge.length > 0 ? 0 : before, 6, NO));
 
-        [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[hdrText stringByAppendingString:@"\n"]
-                                                                         attributes:@{
-            NSFontAttributeName: [NSFont systemFontOfSize:11.5 weight:NSFontWeightSemibold],
-            NSForegroundColorAttributeName: [NSColor systemBlueColor],
-            NSParagraphStyleAttributeName: dictHdrPara
-        }]];
-
+        CGFloat indent = 0;     // where the text of the sense that is being written starts: examples and notes go under it
+        BOOL first = YES;
         for (VOKDictionaryFormattedLine* line in sec.lines) {
-            NSMutableParagraphStyle* p = [[NSMutableParagraphStyle alloc] init];
-            p.lineSpacing = 3.5;
-            p.paragraphSpacing = 4.5;
-
             switch (line.kind) {
                 case VOKDictionaryBlockKindHeadword:
-                    p.paragraphSpacingBefore = 4;
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[line.text stringByAppendingString:@"\n"]
-                                                                                     attributes:@{
-                        NSFontAttributeName: [NSFont systemFontOfSize:15 weight:NSFontWeightSemibold],
-                        NSForegroundColorAttributeName: PrimaryTextColor(),
-                        NSParagraphStyleAttributeName: p
-                    }]];
+                    indent = 0;
+                    add([line.text stringByAppendingString:@"\n"], [NSFont systemFontOfSize:first ? 20 : 17 weight:NSFontWeightSemibold], primary,
+                        HangingStyle(0, 0, first ? 0 : 14, 2, NO));
                     break;
-                case VOKDictionaryBlockKindPhonetic: {
-                    NSFont* mono = [NSFont monospacedSystemFontOfSize:13 weight:NSFontWeightRegular];
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[line.text stringByAppendingString:@"\n"]
-                                                                                     attributes:@{
-                        NSFontAttributeName: mono,
-                        NSForegroundColorAttributeName: SecondaryTextColor(),
-                        NSParagraphStyleAttributeName: p
-                    }]];
+                case VOKDictionaryBlockKindPhonetic:
+                    add([line.text stringByAppendingString:@"\n"], [NSFont systemFontOfSize:14 weight:NSFontWeightRegular], secondary,
+                        HangingStyle(0, 0, 0, 4, NO));
+                    break;
+                case VOKDictionaryBlockKindPartOfSpeech: {
+                    indent = 0;
+                    NSFont* pos = ItalicFont([NSFont systemFontOfSize:13.5 weight:NSFontWeightBold]);
+                    NSParagraphStyle* style = HangingStyle(0, 0, 12, 4, NO);
+                    add(line.text, pos, primary, style);
+                    if (line.secondary.length > 0)
+                        add([@"  " stringByAppendingString:line.secondary], [NSFont systemFontOfSize:12.5 weight:NSFontWeightRegular], secondary, style);
+                    add(@"\n", pos, primary, style);
                     break;
                 }
-                case VOKDictionaryBlockKindPartOfSpeech:
-                    p.paragraphSpacingBefore = 6;
-                    p.paragraphSpacing = 3;
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[line.text.uppercaseString stringByAppendingString:@"\n"]
-                                                                                     attributes:@{
-                        NSFontAttributeName: [NSFont systemFontOfSize:11.5 weight:NSFontWeightBold],
-                        NSForegroundColorAttributeName: [NSColor systemTealColor],
-                        NSParagraphStyleAttributeName: p
-                    }]];
+                case VOKDictionaryBlockKindSection:
+                    indent = 0;
+                    add([line.text.uppercaseString stringByAppendingString:@"\n"], [NSFont systemFontOfSize:10.5 weight:NSFontWeightSemibold], secondary,
+                        HangingStyle(0, 0, 14, 3, NO));
                     break;
-                case VOKDictionaryBlockKindSense:
-                    p.firstLineHeadIndent = 6;
-                    p.headIndent = 18;
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"•  %@\n", line.text]
-                                                                                     attributes:@{
-                        NSFontAttributeName: [NSFont systemFontOfSize:14 weight:NSFontWeightRegular],
-                        NSForegroundColorAttributeName: PrimaryTextColor(),
-                        NSParagraphStyleAttributeName: p
-                    }]];
+                case VOKDictionaryBlockKindSense: {
+                    BOOL numbered = line.marker.length > 0;
+                    indent = numbered ? kNumberColumn : 0;
+                    NSParagraphStyle* style = HangingStyle(0, indent, 6, 2, numbered);
+                    if (numbered)
+                        add([line.marker stringByAppendingString:@"\t"], [NSFont monospacedDigitSystemFontOfSize:13 weight:NSFontWeightSemibold], secondary, style);
+                    add([line.text stringByAppendingString:@"\n"], body, primary, style);
                     break;
-                case VOKDictionaryBlockKindSubSense:
-                    p.firstLineHeadIndent = 20;
-                    p.headIndent = 30;
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"◦  %@\n", line.text]
-                                                                                     attributes:@{
-                        NSFontAttributeName: [NSFont systemFontOfSize:13.5 weight:NSFontWeightRegular],
-                        NSForegroundColorAttributeName: PrimaryTextColor(),
-                        NSParagraphStyleAttributeName: p
-                    }]];
+                }
+                case VOKDictionaryBlockKindSubSense: {
+                    BOOL numbered = line.marker.length > 0;
+                    CGFloat head = indent + kNumberColumn - 4;
+                    NSParagraphStyle* style = HangingStyle(indent, numbered ? head : indent, 3, 2, numbered);
+                    if (numbered)
+                        add([line.marker stringByAppendingString:@"\t"], [NSFont monospacedDigitSystemFontOfSize:12.5 weight:NSFontWeightMedium], secondary, style);
+                    add([line.text stringByAppendingString:@"\n"], [NSFont systemFontOfSize:13.5 weight:NSFontWeightRegular], primary, style);
                     break;
+                }
                 case VOKDictionaryBlockKindExample: {
-                    p.firstLineHeadIndent = 18;
-                    p.headIndent = 18;
-                    NSFont* italic = [NSFont fontWithDescriptor:[[NSFont systemFontOfSize:13] fontDescriptor]
-                                                           size:13];
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"“%@”", line.text]
-                                                                                     attributes:@{
-                        NSFontAttributeName: italic ?: [NSFont systemFontOfSize:13],
-                        NSForegroundColorAttributeName: PrimaryTextColor(),
-                        NSBackgroundColorAttributeName: ExampleBackgroundColor(),
-                        NSParagraphStyleAttributeName: p
-                    }]];
-                    if (line.secondary.length > 0) {
-                        [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@" — %@\n", line.secondary]
-                                                                                         attributes:@{
-                            NSFontAttributeName: [NSFont systemFontOfSize:13 weight:NSFontWeightRegular],
-                            NSForegroundColorAttributeName: SecondaryTextColor(),
-                            NSParagraphStyleAttributeName: p
-                        }]];
-                    } else {
-                        [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:@"\n" attributes:@{NSParagraphStyleAttributeName: p}]];
-                    }
+                    NSParagraphStyle* style = HangingStyle(indent, indent, 2, 2, NO);
+                    NSFont* base = [NSFont systemFontOfSize:13 weight:NSFontWeightRegular];
+                    add([NSString stringWithFormat:@"“%@”", line.text], ItalicFont(base), secondary, style);
+                    if (line.secondary.length > 0)
+                        add([@"  " stringByAppendingString:line.secondary], base, primary, style);
+                    add(@"\n", base, primary, style);
+                    break;
+                }
+                case VOKDictionaryBlockKindIdiom: {
+                    NSParagraphStyle* style = HangingStyle(0, 14, 10, 2, NO);
+                    add(@"▸ ", [NSFont systemFontOfSize:12 weight:NSFontWeightRegular], secondary, style);
+                    add(line.text, [NSFont systemFontOfSize:13.5 weight:NSFontWeightSemibold], primary, style);
+                    if (line.secondary.length > 0)
+                        add([@"  " stringByAppendingString:line.secondary], [NSFont systemFontOfSize:13.5 weight:NSFontWeightRegular], primary, style);
+                    add(@"\n", body, primary, style);
+                    indent = 14;
                     break;
                 }
                 case VOKDictionaryBlockKindNote:
+                    add([line.text stringByAppendingString:@"\n"], [NSFont systemFontOfSize:12.5 weight:NSFontWeightRegular], secondary,
+                        HangingStyle(indent, indent, 3, 2, NO));
+                    break;
                 case VOKDictionaryBlockKindPlain:
-                    [rendered appendAttributedString:[[NSAttributedString alloc] initWithString:[line.text stringByAppendingString:@"\n"]
-                                                                                     attributes:@{
-                        NSFontAttributeName: [NSFont systemFontOfSize:13.5 weight:NSFontWeightRegular],
-                        NSForegroundColorAttributeName: line.kind == VOKDictionaryBlockKindNote ? SecondaryTextColor() : PrimaryTextColor(),
-                        NSParagraphStyleAttributeName: p
-                    }]];
+                    add([line.text stringByAppendingString:@"\n"], [NSFont systemFontOfSize:13.5 weight:NSFontWeightRegular], primary,
+                        HangingStyle(0, 0, 4, 2, NO));
                     break;
             }
+            first = NO;
         }
     }
-
-    [_definitionView.textStorage setAttributedString:rendered];
-    [_definitionView scrollToBeginningOfDocument:nil];
+    return out;
 }
 
 #pragma mark - Notifications & Actions

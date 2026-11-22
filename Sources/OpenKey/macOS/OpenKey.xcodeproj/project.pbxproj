@@ -972,7 +972,7 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 108;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -982,7 +982,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.30;
+				MARKETING_VERSION = 3.7.31;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);
@@ -1000,7 +1000,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				CURRENT_PROJECT_VERSION = 108;
+				CURRENT_PROJECT_VERSION = 109;
 				DEVELOPMENT_TEAM = 39SH232CQ4;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = ModernKey/Info.plist;
@@ -1010,7 +1010,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 3.7.30;
+				MARKETING_VERSION = 3.7.31;
 				OTHER_LDFLAGS = (
 					"-lc++\n-lc++",
 				);

@@ -40,11 +40,13 @@ make_stardict_zip(os.path.join(work, "en-vi.zip"), "Anh - Việt (Test)", "h", [
     ("hello", '<span class="pos">thán từ</span><li>xin chào</li><div class="ex">Hello world! <i>Xin chào thế giới!</i></div>'),
     ("apple", '<div class="hw">apple <span class="ipa">/ˈæp.əl/</span></div><span class="pos">danh từ</span><li>quả táo</li>'),
     ("an", '<span class="pos">mạo từ</span><li>một</li>'),
+    ("hood", '<style>body{font-family:serif;margin:0;padding:0;}.hw{font-size:1.2em;font-weight:bold;}</style><div class="e"><div class="hw">hood <span class="ipa">/hʊd/</span></div><div class="blk"><span class="pos">n.</span> <span class="sn"><b>1.</b> mui xe <b>2.</b> cái mũ trùm</span></div></div>'),
 ])
 make_stardict_zip(os.path.join(work, "vi-en.zip"), "Việt - Anh (Test)", "m", [
     ("ba", "@ba\n* số từ\n- three"),
     ("xin chào", "@xin chào\n* thán từ\n- hello, hi"),
     ("an", "@an\n* tính từ\n- safe"),
+    ("bàn", "* noun - Table =bàn ăn+a dinner-table =bàn vuông+a square table * verb - to discuss - to plan"),
 ])
 
 def entry(did, name, short, badge, src, dst, priority, size):

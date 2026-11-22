@@ -210,7 +210,41 @@ int main(int argc, const char** argv) {
         CHECK(spoken.count == before, "nothing is read in the manager");
         [palette setShowingManager:NO];
 
-        // 8. the footer tells about ⌘P
+        // 8. how an entry is set: no markup, numbered senses with a hanging indent, the part of speech in bold italic, examples in italic
+        [palette setShowingManager:NO];
+        Search(palette, @"hood");
+        NSString* text = palette.definitionView.string;
+        CHECK([text rangeOfString:@"font-family"].location == NSNotFound && [text rangeOfString:@"margin"].location == NSNotFound,
+              "the style sheet of the dictionary is not shown: %s", text.UTF8String);
+        CHECK([text containsString:@"1.\tmui xe"] && [text containsString:@"2.\tcái mũ trùm"], "senses are numbered: %s", text.UTF8String);
+        CHECK([text containsString:@"/hʊd/"], "the phonetic is shown");
+        NSTextStorage* storage = palette.definitionView.textStorage;
+        NSRange posAt = [text rangeOfString:@"n."];
+        CHECK(posAt.location != NSNotFound, "the part of speech is shown");
+        if (posAt.location != NSNotFound) {
+            NSFontTraitMask traits = [[NSFontManager sharedFontManager] traitsOfFont:[storage attribute:NSFontAttributeName atIndex:posAt.location effectiveRange:NULL]];
+            CHECK((traits & NSItalicFontMask) && (traits & NSBoldFontMask), "the part of speech is bold italic (traits %lx)", (unsigned long)traits);
+        }
+        NSRange senseAt = [text rangeOfString:@"mui xe"];
+        if (senseAt.location != NSNotFound) {
+            NSParagraphStyle* style = [storage attribute:NSParagraphStyleAttributeName atIndex:senseAt.location effectiveRange:NULL];
+            CHECK(style.headIndent >= 20 && style.firstLineHeadIndent == 0, "hanging indent: the text lines up after the number (head %.0f, first %.0f)", style.headIndent, style.firstLineHeadIndent);
+        }
+        Search(palette, @"bàn");
+        text = palette.definitionView.string;
+        CHECK([text containsString:@"noun"] && [text containsString:@"verb"], "OVDP in one line: both parts of speech: %s", text.UTF8String);
+        CHECK([text containsString:@"1.\tto discuss"] && [text containsString:@"2.\tto plan"], "the senses of the verb are numbered");
+        CHECK([text containsString:@"Table\n"] && ![text containsString:@"1.\tTable"], "a sense alone has no number");
+        CHECK([text containsString:@"“bàn ăn”"] && [text containsString:@"a dinner-table"], "the example and its translation");
+        CHECK(![text containsString:@"* noun"] && ![text containsString:@"* verb"] && ![text containsString:@"- Table"] && ![text containsString:@"- to plan"] &&
+              ![text containsString:@"=bàn"] && ![text containsString:@"+a dinner"], "no mark of the source is left: %s", text.UTF8String);
+        NSRange exAt = [text rangeOfString:@"bàn ăn"];
+        if (exAt.location != NSNotFound) {
+            NSFontTraitMask traits = [[NSFontManager sharedFontManager] traitsOfFont:[storage attribute:NSFontAttributeName atIndex:exAt.location effectiveRange:NULL]];
+            CHECK(traits & NSItalicFontMask, "the example is in italic");
+        }
+
+        // 9. the footer tells about ⌘P
         [palette setShowingManager:NO];
         BOOL found = NO;
         NSMutableArray<NSView*>* queue = [NSMutableArray arrayWithObject:palette.panel.contentView];

@@ -568,87 +568,278 @@ std::string stripAllTags(const std::string& html) {
     return trimAscii(decodeHtmlEntities(out));
 }
 
-bool tagHasAttrValue(const std::string& tagBody, const char* needle) {
-    return lowercaseAscii(tagBody).find(needle) != std::string::npos;
+// ------------------------------------------------------------------------------------------------------------
+// Entry formatting. The dictionaries of the catalog do not agree on how an entry is written:
+//   - Thich Hoc: HTML with a <style> block, div.hw / span.pos / span.sn and <b>1.</b> numbers
+//   - OVDP (en-vi, vi-en, fr-vi, de-vi ...): ONE line, "* pos - sense =example+translation !idiom @field -sense" (the source has lost
+//     its line breaks), or the same with line breaks (FVDP)
+//   - Han-Viet: HTML with <br>, <ol><li> that are never closed, and the marks of the classical quotations
+//   - Viet-Viet (Ho Ngoc Duc): "- 1 dt. sense: example <br> - 2 dt. ..." with <hr/><h3>word</h3> between the words, and white text
+//     that is only there for the search of the original program
+//   - WordNet: "n 1: gloss; "example" [syn: {a}, {b}] <br/> 2: ..."
+// Every one of them ends as the same list of lines: headword, phonetic, part of speech, numbered senses, examples, notes, idioms.
+// ------------------------------------------------------------------------------------------------------------
+
+bool isSpaceByte(char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+//one space for every run of white space, U+00A0 included
+std::string collapseSpaces(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+    bool pending = false;
+    for (size_t i = 0; i < s.size(); ++i) {
+        unsigned char c = (unsigned char)s[i];
+        bool space = isSpaceByte((char)c);
+        if (c == 0xC2 && i + 1 < s.size() && (unsigned char)s[i + 1] == 0xA0) {
+            space = true;
+            ++i;
+        }
+        if (space) {
+            pending = !out.empty();
+            continue;
+        }
+        if (pending) {
+            out.push_back(' ');
+            pending = false;
+        }
+        out.push_back((char)c);
+    }
+    return out;
+}
+
+bool hasPrefixAt(const std::string& s, size_t pos, const char* lit) {
+    size_t n = strlen(lit);
+    return pos + n <= s.size() && s.compare(pos, n, lit) == 0;
+}
+
+//the tokens of class="a b c" (lowercase)
+std::vector<std::string> classTokens(const std::string& tagRaw) {
+    std::vector<std::string> out;
+    std::string low = lowercaseAscii(tagRaw);
+    size_t p = low.find("class");
+    if (p == std::string::npos)
+        return out;
+    p = low.find('=', p);
+    if (p == std::string::npos)
+        return out;
+    ++p;
+    while (p < low.size() && isSpaceByte(low[p])) ++p;
+    char quote = (p < low.size() && (low[p] == '"' || low[p] == '\'')) ? low[p++] : 0;
+    std::string value;
+    while (p < low.size() && (quote ? low[p] != quote : !isSpaceByte(low[p]))) value.push_back(low[p++]);
+    std::string cur;
+    for (size_t i = 0; i <= value.size(); ++i) {
+        if (i == value.size() || isSpaceByte(value[i])) {
+            if (!cur.empty()) out.push_back(cur);
+            cur.clear();
+        } else {
+            cur.push_back(value[i]);
+        }
+    }
+    return out;
+}
+
+bool hasClass(const std::vector<std::string>& classes, const char* name) {
+    for (size_t i = 0; i < classes.size(); ++i)
+        if (classes[i] == name)
+            return true;
+    return false;
+}
+
+//what a class says the block is (Plain: nothing)
+BlockKind kindOfClasses(const std::vector<std::string>& c) {
+    if (hasClass(c, "hw") || hasClass(c, "headword")) return BlockKind::Headword;
+    if (hasClass(c, "ipa") || hasClass(c, "phon") || hasClass(c, "pron")) return BlockKind::Phonetic;
+    if (hasClass(c, "pos") || hasClass(c, "gram")) return BlockKind::PartOfSpeech;
+    if (hasClass(c, "ex") || hasClass(c, "example") || hasClass(c, "exm")) return BlockKind::Example;
+    if (hasClass(c, "ph") || hasClass(c, "idiom") || hasClass(c, "phrase")) return BlockKind::Idiom;
+    if (hasClass(c, "sn") || hasClass(c, "sense")) return BlockKind::Sense;
+    if (hasClass(c, "xr") || hasClass(c, "skel") || hasClass(c, "gl") || hasClass(c, "inf") || hasClass(c, "note")) return BlockKind::Note;
+    return BlockKind::Plain;
+}
+
+bool isHiddenFont(const std::string& tagLower) {
+    return tagLower.find("color=\"white\"") != std::string::npos || tagLower.find("color=white") != std::string::npos ||
+           tagLower.find("color=\"#fff\"") != std::string::npos || tagLower.find("color=\"#ffffff\"") != std::string::npos;
+}
+
+bool isHtmlTagName(const std::string& n) {
+    static const char* const names[] = {"br", "p", "div", "span", "b", "i", "u", "em", "strong", "li", "ul", "ol", "hr", "font", "a",
+                                        "table", "tr", "td", "th", "style", "script", "sup", "sub", "small", "big", "center", "img",
+                                        "dt", "dd", "dl", "blockquote", "pre", "code", "head", "title", "body", "html", "h1", "h2",
+                                        "h3", "h4", "h5", "h6", NULL};
+    for (size_t k = 0; names[k]; ++k)
+        if (n == names[k])
+            return true;
+    return false;
+}
+
+//Only the tags of HTML count, and only when the text really is HTML: OVDP writes the field of use between angle brackets ("<hóa>",
+//"<thgt>") and Korean entries have "<a bit of sweat>" and "<with>". A closing tag of HTML ("</i>"), or a tag of a block or one that
+//stands alone ("<br>", "<div>", "<style>"), makes it HTML; "<a ...>" alone does not.
+bool looksLikeHtml(const std::string& raw) {
+    static const char* const blockNames[] = {"br", "hr", "p", "div", "li", "ul", "ol", "table", "tr", "td", "th", "style", "script", "h1",
+                                             "h2", "h3", "h4", "h5", "h6", "img", "dt", "dd", "dl", "blockquote", NULL};
+    for (size_t i = 0; i + 1 < raw.size(); ++i) {
+        if (raw[i] != '<')
+            continue;
+        size_t p = i + 1;
+        bool closing = false;
+        if (p < raw.size() && raw[p] == '/') {
+            closing = true;
+            ++p;
+        }
+        std::string name;
+        while (p < raw.size() && isalnum((unsigned char)raw[p]) && (unsigned char)raw[p] < 0x80) name.push_back((char)tolower((unsigned char)raw[p++]));
+        //the name ends here: "<th>" is a tag, "<thực>" (the field of use) is not
+        bool ends = p < raw.size() && (raw[p] == '>' || raw[p] == ' ' || raw[p] == '/' || raw[p] == '\t' || raw[p] == '\n');
+        if (!ends || !isHtmlTagName(name) || raw.find('>', p) == std::string::npos)
+            continue;
+        if (closing)
+            return true;
+        for (size_t k = 0; blockNames[k]; ++k)
+            if (name == blockNames[k])
+                return true;
+    }
+    return false;
 }
 
 void parseHtmlIntoLines(const std::string& html,
                         const std::string& headword,
                         std::vector<FormattedLine>& out) {
-    // Simple block-aware HTML walk supporting div/p/li/br/h* plus class="hw"/"ipa"/"pos"/"ex"/"idiom"
-    size_t i = 0;
+    const std::string lower = lowercaseAscii(html);
+    //accents count: "run" and "rùn" of the Viet-Viet dictionary are two words
+    const std::string lowerHeadword = lowercaseUtf8(headword);
     std::string buf;
     BlockKind curKind = BlockKind::Plain;
-    std::string curPos;
+    std::string curMarker;
+    std::vector<BlockKind> listKinds;   //the kind of the <li> of the lists that are open: ul.ex gives examples
 
     auto flush = [&]() {
-        std::string txt = trimAscii(decodeHtmlEntities(buf));
+        std::string txt = collapseSpaces(trimAscii(decodeHtmlEntities(buf)));
         buf.clear();
-        if (txt.empty()) return;
-        // Skip duplicate top headword line if it only echoes headword
-        if (curKind == BlockKind::Headword) {
-            if (foldForLookup(txt) == foldForLookup(headword)) {
-                curKind = BlockKind::Plain;
-                return;
-            }
-        }
-        FormattedLine ln;
-        ln.kind = curKind;
-        ln.text = txt;
-        out.push_back(ln);
+        if (txt.empty())
+            return;     //the kind that was asked for stays for the text that comes next
+        BlockKind kind = curKind;
+        std::string marker = curMarker;
         curKind = BlockKind::Plain;
+        curMarker.clear();
+        //the first line that only says the headword again
+        if (kind == BlockKind::Headword && lowercaseUtf8(txt) == lowerHeadword)
+            return;
+        FormattedLine ln;
+        ln.kind = kind;
+        ln.text = txt;
+        ln.marker = marker;
+        out.push_back(ln);
     };
 
+    size_t i = 0;
     while (i < html.size()) {
-        if (html[i] == '<') {
+        char c = html[i];
+        if (c == '<') {
             size_t close = html.find('>', i + 1);
-            if (close == std::string::npos) { buf += html[i++]; continue; }
+            if (close == std::string::npos) {
+                buf += html[i++];
+                continue;
+            }
             std::string tagRaw = html.substr(i + 1, close - i - 1);
             std::string tag = lowercaseAscii(tagRaw);
             bool closing = !tag.empty() && tag[0] == '/';
             std::string name;
-            for (size_t k = closing ? 1 : 0; k < tag.size() && isalpha((unsigned char)tag[k]); ++k)
+            for (size_t k = closing ? 1 : 0; k < tag.size() && isalnum((unsigned char)tag[k]); ++k)
                 name.push_back(tag[k]);
 
-            if (name == "br" || name == "p" || name == "div" || name == "li" ||
-                name == "ul" || name == "ol" || name == "tr" || name == "dt" || name == "dd" ||
-                (name.size() == 2 && name[0] == 'h')) {
-                flush();
-                if (!closing && name == "li") curKind = BlockKind::Sense;
-                else if (!closing && tagHasAttrValue(tag, "hw")) curKind = BlockKind::Headword;
-                else if (!closing && tagHasAttrValue(tag, "ipa")) curKind = BlockKind::Phonetic;
-                else if (!closing && tagHasAttrValue(tag, "pos")) curKind = BlockKind::PartOfSpeech;
-                else if (!closing && tagHasAttrValue(tag, "ex")) curKind = BlockKind::Example;
-            } else if (!closing && name == "span") {
-                if (tagHasAttrValue(tag, "ipa") || tagHasAttrValue(tag, "phon") || tagHasAttrValue(tag, "pron")) {
-                    flush();
-                    curKind = BlockKind::Phonetic;
-                } else if (tagHasAttrValue(tag, "pos") || tagHasAttrValue(tag, "gram")) {
-                    flush();
-                    curKind = BlockKind::PartOfSpeech;
-                } else if (tagHasAttrValue(tag, "ex")) {
-                    flush();
-                    curKind = BlockKind::Example;
+            //a block that is not text at all: the style sheet of the dictionary, its scripts
+            if (!closing && (name == "style" || name == "script" || name == "head" || name == "title")) {
+                size_t end = lower.find("</" + name, close);
+                if (end == std::string::npos) {
+                    i = html.size();
+                } else {
+                    size_t endClose = html.find('>', end);
+                    i = endClose == std::string::npos ? html.size() : endClose + 1;
                 }
-            } else if (closing && name == "span" &&
-                       (curKind == BlockKind::Phonetic || curKind == BlockKind::PartOfSpeech)) {
+                continue;
+            }
+            //text that is only there for the search of the original program (white on white)
+            if (!closing && name == "font" && isHiddenFont(tag)) {
+                size_t end = lower.find("</font", close);
+                if (end == std::string::npos) {
+                    i = html.size();
+                } else {
+                    size_t endClose = html.find('>', end);
+                    i = endClose == std::string::npos ? html.size() : endClose + 1;
+                }
+                continue;
+            }
+
+            bool heading = name.size() == 2 && name[0] == 'h' && isdigit((unsigned char)name[1]);
+            if (name == "br" || name == "hr" || name == "p" || name == "div" || name == "li" || name == "ul" || name == "ol" ||
+                name == "tr" || name == "dt" || name == "dd" || name == "table" || name == "blockquote" || heading) {
                 flush();
-            } else if (!buf.empty() && buf[buf.size() - 1] != ' ' && (name == "i" || name == "b" || name == "em" || name == "strong")) {
-                if (!closing) buf.push_back(' ');
+                if (!closing) {
+                    std::vector<std::string> classes = classTokens(tagRaw);
+                    BlockKind byClass = kindOfClasses(classes);
+                    if (heading)
+                        curKind = BlockKind::Headword;
+                    else if (name == "li")
+                        curKind = listKinds.empty() ? BlockKind::Sense : listKinds.back();
+                    else if (byClass != BlockKind::Plain)
+                        curKind = byClass;
+                    if (name == "ul" || name == "ol")
+                        listKinds.push_back((byClass == BlockKind::Example || byClass == BlockKind::Idiom) ? byClass : BlockKind::Sense);
+                } else if ((name == "ul" || name == "ol") && !listKinds.empty()) {
+                    listKinds.pop_back();
+                }
+            } else if (!closing && name == "span") {
+                BlockKind byClass = kindOfClasses(classTokens(tagRaw));
+                if (byClass != BlockKind::Plain) {
+                    flush();
+                    curKind = byClass;
+                }
+            } else if (closing && name == "span") {
+                if (curKind == BlockKind::Phonetic || curKind == BlockKind::PartOfSpeech || curKind == BlockKind::Note)
+                    flush();
+            } else if (!closing && name == "b") {
+                //<b>1.</b> or <b>1</b>. : the number of a sense
+                size_t p = close + 1;
+                size_t digits = 0;
+                while (p < html.size() && isspace((unsigned char)html[p])) ++p;
+                size_t numStart = p;
+                while (p < html.size() && isdigit((unsigned char)html[p]) && digits < 3) { ++p; ++digits; }
+                size_t numEnd = p;
+                if (p < html.size() && html[p] == '.') ++p;
+                while (p < html.size() && isspace((unsigned char)html[p])) ++p;
+                if (digits > 0 && hasPrefixAt(lower, p, "</b>")) {
+                    flush();
+                    curKind = BlockKind::Sense;
+                    curMarker = html.substr(numStart, numEnd - numStart) + ".";
+                    p += 4;
+                    if (p < html.size() && html[p] == '.') ++p;     //<b>1</b>.
+                    i = p;
+                    continue;
+                }
+                if (!buf.empty() && buf[buf.size() - 1] != ' ')
+                    buf.push_back(' ');
+            } else if (!closing && !buf.empty() && buf[buf.size() - 1] != ' ' && (name == "i" || name == "em" || name == "strong")) {
+                buf.push_back(' ');
             }
             i = close + 1;
-        } else if (html[i] == '\r' || html[i] == '\n') {
+        } else if (c == '\r' || c == '\n') {
             if (!buf.empty() && buf[buf.size() - 1] != ' ')
                 buf.push_back(' ');
             ++i;
         } else {
-            buf.push_back(html[i++]);
+            buf.push_back(c);
+            ++i;
         }
     }
     flush();
 
     if (out.empty()) {
-        std::string plain = stripAllTags(html);
+        std::string plain = collapseSpaces(stripAllTags(html));
         if (!plain.empty()) {
             FormattedLine ln;
             ln.kind = BlockKind::Plain;
@@ -658,25 +849,172 @@ void parseHtmlIntoLines(const std::string& html,
     }
 }
 
-void parseMarkupTextIntoLines(const std::string& raw,
+// --- OVDP text, in one line or in many ---------------------------------------------------------------------
+
+//The names of the parts of speech that OVDP writes after the "*": what follows them ("better, best") is not part of the name
+const char* const kPosNames[] = {
+    "danh từ giống đực", "danh từ giống cái", "danh từ giống trung", "danh từ", "tính từ", "ngoại động từ", "nội động từ", "động từ",
+    "trợ động từ", "phó từ", "giới từ", "liên từ", "thán từ", "đại từ", "mạo từ", "số từ", "trạng từ", "thành ngữ", "tiền tố", "hậu tố",
+    "noun", "verb", "adjective", "adverb", "preposition", "conjunction", "pronoun", "interjection", "article", "numeral", NULL
+};
+
+void splitPartOfSpeech(const std::string& text, FormattedLine& ln) {
+    ln.kind = BlockKind::PartOfSpeech;
+    std::string low = lowercaseUtf8(text);
+    size_t best = 0;
+    for (size_t k = 0; kPosNames[k]; ++k) {
+        size_t n = strlen(kPosNames[k]);
+        if (low.size() >= n && low.compare(0, n, kPosNames[k]) == 0 && (low.size() == n || low[n] == ' ') && n > best)
+            best = n;
+    }
+    //"tính từ /trạng từ": a second name after a slash belongs to the first
+    while (best > 0 && best < low.size()) {
+        size_t q = best;
+        while (q < low.size() && low[q] == ' ') ++q;
+        if (q >= low.size() || low[q] != '/')
+            break;
+        ++q;
+        while (q < low.size() && low[q] == ' ') ++q;
+        size_t extra = 0;
+        for (size_t k = 0; kPosNames[k]; ++k) {
+            size_t n = strlen(kPosNames[k]);
+            if (low.size() >= q + n && low.compare(q, n, kPosNames[k]) == 0 && (low.size() == q + n || low[q + n] == ' ') && n > extra)
+                extra = n;
+        }
+        if (extra == 0)
+            break;
+        best = q + extra;
+    }
+    if (best == 0 || best >= text.size()) {
+        ln.text = text;
+        return;
+    }
+    ln.text = trimAscii(text.substr(0, best));
+    ln.secondary = trimAscii(text.substr(best));
+}
+
+//the text of an OVDP item: entities decoded, the field of use "<hóa>" as "(hóa)", the references "{{x}}" and "{x}" as plain words
+std::string cleanMarkupText(const std::string& in) {
+    std::string s = decodeHtmlEntities(in);
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); ++i) {
+        char c = s[i];
+        if (c == '<') {
+            size_t e = s.find('>', i + 1);
+            if (e != std::string::npos && e > i + 1 && e - i - 1 <= 20 && s.find_first_of(" <", i + 1) > e) {
+                out += "(" + s.substr(i + 1, e - i - 1) + ")";
+                i = e;
+                continue;
+            }
+        } else if (c == '{') {
+            while (i + 1 < s.size() && s[i + 1] == '{') ++i;
+            if (!out.empty() && !isSpaceByte(out[out.size() - 1]) && out[out.size() - 1] != '(')
+                out.push_back(' ');
+            continue;
+        } else if (c == '}') {
+            while (i + 1 < s.size() && s[i + 1] == '}') ++i;
+            if (i + 1 < s.size() && !isSpaceByte(s[i + 1]) && !ispunct((unsigned char)s[i + 1]))
+                out.push_back(' ');
+            continue;
+        }
+        out.push_back(c);
+    }
+    out = collapseSpaces(out);
+    //"{word} , meaning": no space before a comma or a semicolon
+    for (size_t k = out.find(" ,"); k != std::string::npos; k = out.find(" ,", k))
+        out.erase(k, 1);
+    for (size_t k = out.find(" ;"); k != std::string::npos; k = out.find(" ;", k))
+        out.erase(k, 1);
+    return out;
+}
+
+struct MarkupMark {
+    size_t at;      //position of the mark character
+    char mark;      // * - = ! @ +
+};
+
+//is the character at `i` the start of a new item? A mark counts when it comes after white space (or at the start) and is followed by
+//what the mark needs: "- sense", "-sense", "=example", "!idiom", "@field", "* pos". "+" only at the start of a line (inside an example
+//it separates the translation).
+bool isMarkupMark(const std::string& s, size_t i) {
+    char c = s[i];
+    bool afterSpace = i == 0 || isSpaceByte(s[i - 1]);
+    if (!afterSpace)
+        return false;
+    char next = i + 1 < s.size() ? s[i + 1] : ' ';
+    bool nextSpace = isSpaceByte(next);
+    switch (c) {
+        case '*': return nextSpace || isalpha((unsigned char)next) || (unsigned char)next >= 0x80 || next == '{';  //"*danh từ" too
+        case '-': return nextSpace || (next != '-' && !isdigit((unsigned char)next));
+        case '=': return next != '=';        //"=example" (OVDP) and "= example" (Russian)
+        case '!': return !nextSpace && next != '!';
+        case '@': return !nextSpace;
+        case '+': return (i == 0 || s[i - 1] == '\n') && !nextSpace;
+        default: return false;
+    }
+}
+
+void parseMarkupTextIntoLines(const std::string& rawIn,
                               const std::string& headword,
                               std::vector<FormattedLine>& out) {
-    std::istringstream ss(raw);
-    std::string line;
+    std::string raw = rawIn;
+    raw.erase(std::remove(raw.begin(), raw.end(), '\r'), raw.end());
     std::string foldedHw = foldForLookup(headword);
-    while (std::getline(ss, line)) {
-        if (!line.empty() && line[line.size() - 1] == '\r')
-            line.pop_back();
-        std::string t = trimAscii(line);
-        if (t.empty()) continue;
+    //the header of a Korean entry "--word ..." / "-=word ...", and the degree sign of the Russian ones: not marks of an item
+    if (raw.size() > 1 && raw[0] == '-' && (raw[1] == '-' || raw[1] == '=')) {
+        size_t lead = 0;
+        while (lead < raw.size() && (raw[lead] == '-' || raw[lead] == '=')) ++lead;
+        raw.erase(0, lead);
+    } else if (hasPrefixAt(raw, 0, "\xC2\xB0")) {
+        raw.erase(0, 2);
+    }
 
-        if (t[0] == '@') {
-            // OVDP header: "@headword /ipa/" or "@headword"
-            std::string rest = trimAscii(t.substr(1));
-            size_t slash = rest.find(" /");
-            std::string hwPart = (slash != std::string::npos) ? trimAscii(rest.substr(0, slash)) : rest;
-            std::string ipaPart = (slash != std::string::npos) ? trimAscii(rest.substr(slash + 1)) : "";
-            if (foldForLookup(hwPart) != foldedHw && !hwPart.empty()) {
+    std::vector<MarkupMark> marks;
+    for (size_t i = 0; i < raw.size(); ++i) {
+        if (isMarkupMark(raw, i))
+            marks.push_back(MarkupMark{i, raw[i]});
+    }
+
+    auto pushPlainText = [&](const std::string& text) {
+        //a line of the source that has no mark: one line, or the phonetic "/.../"
+        std::stringstream ss(text);
+        std::string line;
+        while (std::getline(ss, line)) {
+            std::string t = cleanMarkupText(line);
+            if (t.empty()) continue;
+            FormattedLine ln;
+            ln.kind = (t.size() > 2 && t[0] == '/' && t[t.size() - 1] == '/') ? BlockKind::Phonetic : BlockKind::Plain;
+            ln.text = t;
+            out.push_back(ln);
+        }
+    };
+
+    //text before the first mark
+    size_t firstAt = marks.empty() ? raw.size() : marks[0].at;
+    pushPlainText(raw.substr(0, firstAt));
+
+    for (size_t m = 0; m < marks.size(); ++m) {
+        size_t begin = marks[m].at + 1;
+        size_t end = (m + 1 < marks.size()) ? marks[m + 1].at : raw.size();
+        std::string body = raw.substr(begin, end - begin);
+        //a line break inside the body ends the item: what follows it is a line without a mark
+        std::string tail;
+        size_t nl = body.find('\n');
+        if (nl != std::string::npos) {
+            tail = body.substr(nl + 1);
+            body = body.substr(0, nl);
+        }
+        std::string t = cleanMarkupText(body);
+        bool referenceOnly = collapseSpaces(body).compare(0, 1, "{") == 0;      //"*{{word}}": the entry only says "see word"
+        char mark = marks[m].mark;
+
+        if (mark == '@' && marks[m].at == 0) {
+            // "@headword /ipa/" or "@headword": the header of an entry
+            size_t slash = t.find(" /");
+            std::string hwPart = (slash != std::string::npos) ? trimAscii(t.substr(0, slash)) : t;
+            std::string ipaPart = (slash != std::string::npos) ? trimAscii(t.substr(slash + 1)) : "";
+            if (!hwPart.empty() && foldForLookup(hwPart) != foldedHw) {
                 FormattedLine ln;
                 ln.kind = BlockKind::Headword;
                 ln.text = hwPart;
@@ -688,45 +1026,531 @@ void parseMarkupTextIntoLines(const std::string& raw,
                 ln.text = ipaPart;
                 out.push_back(ln);
             }
-        } else if (t[0] == '*') {
+        } else if (!t.empty()) {
             FormattedLine ln;
-            ln.kind = BlockKind::PartOfSpeech;
-            ln.text = trimAscii(t.substr(1));
-            if (!ln.text.empty()) out.push_back(ln);
-        } else if (t[0] == '!') {
+            switch (mark) {
+                case '*':
+                    if (referenceOnly) {
+                        ln.kind = BlockKind::Note;
+                        ln.text = "\xE2\x86\x92 " + t;       //→ word
+                    } else {
+                        splitPartOfSpeech(t, ln);
+                    }
+                    break;
+                case '-':
+                    ln.kind = BlockKind::Sense;
+                    ln.text = t;
+                    break;
+                case '+':
+                    ln.kind = BlockKind::SubSense;
+                    ln.text = t;
+                    break;
+                case '=': {
+                    ln.kind = BlockKind::Example;
+                    if (hasPrefixAt(t, 0, "\xE3\x86\x8D"))             //the middle dot that starts the examples of the Korean entries
+                        t = trimAscii(t.substr(3));
+                    size_t plus = t.find('+');
+                    if (plus != std::string::npos) {
+                        ln.text = trimAscii(t.substr(0, plus));
+                        ln.secondary = trimAscii(t.substr(plus + 1));
+                    } else {
+                        ln.text = t;
+                    }
+                    break;
+                }
+                case '!':
+                    ln.kind = BlockKind::Idiom;
+                    ln.text = t;
+                    break;
+                case '@':
+                    ln.kind = BlockKind::Section;
+                    ln.text = t;
+                    break;
+                default:
+                    ln.kind = BlockKind::Plain;
+                    ln.text = t;
+                    break;
+            }
+            if (!ln.text.empty())
+                out.push_back(ln);
+        }
+        if (!tail.empty())
+            pushPlainText(tail);
+    }
+}
+
+// --- WordNet -------------------------------------------------------------------------------------------------
+
+//"n 1: ...", "2: ...", "adj : ..."
+bool parseWordNetHead(const std::string& seg, std::string& pos, std::string& number, size_t& bodyAt) {
+    size_t p = 0;
+    pos.clear();
+    number.clear();
+    while (p < seg.size() && isalpha((unsigned char)seg[p]) && pos.size() < 4) pos.push_back(seg[p++]);
+    if (!pos.empty() && pos != "n" && pos != "v" && pos != "a" && pos != "s" && pos != "r" && pos != "adj" && pos != "adv") {
+        pos.clear();
+        p = 0;
+    }
+    while (p < seg.size() && seg[p] == ' ') ++p;
+    while (p < seg.size() && isdigit((unsigned char)seg[p]) && number.size() < 3) number.push_back(seg[p++]);
+    while (p < seg.size() && seg[p] == ' ') ++p;
+    if (p >= seg.size() || seg[p] != ':' || (pos.empty() && number.empty()))
+        return false;
+    ++p;
+    while (p < seg.size() && seg[p] == ' ') ++p;
+    bodyAt = p;
+    return true;
+}
+
+bool looksLikeWordNet(const std::string& raw) {
+    std::string pos, number;
+    size_t at = 0;
+    if (parseWordNetHead(raw, pos, number, at) && !pos.empty())
+        return true;
+    //"ring <br/> n 1: ...": the entry of an inflected form begins with the word it is the form of
+    size_t br = raw.find("<br");
+    if (br == std::string::npos || br > 80 || raw.find(':') < br)
+        return false;
+    size_t close = raw.find('>', br);
+    if (close == std::string::npos)
+        return false;
+    return parseWordNetHead(trimAscii(raw.substr(close + 1)), pos, number, at) && !pos.empty();
+}
+
+std::string wordNetPosName(const std::string& pos) {
+    if (pos == "n") return "noun";
+    if (pos == "v") return "verb";
+    if (pos == "adv" || pos == "r") return "adverb";
+    return "adjective";
+}
+
+void parseWordNetIntoLines(const std::string& raw, const std::string& headword, std::vector<FormattedLine>& out) {
+    //the segments are separated by <br/>
+    std::vector<std::string> segments;
+    size_t from = 0;
+    while (true) {
+        size_t a = raw.find("<br", from);
+        if (a == std::string::npos) {
+            segments.push_back(raw.substr(from));
+            break;
+        }
+        segments.push_back(raw.substr(from, a - from));
+        size_t b = raw.find('>', a);
+        from = b == std::string::npos ? raw.size() : b + 1;
+    }
+    //From the ninth sense on, the source has no <br/> between the senses: "... Khmer Rouge" 10: be or continue ...". The next number in
+    //order, with a space before and a colon after, starts the next sense.
+    std::vector<std::string> expanded;
+    for (size_t s = 0; s < segments.size(); ++s) {
+        std::string seg = segments[s];
+        std::string headPos, headNumber;
+        size_t headAt = 0;
+        size_t expected = 0;
+        std::string trimmedSeg = trimAscii(seg);
+        if (parseWordNetHead(trimmedSeg, headPos, headNumber, headAt) && !headNumber.empty())
+            expected = (size_t)atoi(headNumber.c_str()) + 1;
+        while (expected > 0) {
+            std::string needle = " " + std::to_string(expected) + ": ";
+            size_t at = seg.find(needle);
+            if (at == std::string::npos)
+                break;
+            expanded.push_back(seg.substr(0, at));
+            seg = seg.substr(at + 1);
+            ++expected;
+        }
+        expanded.push_back(seg);
+    }
+    segments.swap(expanded);
+
+    //the word an inflected form belongs to
+    if (segments.size() > 1) {
+        std::string first = trimAscii(decodeHtmlEntities(segments[0]));
+        std::string pos0, number0;
+        size_t at0 = 0;
+        if (!first.empty() && first.find(':') == std::string::npos && !parseWordNetHead(first, pos0, number0, at0)) {
+            if (lowercaseUtf8(first) != lowercaseUtf8(headword)) {
+                FormattedLine ln;
+                ln.kind = BlockKind::Headword;
+                ln.text = first;
+                out.push_back(ln);
+            }
+            segments.erase(segments.begin());
+        }
+    }
+
+    for (size_t s = 0; s < segments.size(); ++s) {
+        std::string seg = trimAscii(decodeHtmlEntities(segments[s]));
+        if (seg.empty()) continue;
+        std::string pos, number;
+        size_t bodyAt = 0;
+        if (parseWordNetHead(seg, pos, number, bodyAt)) {
+            if (!pos.empty()) {
+                FormattedLine ln;
+                ln.kind = BlockKind::PartOfSpeech;
+                ln.text = wordNetPosName(pos);
+                out.push_back(ln);
+            }
+            seg = seg.substr(bodyAt);
+        }
+        //[syn: {a}, {b}] [ant: {c}] at the end
+        std::vector<std::pair<std::string, std::string> > relations;
+        while (true) {
+            size_t open = seg.rfind('[');
+            size_t closeB = seg.rfind(']');
+            if (open == std::string::npos || closeB == std::string::npos || closeB < open || trimAscii(seg.substr(closeB + 1)) != "")
+                break;
+            std::string inner = seg.substr(open + 1, closeB - open - 1);
+            size_t colon = inner.find(':');
+            if (colon == std::string::npos)
+                break;
+            std::string label = trimAscii(inner.substr(0, colon));
+            std::string words;
+            for (size_t k = colon + 1; k < inner.size(); ++k)
+                if (inner[k] != '{' && inner[k] != '}') words.push_back(inner[k]);
+            relations.insert(relations.begin(), std::make_pair(label, collapseSpaces(words)));
+            seg = trimAscii(seg.substr(0, open));
+        }
+        //the gloss, then the examples in double quotes separated by "; "
+        std::string gloss = seg;
+        std::vector<std::string> examples;
+        size_t q = seg.find("; \"");
+        if (q != std::string::npos) {
+            gloss = trimAscii(seg.substr(0, q));
+            size_t p = q + 2;
+            while (p < seg.size()) {
+                size_t a = seg.find('"', p);
+                if (a == std::string::npos) break;
+                size_t b = seg.find('"', a + 1);
+                if (b == std::string::npos) break;
+                examples.push_back(seg.substr(a + 1, b - a - 1));
+                p = b + 1;
+            }
+        }
+        if (!gloss.empty()) {
             FormattedLine ln;
-            ln.kind = BlockKind::Note;
-            ln.text = trimAscii(t.substr(1));
-            if (!ln.text.empty()) out.push_back(ln);
-        } else if (t[0] == '=') {
-            std::string body = trimAscii(t.substr(1));
-            size_t plus = body.find('+');
+            ln.kind = BlockKind::Sense;
+            ln.text = gloss;
+            if (!number.empty()) ln.marker = number + ".";
+            out.push_back(ln);
+        }
+        for (size_t e = 0; e < examples.size(); ++e) {
             FormattedLine ln;
             ln.kind = BlockKind::Example;
-            if (plus != std::string::npos) {
-                ln.text = trimAscii(body.substr(0, plus));
-                ln.secondary = trimAscii(body.substr(plus + 1));
-            } else {
-                ln.text = body;
-            }
-            if (!ln.text.empty()) out.push_back(ln);
-        } else if (t[0] == '-' || t[0] == '+') {
-            FormattedLine ln;
-            ln.kind = (t[0] == '-') ? BlockKind::Sense : BlockKind::SubSense;
-            ln.text = trimAscii(t.substr(1));
-            if (!ln.text.empty()) out.push_back(ln);
-        } else if (t[0] == '/' && t.size() > 2 && t[t.size() - 1] == '/') {
-            FormattedLine ln;
-            ln.kind = BlockKind::Phonetic;
-            ln.text = t;
+            ln.text = examples[e];
             out.push_back(ln);
-        } else {
+        }
+        for (size_t r = 0; r < relations.size(); ++r) {
+            std::string label = relations[r].first;
+            if (label == "syn") label = "Synonyms";
+            else if (label == "ant") label = "Antonyms";
+            else if (label == "also") label = "See also";
+            else if (!label.empty()) label[0] = (char)toupper((unsigned char)label[0]);
             FormattedLine ln;
-            ln.kind = BlockKind::Plain;
-            ln.text = t;
+            ln.kind = BlockKind::Note;
+            ln.text = label + ": " + relations[r].second;
             out.push_back(ln);
         }
     }
+}
+
+// --- Viet-Viet (Ho Ngoc Duc): "- 1 dt. sense: example", "- đg. 1 ... 2 ..." -----------------------------------
+
+const char* const kViPos[] = {"đgt", "đg", "dt", "d", "tt", "t", "pht", "p", "trt", "tr", "kt", "k", "đt", "đ", "gt", "c", NULL};
+
+//a capital letter (ASCII or Vietnamese: À-Ý, Ă, Đ, Ơ, Ư, Ạ-Ỹ) or an opening bracket starts the text at `p`
+bool startsWithCapitalOrBracket(const std::string& s, size_t p) {
+    unsigned char c = (unsigned char)s[p];
+    if (c == '(' || (c >= 'A' && c <= 'Z'))
+        return true;
+    unsigned char c2 = p + 1 < s.size() ? (unsigned char)s[p + 1] : 0;
+    unsigned char c3 = p + 2 < s.size() ? (unsigned char)s[p + 2] : 0;
+    if (c == 0xC3) return c2 >= 0x80 && c2 <= 0x9E;                 //À..Þ
+    if (c == 0xC4 || c == 0xC5) return c2 >= 0x80 && (c2 & 1) == 0;   //Latin Extended-A: the capitals are the even code points (Ă, Đ)
+    if (c == 0xC6) return c2 == 0xA0 || c2 == 0xAF;                 //Ơ, Ư
+    if (c == 0xE1) return (c2 == 0xBA || c2 == 0xBB) && (c3 & 1) == 0;  //Ạ..Ỹ
+    return false;
+}
+
+//the first sequence 1, 2, 3 ... of numbers that start the parts of a text ("1 Bi rung ... 2 (Giong ...)"): only when the numbers are
+//in order and a capital letter or a bracket follows, so that "5 Ha Noi" in a sentence stays in the sentence
+bool splitNumberedParts(const std::string& text, std::string& lead, std::vector<std::string>& parts) {
+    std::vector<size_t> starts;
+    std::vector<size_t> bodies;
+    size_t expect = 1;
+    for (size_t i = 0; i < text.size(); ++i) {
+        if (!(i == 0 || text[i - 1] == ' ') || !isdigit((unsigned char)text[i]))
+            continue;
+        size_t p = i;
+        size_t value = 0;
+        size_t digits = 0;
+        while (p < text.size() && isdigit((unsigned char)text[p]) && digits < 3) { value = value * 10 + (size_t)(text[p] - '0'); ++p; ++digits; }
+        if (value != expect)
+            continue;
+        if (p < text.size() && text[p] == '.') ++p;
+        if (p >= text.size() || text[p] != ' ')
+            continue;
+        size_t q = p;
+        while (q < text.size() && text[q] == ' ') ++q;
+        if (q >= text.size())
+            continue;
+        if (!startsWithCapitalOrBracket(text, q))
+            continue;
+        starts.push_back(i);
+        bodies.push_back(q);
+        ++expect;
+    }
+    if (starts.size() < 2)
+        return false;
+    lead = trimAscii(text.substr(0, starts[0]));
+    parts.clear();
+    for (size_t k = 0; k < starts.size(); ++k) {
+        size_t end = (k + 1 < starts.size()) ? starts[k + 1] : text.size();
+        parts.push_back(trimAscii(text.substr(bodies[k], end - bodies[k])));
+    }
+    return true;
+}
+
+//"head: example" -> Sense (or SubSense) + Example; a colon inside brackets "(Phap: balle)" is not the one
+void pushSenseWithExample(std::vector<FormattedLine>& out, BlockKind kind, const std::string& marker, const std::string& text) {
+    std::string head = text;
+    std::string example;
+    int depth = 0;
+    for (size_t i = 0; i + 1 < text.size(); ++i) {
+        if (text[i] == '(') ++depth;
+        else if (text[i] == ')' && depth > 0) --depth;
+        else if (text[i] == ':' && depth == 0 && text[i + 1] == ' ') {
+            head = trimAscii(text.substr(0, i));
+            example = trimAscii(text.substr(i + 1));
+            break;
+        }
+    }
+    if (!head.empty()) {
+        FormattedLine ln;
+        ln.kind = kind;
+        ln.text = head;
+        ln.marker = marker;
+        out.push_back(ln);
+    }
+    if (!example.empty()) {
+        FormattedLine ln;
+        ln.kind = BlockKind::Example;
+        ln.text = example;
+        out.push_back(ln);
+    }
+}
+
+//a line "- 1 dt. ..." of the Viet-Viet dictionary: the number of the row, a Roman group (I, II), a label "(đph)", the part of speech,
+//the text. Every line that starts with "- " is one of these rows.
+bool expandVietVietRow(const std::string& line, std::vector<FormattedLine>& out, std::string& lastPos) {
+    if (line.size() < 3 || line[0] != '-' || line[1] != ' ')
+        return false;
+    std::string s = trimAscii(line.substr(2));
+    while (s.size() >= 2 && s[0] == '-' && s[1] == ' ')     //"- - d. ..."
+        s = trimAscii(s.substr(2));
+    if (s.empty() || s == "-")
+        return true;                                        //a row with nothing in it
+    size_t p = 0;
+    auto skipSpaces = [&]() { while (p < s.size() && s[p] == ' ') ++p; };
+    std::string rowNo;
+    while (p < s.size() && isdigit((unsigned char)s[p]) && rowNo.size() < 3) rowNo.push_back(s[p++]);
+    if (!rowNo.empty() && (p >= s.size() || s[p] != ' ')) {
+        rowNo.clear();
+        p = 0;
+    }
+    skipSpaces();
+    //a group of the source: "I", "II." before the part of speech
+    if (p < s.size() && (s[p] == 'I' || s[p] == 'V')) {
+        size_t q = p;
+        while (q < s.size() && (s[q] == 'I' || s[q] == 'V')) ++q;
+        if (q < s.size() && (s[q] == ' ' || (s[q] == '.' && q + 1 < s.size() && s[q + 1] == ' '))) {
+            p = q + 1;
+            skipSpaces();
+        }
+    }
+    //a label "(đph)", "(khẩu)" that comes before the part of speech stays with the text
+    std::string label;
+    if (p < s.size() && s[p] == '(') {
+        size_t close = s.find(')', p);
+        if (close != std::string::npos && close - p <= 16) {
+            label = s.substr(p, close - p + 1);
+            p = close + 1;
+            while (p < s.size() && (s[p] == ' ' || s[p] == '.' || s[p] == '-')) ++p;
+        }
+    }
+    //the part of speech: "dt.", "đgt", and "d.Nh." where the part of speech is written against the next word
+    std::string pos;
+    size_t q = p;
+    std::string word;
+    while (q < s.size() && s[q] != ' ') word.push_back(s[q++]);
+    size_t dot = word.find('.');
+    std::string head = dot == std::string::npos ? word : word.substr(0, dot);
+    for (size_t k = 0; kViPos[k]; ++k) {
+        if (head == kViPos[k] && (dot != std::string::npos || word == head)) {
+            pos = head + ".";
+            if (dot != std::string::npos && dot + 1 < word.size())
+                q = p + dot + 1;       //"d.Nh. Gụ": what follows the dot is text
+            break;
+        }
+    }
+    std::string rest = pos.empty() ? trimAscii(s.substr(p)) : trimAscii(s.substr(q));
+    if (!label.empty())
+        rest = trimAscii(label + " " + rest);
+    if (!pos.empty() && pos != lastPos) {
+        FormattedLine ln;
+        ln.kind = BlockKind::PartOfSpeech;
+        ln.text = pos;
+        out.push_back(ln);
+    }
+    if (!pos.empty())
+        lastPos = pos;
+
+    std::string lead;
+    std::vector<std::string> parts;
+    std::string marker = rowNo.empty() ? "" : rowNo + ".";
+    if (splitNumberedParts(rest, lead, parts)) {
+        if (!lead.empty() || !rowNo.empty()) {
+            //the row has a number of its own: the numbered parts are the senses under it
+            pushSenseWithExample(out, BlockKind::Sense, marker, lead);
+            for (size_t k = 0; k < parts.size(); ++k)
+                pushSenseWithExample(out, BlockKind::SubSense, std::to_string(k + 1) + ".", parts[k]);
+        } else {
+            for (size_t k = 0; k < parts.size(); ++k)
+                pushSenseWithExample(out, BlockKind::Sense, std::to_string(k + 1) + ".", parts[k]);
+        }
+    } else {
+        pushSenseWithExample(out, BlockKind::Sense, marker, rest);
+    }
+    return true;
+}
+
+// --- what every dictionary gets at the end ------------------------------------------------------------------
+
+//"1. text" at the start of a line is the number of a sense
+void takeLeadingNumber(FormattedLine& ln) {
+    if (!(ln.kind == BlockKind::Plain || ln.kind == BlockKind::Sense) || !ln.marker.empty())
+        return;
+    size_t p = 0;
+    while (p < ln.text.size() && isdigit((unsigned char)ln.text[p]) && p < 3) ++p;
+    if (p == 0 || p + 1 >= ln.text.size() || ln.text[p] != '.' || ln.text[p + 1] != ' ')
+        return;
+    ln.marker = ln.text.substr(0, p + 1);
+    ln.text = trimAscii(ln.text.substr(p + 2));
+    ln.kind = BlockKind::Sense;
+}
+
+//The marks of the classical quotations in a sense of the Han-Viet dictionaries: ◇ and ◎ start an example, § a note
+void splitClassicalMarks(std::vector<FormattedLine>& in, std::vector<FormattedLine>& out) {
+    for (size_t k = 0; k < in.size(); ++k) {
+        const FormattedLine& ln = in[k];
+        bool candidate = ln.kind == BlockKind::Sense || ln.kind == BlockKind::Plain;
+        if (!candidate || (ln.text.find("\xE2\x97\x87") == std::string::npos && ln.text.find("\xE2\x97\x8E") == std::string::npos &&
+                           ln.text.find("\xC2\xA7") == std::string::npos)) {
+            out.push_back(ln);
+            continue;
+        }
+        //cut at every mark
+        std::vector<std::pair<BlockKind, std::string> > pieces;
+        BlockKind pieceKind = ln.kind;
+        std::string piece;
+        for (size_t i = 0; i < ln.text.size();) {
+            BlockKind next = BlockKind::Plain;
+            size_t len = 0;
+            if (hasPrefixAt(ln.text, i, "\xE2\x97\x87") || hasPrefixAt(ln.text, i, "\xE2\x97\x8E")) { next = BlockKind::Example; len = 3; }
+            else if (hasPrefixAt(ln.text, i, "\xC2\xA7")) { next = BlockKind::Note; len = 2; }
+            if (len > 0) {
+                pieces.push_back(std::make_pair(pieceKind, trimAscii(piece)));
+                piece.clear();
+                pieceKind = next;
+                i += len;
+            } else {
+                piece.push_back(ln.text[i++]);
+            }
+        }
+        pieces.push_back(std::make_pair(pieceKind, trimAscii(piece)));
+        bool first = true;
+        for (size_t pi = 0; pi < pieces.size(); ++pi) {
+            if (pieces[pi].second.empty()) continue;
+            FormattedLine l;
+            l.kind = pieces[pi].first;
+            l.text = pieces[pi].second;
+            if (first && pieces[pi].first == ln.kind) l.marker = ln.marker;
+            first = false;
+            out.push_back(l);
+        }
+    }
+}
+
+bool startsWithBo(const std::string& t) {
+    //"Bo 75 ..." (the radical of a Chinese character)
+    return t.size() > 6 && t.compare(0, 5, "B\xE1\xBB\x99 ") == 0 && isdigit((unsigned char)t[5]);
+}
+
+//the line of an idiom is followed by what it means: the two are one line
+void joinIdiomMeanings(std::vector<FormattedLine>& lines) {
+    for (size_t k = 0; k + 1 < lines.size(); ++k) {
+        if (lines[k].kind == BlockKind::Idiom && lines[k].secondary.empty() && lines[k + 1].kind == BlockKind::Sense) {
+            lines[k].secondary = lines[k + 1].text;
+            lines.erase(lines.begin() + (long)k + 1);
+        }
+    }
+}
+
+//The senses of a part of speech are numbered when there are several. A single sense has no number, whatever the source wrote.
+void numberSenses(std::vector<FormattedLine>& lines) {
+    std::vector<size_t> group;
+    auto closeGroup = [&]() {
+        if (group.size() == 1) {
+            lines[group[0]].marker.clear();
+        } else {
+            for (size_t k = 0; k < group.size(); ++k)
+                if (lines[group[k]].marker.empty())
+                    lines[group[k]].marker = std::to_string(k + 1) + ".";
+        }
+        group.clear();
+    };
+    for (size_t k = 0; k < lines.size(); ++k) {
+        BlockKind kind = lines[k].kind;
+        if (kind == BlockKind::PartOfSpeech || kind == BlockKind::Section || kind == BlockKind::Headword || kind == BlockKind::Idiom)
+            closeGroup();
+        else if (kind == BlockKind::Sense)
+            group.push_back(k);
+    }
+    closeGroup();
+}
+
+void finishLines(std::vector<FormattedLine>& lines, const std::string& headword) {
+    std::vector<FormattedLine> step1;
+    std::string lastPos;
+    for (size_t k = 0; k < lines.size(); ++k) {
+        if (lines[k].kind == BlockKind::Headword)
+            lastPos.clear();                               //another word of the entry: its part of speech is shown again
+        if (lines[k].kind == BlockKind::Plain && lines[k].text == "-")
+            continue;                                      //a row of the source with nothing in it
+        if (lines[k].kind == BlockKind::Plain && expandVietVietRow(lines[k].text, step1, lastPos))
+            continue;
+        step1.push_back(lines[k]);
+    }
+    for (size_t k = 0; k < step1.size(); ++k)
+        takeLeadingNumber(step1[k]);
+
+    std::vector<FormattedLine> step2;
+    splitClassicalMarks(step1, step2);
+
+    //Han-Viet: the character (or its reading) first, then "Bo 75 ... U+xxxx", then the pinyin
+    std::string foldedHeadword = foldForLookup(headword);
+    if (step2.size() > 1 && step2[0].kind == BlockKind::Plain && step2[0].text.size() <= 24 &&
+        step2[0].text.find(". ") == std::string::npos && foldForLookup(step2[0].text) != foldedHeadword)
+        step2[0].kind = BlockKind::Headword;
+    for (size_t k = 0; k < step2.size(); ++k) {
+        if (step2[k].kind == BlockKind::Plain && startsWithBo(step2[k].text)) {
+            step2[k].kind = BlockKind::Note;
+            if (k + 1 < step2.size() && step2[k + 1].kind == BlockKind::Plain && step2[k + 1].text.size() <= 40)
+                step2[k + 1].kind = BlockKind::Phonetic;
+        }
+    }
+    joinIdiomMeanings(step2);
+    numberSenses(step2);
+    lines.swap(step2);
 }
 
 } // namespace
@@ -838,10 +1662,19 @@ std::vector<FormattedLine> parseEntryRichText(const std::string& raw,
                                               uint8_t typeTag,
                                               const std::string& headword) {
     std::vector<FormattedLine> lines;
-    if (typeTag == 'h' || typeTag == 'g')
-        parseHtmlIntoLines(raw, headword, lines);
+    if (raw.compare(0, 5, "See {") == 0) {
+        //WordNet: the entry of a form only says which word to look at
+        FormattedLine ln;
+        ln.kind = BlockKind::Note;
+        ln.text = cleanMarkupText(raw);
+        lines.push_back(ln);
+    } else if (looksLikeWordNet(raw))
+        parseWordNetIntoLines(raw, headword, lines);
+    else if (looksLikeHtml(raw) || ((typeTag == 'h' || typeTag == 'g' || typeTag == 'x') && raw.compare(0, 2, "- ") == 0))
+        parseHtmlIntoLines(raw, headword, lines);     //(a Viet-Viet row has no tag in it, and is read by the HTML path as well)
     else
         parseMarkupTextIntoLines(raw, headword, lines);
+    finishLines(lines, headword);
     return lines;
 }
 

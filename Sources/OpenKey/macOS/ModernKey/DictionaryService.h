@@ -24,13 +24,17 @@ typedef NS_ENUM(NSInteger, VOKDictionaryBlockKind) {
     VOKDictionaryBlockKindSubSense = 4,
     VOKDictionaryBlockKindExample = 5,
     VOKDictionaryBlockKindNote = 6,
-    VOKDictionaryBlockKindPlain = 7
+    VOKDictionaryBlockKindPlain = 7,
+    VOKDictionaryBlockKindIdiom = 8,        // a phrase of the entry; `secondary` is what it means
+    VOKDictionaryBlockKindSection = 9       // a field ("Chuyên ngành kỹ thuật") the senses below belong to
 };
 
 @interface VOKDictionaryFormattedLine : NSObject
 @property (nonatomic, readonly) VOKDictionaryBlockKind kind;
 @property (nonatomic, copy, readonly) NSString* text;
 @property (nonatomic, copy, readonly) NSString* secondary;
+/// "1.", "2." for a sense whose part of speech has several; empty for a sense alone.
+@property (nonatomic, copy, readonly) NSString* marker;
 @end
 
 @interface VOKDictionaryDefinition : NSObject

@@ -35,11 +35,12 @@ static NSString* SafeUTF8String(const std::string& s) {
 #pragma mark - Value Classes
 
 @implementation VOKDictionaryFormattedLine
--(instancetype)initWithKind:(VOKDictionaryBlockKind)kind text:(NSString*)text secondary:(NSString*)secondary {
+-(instancetype)initWithKind:(VOKDictionaryBlockKind)kind text:(NSString*)text secondary:(NSString*)secondary marker:(NSString*)marker {
     if ((self = [super init])) {
         _kind = kind;
         _text = [text copy] ?: @"";
         _secondary = [secondary copy] ?: @"";
+        _marker = [marker copy] ?: @"";
     }
     return self;
 }
@@ -60,7 +61,8 @@ static NSString* SafeUTF8String(const std::string& s) {
             const vdict::FormattedLine& ln = sec.lines[i];
             [lines addObject:[[VOKDictionaryFormattedLine alloc] initWithKind:(VOKDictionaryBlockKind)ln.kind
                                                                          text:SafeUTF8String(ln.text)
-                                                                    secondary:SafeUTF8String(ln.secondary)]];
+                                                                    secondary:SafeUTF8String(ln.secondary)
+                                                                       marker:SafeUTF8String(ln.marker)]];
         }
         _lines = [lines copy];
     }

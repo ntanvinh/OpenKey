@@ -193,14 +193,41 @@ void setRichOrPlainText(const std::wstring& plainText, const std::vector<vdict::
                 appendFormatted(txt + L"\r\n", 10, false, false, theme.secondaryText, L"Consolas");
                 break;
             case vdict::BlockKind::PartOfSpeech:
-                appendFormatted(txt + L"\r\n", 9, true, false, accentTeal, L"Segoe UI");
+                appendFormatted(txt, 10, true, true, accentTeal, L"Segoe UI");
+                if (!sec.empty())
+                    appendFormatted(L"  " + sec, 9, false, false, theme.secondaryText, L"Segoe UI");
+                appendFormatted(L"\r\n", 9, false, false, theme.text, L"Segoe UI");
                 break;
-            case vdict::BlockKind::Sense:
-                appendFormatted(L"  \u2022 " + txt + L"\r\n", 10, false, false, theme.text, L"Segoe UI");
+            case vdict::BlockKind::Sense: {
+                // a part of speech with several senses numbers them; a sense alone has no mark
+                std::wstring mark = ln.marker.empty() ? L"" : DictionaryService::utf8ToWide(ln.marker) + L" ";
+                if (!mark.empty())
+                    appendFormatted(L"  " + mark, 10, true, false, theme.secondaryText, L"Segoe UI");
+                else
+                    appendFormatted(L"  ", 10, false, false, theme.text, L"Segoe UI");
+                appendFormatted(txt + L"\r\n", 10, false, false, theme.text, L"Segoe UI");
                 break;
-            case vdict::BlockKind::SubSense:
-                appendFormatted(L"      \u25E6 " + txt + L"\r\n", 10, false, false, theme.text, L"Segoe UI");
+            }
+            case vdict::BlockKind::SubSense: {
+                std::wstring mark = ln.marker.empty() ? L"\u25E6 " : DictionaryService::utf8ToWide(ln.marker) + L" ";
+                appendFormatted(L"      " + mark, 9, false, false, theme.secondaryText, L"Segoe UI");
+                appendFormatted(txt + L"\r\n", 10, false, false, theme.text, L"Segoe UI");
                 break;
+            }
+            case vdict::BlockKind::Idiom:
+                appendFormatted(L"\u25B8 ", 9, false, false, theme.secondaryText, L"Segoe UI");
+                appendFormatted(txt, 10, true, false, theme.text, L"Segoe UI");
+                if (!sec.empty())
+                    appendFormatted(L"  " + sec, 10, false, false, theme.text, L"Segoe UI");
+                appendFormatted(L"\r\n", 10, false, false, theme.text, L"Segoe UI");
+                break;
+            case vdict::BlockKind::Section: {
+                // the field the senses below belong to: a small heading in capitals
+                std::wstring upper = txt;
+                CharUpperBuffW(&upper[0], (DWORD)upper.size());
+                appendFormatted(upper + L"\r\n", 8, true, false, theme.secondaryText, L"Segoe UI");
+                break;
+            }
             case vdict::BlockKind::Example:
                 appendFormatted(L"    \u201C" + txt + L"\u201D", 10, false, true, theme.text, L"Segoe UI");
                 if (!sec.empty())
@@ -362,9 +389,18 @@ void displayHit(int row) {
     for (size_t i = 0; i < secs.size(); ++i) {
         plain += L"\r\n[" + DictionaryService::utf8ToWide(secs[i].badge) + L"] " + DictionaryService::utf8ToWide(secs[i].dictName) + L"\r\n";
         for (size_t li = 0; li < secs[i].lines.size(); ++li) {
-            plain += L"  " + DictionaryService::utf8ToWide(secs[i].lines[li].text);
-            if (!secs[i].lines[li].secondary.empty())
-                plain += L" — " + DictionaryService::utf8ToWide(secs[i].lines[li].secondary);
+            const vdict::FormattedLine& ln = secs[i].lines[li];
+            // the number of a sense and the arrow of an idiom are part of the text that is copied
+            std::wstring lead = L"  ";
+            if (ln.kind == vdict::BlockKind::Sense && !ln.marker.empty())
+                lead += DictionaryService::utf8ToWide(ln.marker) + L" ";
+            else if (ln.kind == vdict::BlockKind::SubSense)
+                lead += L"    " + (ln.marker.empty() ? std::wstring() : DictionaryService::utf8ToWide(ln.marker) + L" ");
+            else if (ln.kind == vdict::BlockKind::Idiom)
+                lead += L"\u25B8 ";
+            plain += lead + DictionaryService::utf8ToWide(ln.text);
+            if (!ln.secondary.empty())
+                plain += (ln.kind == vdict::BlockKind::PartOfSpeech ? L"  " : L" \u2014 ") + DictionaryService::utf8ToWide(ln.secondary);
             plain += L"\r\n";
         }
     }

@@ -1,5 +1,9 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.31 (build 109): (22/11/2026)
+- feat(dictionary): add English word pronunciation and fix heavy border
+- feat(dictionary): add offline dictionary lookup with a catalog
+
 ##### VOpenKey 3.7.30 (build 108): (22/11/2026)
 - feat(dictionary): add offline dictionary lookup with a catalog
 
