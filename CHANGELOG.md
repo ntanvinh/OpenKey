@@ -1,5 +1,8 @@
 # OpenKey Change Log
 
+##### VOpenKey 3.7.33 (build 111): (22/11/2026)
+- fix(dictionary): draw badges as macOS capsule tags with centred text
+
 ##### VOpenKey 3.7.32 (build 110): (22/11/2026)
 - feat(dictionary): format entries from six source formats with one parser
 - feat(dictionary): add English word pronunciation and fix heavy border
