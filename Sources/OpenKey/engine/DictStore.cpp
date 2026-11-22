@@ -63,7 +63,9 @@ FILE* openFileUtf8(const std::string& path, const char* mode) {
     std::wstring wp = utf8ToWide(path);
     std::wstring wm = utf8ToWide(mode);
     if (wp.empty() || wm.empty()) return NULL;
-    return _wfopen(wp.c_str(), wm.c_str());
+    FILE* f = NULL;
+    if (_wfopen_s(&f, wp.c_str(), wm.c_str()) != 0) return NULL;
+    return f;
 #else
     return fopen(path.c_str(), mode);
 #endif
@@ -2484,7 +2486,7 @@ std::vector<SearchItem> DictEngine::search(const std::string& query,
             score -= lenPenalty;
         }
         // Higher dictionary priority (lower number) gets a slight boost on tie
-        score += std::max(0, 50 - d.spec.priority / 10);
+        score += (std::max)(0, 50 - d.spec.priority / 10);
 
         auto it = groupIndex.find(groupKey);
         if (it == groupIndex.end()) {

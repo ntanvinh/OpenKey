@@ -164,7 +164,7 @@ void setRichOrPlainText(const std::wstring& plainText, const std::vector<vdict::
         cf.crTextColor = color;
         cf.yHeight = pts * 20;
         cf.dwEffects = (bold ? CFE_BOLD : 0) | (italic ? CFE_ITALIC : 0);
-        wcsncpy(cf.szFaceName, face ? face : L"Segoe UI", LF_FACESIZE - 1);
+        wcsncpy_s(cf.szFaceName, LF_FACESIZE, face ? face : L"Segoe UI", _TRUNCATE);
         SendMessageW(g_defView, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
         SendMessageW(g_defView, EM_REPLACESEL, FALSE, (LPARAM)chunk.c_str());
     };

@@ -14,6 +14,12 @@ if [ ${#FILES[@]} -eq 0 ]; then
     done
 fi
 status=0
+# Things Visual Studio rejects (SDLCheck makes C4996 an error; windows.h defines min/max macros) but mingw accepts: grep for them.
+bad=$(grep -nE '\b(wcsncpy|wcscpy|wcscat|_wfopen|swprintf|strcpy|strncpy|strcat|sprintf)\(' Sources/OpenKey/engine/*.cpp "$DIR"/*.cpp 2>/dev/null | grep -vE '_s\(|snprintf|//' )
+for f in $(grep -lE '#include <windows.h>' Sources/OpenKey/engine/*.cpp "$DIR"/*.cpp 2>/dev/null); do
+    bad="$bad$(grep -nHE 'std::(min|max)\(' "$f")"
+done
+if [ -n "$bad" ]; then echo "== MSVC-only errors: use the _s functions and (std::min)(...) / std::min<T>(...)"; echo "$bad"; status=1; fi
 for cc in x86_64-w64-mingw32-g++ i686-w64-mingw32-g++; do
     command -v $cc >/dev/null || { echo "$cc not found: brew install mingw-w64"; exit 2; }
     for f in "${FILES[@]}"; do
