@@ -177,6 +177,11 @@
     <ClInclude Include="..\..\..\engine\AppExclusions.h" />
     <ClInclude Include="..\..\..\engine\CapsLockIcon.h" />
     <ClInclude Include="..\..\..\engine\AIAgent.h" />
+    <ClInclude Include="..\..\..\engine\DictCatalog.h" />
+    <ClInclude Include="..\..\..\engine\DictInflate.h" />
+    <ClInclude Include="..\..\..\engine\DictStore.h" />
+    <ClInclude Include="DictionaryPalette.h" />
+    <ClInclude Include="DictionaryService.h" />
     <ClInclude Include="CapsLockNotice.h" />
     <ClInclude Include="CaseBar.h" />
     <ClInclude Include="CaseTransformWindows.h" />
@@ -237,6 +242,11 @@
     <ClCompile Include="..\..\..\engine\CapsLockIcon.cpp" />
     <ClCompile Include="..\..\..\engine\AIAgent.cpp" />
     <ClCompile Include="..\..\..\engine\CaseTransform.cpp" />
+    <ClCompile Include="..\..\..\engine\DictCatalog.cpp" />
+    <ClCompile Include="..\..\..\engine\DictInflate.cpp" />
+    <ClCompile Include="..\..\..\engine\DictStore.cpp" />
+    <ClCompile Include="DictionaryPalette.cpp" />
+    <ClCompile Include="DictionaryService.cpp" />
     <ClCompile Include="CapsLockNotice.cpp" />
     <ClCompile Include="CaseBar.cpp" />
     <ClCompile Include="CaseTransformWindows.cpp" />

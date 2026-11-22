@@ -15,6 +15,7 @@
 extern int vRestoreHotKey;       //give back the keys of the word being typed
 extern int vAIHotKey;            //open the AI assistant
 extern int vAIEnabled;
+extern int vDictionaryHotKey;    //open the dictionary lookup dialog
 
 #define VOK_SHORTCUT_NONE 0xFE0000FE
 
@@ -29,7 +30,8 @@ enum Action {
     OpenSnippetEditor = 5,
     OpenFeatureSettings = 6,
     OpenAISettings = 7,
-    OpenDonation = 8
+    OpenDonation = 8,
+    OpenDictionary = 9
 };
 
 struct HotKey {

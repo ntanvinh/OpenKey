@@ -32,6 +32,8 @@
 #import "AIAssistant.h"
 #import "AISettings.h"
 #import "CaseBar.h"
+#import "DictionaryPalette.h"
+#import "DictionaryService.h"
 #import "AIOllamaInstaller.h"
 #import "AIOllamaRuntime.h"
 #import "WordRestore.h"
@@ -129,8 +131,10 @@ extern bool convertToolDontAlertWhenCompleted;
     [AISettings registerDefaults];
     [AISettings start];
     [CaseBar registerDefaults];
+    [DictionaryService registerDefaults];
     [CapsLockMonitor registerDefaults]; //the Settings window may show it before the monitor starts
     [CaseBar start];
+    [DictionaryService start];
     [AppUpdater registerDefaults]; //the Settings window may show it before the first check
     [AIAssistant setSettingsHandler:^{ [self onAISettingsSelected]; }];
     //a download of Ollama that was cut by quitting leaves its working folder behind
@@ -261,6 +265,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [AISettings resetToDefaults]; //the keys stay in the keychain
     vCaseBarAuto = 1;[[NSUserDefaults standardUserDefaults] setInteger:vCaseBarAuto forKey:@"CaseBarAuto"];
     vCaseBarHotKey = VOK_CASEBAR_DEFAULT_HOTKEY;[[NSUserDefaults standardUserDefaults] setInteger:vCaseBarHotKey forKey:@"CaseBarHotKey"];
+    [DictionaryService saveHotKey:VOK_DICTIONARY_DEFAULT_HOTKEY];
     vShowIconOnDock = 0;[[NSUserDefaults standardUserDefaults] setInteger:vShowIconOnDock forKey:@"vShowIconOnDock"];
     vFixChromiumBrowser = 0;[[NSUserDefaults standardUserDefaults] setInteger:vFixChromiumBrowser forKey:@"vFixChromiumBrowser"];
     vPerformLayoutCompat = 0;[[NSUserDefaults standardUserDefaults] setInteger:vPerformLayoutCompat forKey:@"vPerformLayoutCompat"];

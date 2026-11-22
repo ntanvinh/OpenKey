@@ -17,6 +17,8 @@
 #import "AppPermissions.h"
 #import "AppUpdater.h"
 #import "CaseBar.h"
+#import "DictionaryPalette.h"
+#import "DictionaryService.h"
 #import "RememberedAppsController.h"
 #import "ShortcutConflicts.h"
 #import "ShortcutRecorder.h"
@@ -189,6 +191,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     //the AI tab
     ShortcutRecorder* _aiRecorder;
     ShortcutRecorder* _caseRecorder;
+    ShortcutRecorder* _dictRecorder;
+    NSTextField* _dictStatusLabel;
     NSPopUpButton* _aiProvider;
     NSView* _aiProgramRow, *_aiKeyRow, *_aiURLRow, *_aiEffortRow, *_aiImagePromptRow;     //the rows that are there for some services only
     NSTextField* _aiImagePrompt;
@@ -242,7 +246,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         _tabs.tabStyle = NSTabViewControllerTabStyleToolbar;
         [self addPage:@"Bộ gõ" symbol:@"keyboard" sections:@[[self sectionTyping], [self sectionSpelling]]];
         [self addPage:@"Gõ tắt" symbol:@"text.badge.plus" sections:@[[self sectionMacro], [self sectionConvertShortcut], [self sectionQuickTyping]]];
-        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion], [self sectionSuggestionApps], [self sectionCaseBar]]];
+        [self addPage:@"Gợi ý" symbol:@"text.cursor" sections:@[[self sectionSuggestion], [self sectionSuggestionApps], [self sectionCaseBar], [self sectionDictionary]]];
         [self addPage:@"Snippet" symbol:@"text.insert" sections:@[[self sectionSnippets]]];
         [self addPage:@"AI" symbol:@"sparkles" sections:@[[self sectionAI], [self sectionAILocal], [self sectionAIConnection]]];
         [self addPage:@"Ứng dụng" symbol:@"macwindow" sections:@[[self sectionPerApp], [self sectionCompatibility]]];
@@ -256,6 +260,7 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [window center];
         [self reload];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(aiLocalSetupFinished:) name:VOKAILocalSetupDidFinishNotification object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(dictionaryDidChange:) name:VOKDictionaryDidChangeNotification object:nil];
     }
     return self;
 }
@@ -853,6 +858,51 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
         [self rowWithTitle:@"Phím tắt" detail:@"Chọn văn bản rồi bấm để mở thanh, dùng được cả ở ứng dụng không cho đọc vùng chọn." control:_caseRecorder indent:0],
     ] footer:@"Chữ hoa, chữ thường, Viết Hoa Từng Từ, viết hoa đầu câu, camelCase, snake_case… và bỏ dấu tiếng Việt. "
              @"Mỗi dòng hiện trước kết quả. Dùng ⌥1…⌥9 hoặc bấm chuột; khi mở bằng phím tắt còn dùng được ↑ ↓ ↩ và Esc."];
+}
+
+-(NSView*)sectionDictionary {
+    _dictRecorder = [[ShortcutRecorder alloc] init];
+    _dictRecorder.value = vDictionaryHotKey;
+    _dictRecorder.toolTip = VOKTooltip(@"Bấm vào ô rồi nhấn phím tắt mới để mở nhanh cửa sổ tra từ điển.");
+    _dictRecorder.conflict = ^NSString*(int data) {
+        return VOKShortcutConflict(data, VOKShortcutOwnerDictionary);
+    };
+    _dictRecorder.onChange = ^(int data) {
+        [DictionaryService saveHotKey:data];
+        [appDelegate refreshMenu];
+    };
+
+    NSButton* openManager = [NSButton buttonWithTitle:@"Quản lý bộ từ điển…" target:self action:@selector(openDictionaryManager:)];
+    openManager.bezelStyle = NSBezelStyleRounded;
+    _dictStatusLabel = VOKLabel(@"", 12, NSFontWeightRegular, [NSColor secondaryLabelColor]);
+    [self updateDictionaryStatus];
+    NSStackView* mgrControl = [self aiStack:@[_dictStatusLabel, openManager] vertical:NO spacing:10];
+
+    return [self sectionWithTitle:@"Tra từ điển" rows:@[
+        [self rowWithTitle:@"Phím tắt" detail:@"Mở cửa sổ nổi tra từ điển (nếu đang chọn chữ sẽ tự đưa vào ô tra)." control:_dictRecorder indent:0],
+        [self rowWithTitle:@"Bộ từ điển" detail:@"Tải từ điển mã nguồn mở (ưu tiên Anh–Việt, Việt–Anh) hoặc nhập file StarDict." control:mgrControl indent:0],
+    ] footer:@"Hỗ trợ tra cứu ngoại tuyến nhiều từ điển cùng lúc và mục “Tra từ điển” ngay trong thanh đổi chữ hoa/thường."];
+}
+
+-(void)updateDictionaryStatus {
+    if (_dictStatusLabel == nil) return;
+    NSArray<VOKDictionaryCatalogItem*>* installed = [[DictionaryService shared] installedDictionaries];
+    NSUInteger active = 0;
+    for (VOKDictionaryCatalogItem* item in installed) {
+        if (item.enabled) active++;
+    }
+    _dictStatusLabel.stringValue = active > 0
+        ? [NSString stringWithFormat:@"Đang bật %lu bộ", (unsigned long)active]
+        : @"Chưa tải bộ nào";
+}
+
+-(void)dictionaryDidChange:(NSNotification*)note {
+    [self updateDictionaryStatus];
+}
+
+-(void)openDictionaryManager:(id)sender {
+    [[DictionaryPalette shared] setShowingManager:YES];
+    [DictionaryPalette showPalette];
 }
 
 #pragma mark - Tab "Snippet"
@@ -1741,6 +1791,8 @@ static NSString* const kSelectedTabKey = @"SettingsSelectedTab";
     _restoreRecorder.value = vRestoreHotKey;
     _aiRecorder.value = vAIHotKey;
     _caseRecorder.value = vCaseBarHotKey;
+    _dictRecorder.value = vDictionaryHotKey;
+    [self updateDictionaryStatus];
     [self reloadAI];
 
     [self showStatus:[AppPermissions accessibilityGranted] in:_accessibilityStatus];

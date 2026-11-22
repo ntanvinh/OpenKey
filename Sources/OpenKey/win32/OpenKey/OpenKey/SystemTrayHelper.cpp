@@ -48,6 +48,7 @@ redistribute your new version, it MUST be open source.
 #define POPUP_AI 985
 #define POPUP_AI_SETTINGS 986
 #define POPUP_DONATE 987
+#define POPUP_DICTIONARY 988
 
 #define POPUP_CONTROL_PANEL 1000
 #define POPUP_ABOUT_OPENKEY 1010
@@ -100,6 +101,7 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_MACRO_TABLE, _T("Cấu hình gõ tắt...")},
 	{POPUP_SNIPPETS, _T("Mở snippet")},
 	{POPUP_CASE_BAR, _T("Đổi chữ hoa thường cho đoạn đang chọn")},
+	{POPUP_DICTIONARY, _T("Tra từ điển...")},
 	{POPUP_FEATURES, _T("Gợi ý, snippet và công cụ...")},
 	{POPUP_AI, _T("Mở trợ lý AI")},
 	{POPUP_AI_SETTINGS, _T("Cài đặt AI...")},
@@ -187,6 +189,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				break;
 			case POPUP_CASE_BAR:
 				FeatureActions::postDelayed(FeatureActions::ToggleCaseBar, 150);
+				break;
+			case POPUP_DICTIONARY:
+				FeatureActions::postDelayed(FeatureActions::OpenDictionary, 150);
 				break;
 			case POPUP_AI:
 				FeatureActions::postDelayed(FeatureActions::OpenAIAssistant, 150);
@@ -291,6 +296,7 @@ void SystemTrayHelper::createPopupMenu() {
 	AppendMenu(popupMenu, MF_SEPARATOR, 0, 0);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_SNIPPETS, menuData[POPUP_SNIPPETS]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_CASE_BAR, menuData[POPUP_CASE_BAR]);
+	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_DICTIONARY, menuData[POPUP_DICTIONARY]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_AI, menuData[POPUP_AI]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_AI_SETTINGS, menuData[POPUP_AI_SETTINGS]);
 	AppendMenu(popupMenu, MF_UNCHECKED, POPUP_FEATURES, menuData[POPUP_FEATURES]);

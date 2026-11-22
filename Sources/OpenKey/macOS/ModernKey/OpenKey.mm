@@ -20,6 +20,8 @@
 #import "SnippetPalette.h"
 #import "SnippetInserter.h"
 #import "CaseBar.h"
+#import "DictionaryPalette.h"
+#import "DictionaryService.h"
 #import "WordRestore.h"
 #import "Diagnostics.h"
 
@@ -199,6 +201,7 @@ extern "C" {
         [SnippetPalette setTypingBoundaryHandler:typingBoundary];
         [AIAssistant setTypingBoundaryHandler:typingBoundary];
         [CaseBar setTypingBoundaryHandler:typingBoundary];
+        [DictionaryPalette setTypingBoundaryHandler:typingBoundary];
         [CaseBar setBlockedCheck:^BOOL{ return OverlayHasKeyboard(); }];
 
         eventBackSpaceDown = CGEventCreateKeyboardEvent (myEventSource, 51, true);
@@ -686,7 +689,17 @@ extern "C" {
     //The windows that take the keyboard from the typing engine: the snippets and the AI assistant. While one is open the keys are
     //for it: no suggestions, no restore shortcut.
     bool OverlayHasKeyboard() {
-        return [SnippetPalette isVisible] || [AIAssistant isVisible];
+        return [SnippetPalette isVisible] || [AIAssistant isVisible] || [DictionaryPalette isVisible];
+    }
+
+    //Opens the dictionary lookup panel, or closes it when it is open. Not inside the callback.
+    void openDictionaryPalette() {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if ([DictionaryPalette isVisible])
+                [DictionaryPalette hidePalette];
+            else
+                [DictionaryPalette showPalette];
+        });
     }
 
     //Opens the list that changes the case of the selection, or closes it when it is open. Not inside the callback.
@@ -984,7 +997,8 @@ extern "C" {
             bool isRestoreKey = GET_SWITCH_KEY(vRestoreHotKey) == _keycode;
             bool isAIKey = vAIEnabled && GET_SWITCH_KEY(vAIHotKey) == _keycode;
             bool isCaseKey = GET_SWITCH_KEY(vCaseBarHotKey) == _keycode;
-            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey && !isAIKey && !isCaseKey) {
+            bool isDictKey = GET_SWITCH_KEY(vDictionaryHotKey) == _keycode;
+            if (GET_SWITCH_KEY(vSwitchKeyStatus) != _keycode && GET_SWITCH_KEY(convertToolHotKey) != _keycode && !isSnippetKey && !isRestoreKey && !isAIKey && !isCaseKey && !isDictKey) {
                 _lastFlag = 0;
             } else {
                 if (GET_SWITCH_KEY(vSwitchKeyStatus) == _keycode && checkHotKey(vSwitchKeyStatus, GET_SWITCH_KEY(vSwitchKeyStatus) != 0xFE)){
@@ -1015,6 +1029,12 @@ extern "C" {
                     _lastFlag = 0;
                     _hasJustUsedHotKey = true;
                     openCaseBar();
+                    return NULL;
+                }
+                if (isDictKey && checkHotKey(vDictionaryHotKey)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openDictionaryPalette();
                     return NULL;
                 }
                 //restore the word being typed; with nothing to restore the key goes to the application (⌥Space is a space that does not break)
@@ -1068,6 +1088,13 @@ extern "C" {
                     _lastFlag = 0;
                     _hasJustUsedHotKey = true;
                     openCaseBar();
+                    return NULL;
+                }
+                //a dictionary lookup shortcut that is made of modifiers only
+                if (GET_SWITCH_KEY(vDictionaryHotKey) == 0xFE && checkHotKey(vDictionaryHotKey, false)) {
+                    _lastFlag = 0;
+                    _hasJustUsedHotKey = true;
+                    openDictionaryPalette();
                     return NULL;
                 }
                 //a restore shortcut that is made of modifiers only

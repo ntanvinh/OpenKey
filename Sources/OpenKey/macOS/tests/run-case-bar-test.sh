@@ -18,9 +18,11 @@ clang -fobjc-arc -Wall -g -I"$MAC" -framework Foundation "$MAC/CaseTransform.m" 
 ./case_transform_test
 
 clang++ -std=c++17 -fobjc-arc -Wall -g -I"$MAC" -I"$ENGINE" -c "$MAC/SnippetInserter.mm" -o SnippetInserter.o
-clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/SnippetSearch.cpp" -o SnippetSearch.o
-clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/Suggest.cpp" -o Suggest.o
-for f in CaseTransform CaseBarPanel CaseBar AISelection CaretLocator SuggestionPanel; do
+clang++ -std=c++17 -fobjc-arc -Wall -g -I"$MAC" -I"$ENGINE" -c "$MAC/DictionaryService.mm" -o DictionaryService.o
+for f in SnippetSearch Suggest DictCatalog DictInflate DictStore MiniJson; do
+    clang++ -std=c++17 -g -Wno-deprecated-declarations -I"$ENGINE" -c "$ENGINE/$f.cpp" -o $f.o
+done
+for f in CaseTransform CaseBarPanel CaseBar DictionaryPalette AISelection CaretLocator SuggestionPanel VOKUI; do
     clang -fobjc-arc -Wall -g -I"$MAC" -c "$MAC/$f.m" -o $f.o
 done
 # can the list be read on any backdrop? contrast of the name, the key and the preview, no window
@@ -29,8 +31,9 @@ clang -framework Cocoa -framework QuartzCore CaseBarPanel.o SuggestionPanel.o ca
 ./case_bar_colors_test "${1:+$1/colors}"
 
 clang -fobjc-arc -Wall -g -I"$MAC" -c "$HERE/case_bar_test.m" -o case_bar_test.o
-clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices SnippetInserter.o SnippetSearch.o Suggest.o CaseTransform.o \
-    CaseBarPanel.o CaseBar.o AISelection.o CaretLocator.o SuggestionPanel.o case_bar_test.o -o case_bar_test
+clang++ -framework Cocoa -framework QuartzCore -framework Carbon -framework ApplicationServices SnippetInserter.o DictionaryService.o \
+    SnippetSearch.o Suggest.o DictCatalog.o DictInflate.o DictStore.o MiniJson.o \
+    CaseTransform.o CaseBarPanel.o CaseBar.o DictionaryPalette.o AISelection.o CaretLocator.o SuggestionPanel.o VOKUI.o case_bar_test.o -o case_bar_test
 nohup ./case_bar_test "${1:-}" > output.txt 2>&1 &
 TEST=$!
 for i in {1..240}; do

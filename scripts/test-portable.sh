@@ -28,6 +28,7 @@ run ai_presets_test ai_presets_test.cpp ../AIPresets.cpp ../MiniJson.cpp
 run donation_info_test donation_info_test.cpp ../MiniJson.cpp
 run ai_protocol_test ai_protocol_test.cpp ../AIProtocol.cpp ../MiniJson.cpp
 run ai_agent_test ai_agent_test.cpp ../AIAgent.cpp ../AIProtocol.cpp ../MiniJson.cpp
+run dict_test dict_test.cpp ../DictCatalog.cpp ../DictInflate.cpp ../DictStore.cpp ../MiniJson.cpp -O2
 run suggest_appearance_test suggest_appearance_test.cpp ../SuggestAppearance.cpp
 run app_exclusions_test app_exclusions_test.cpp ../AppExclusions.cpp
 run capslock_icon_test capslock_icon_test.cpp ../CapsLockIcon.cpp

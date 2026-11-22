@@ -14,6 +14,8 @@
 #include "AIAssistant.h"
 #include "AISettings.h"
 #include "AISettingsDialog.h"
+#include "DictionaryPalette.h"
+#include "DictionaryService.h"
 #include "DonationDialog.h"
 
 extern int convertToolHotKey;
@@ -50,10 +52,12 @@ std::vector<FeatureActions::HotKey> makeHotKeys() {
     FeatureActions::HotKey caseBar = {&vCaseBarHotKey, NULL, FeatureActions::ToggleCaseBar, L"đổi chữ hoa thường"};
     FeatureActions::HotKey restore = {&vRestoreHotKey, NULL, FeatureActions::RestoreWord, L"khôi phục từ đang gõ"};
     FeatureActions::HotKey ai = {&vAIHotKey, &vAIEnabled, FeatureActions::OpenAIAssistant, L"mở trợ lý AI"};
+    FeatureActions::HotKey dictionary = {&vDictionaryHotKey, NULL, FeatureActions::OpenDictionary, L"tra từ điển"};
     keys.push_back(snippets);
     keys.push_back(caseBar);
     keys.push_back(restore);
     keys.push_back(ai);
+    keys.push_back(dictionary);
     return keys;
 }
 
@@ -81,6 +85,7 @@ bool start(HINSTANCE instance) {
 }
 
 void stop() {
+    DictionaryService::stop();
     if (g_actionWindow) {
         DestroyWindow(g_actionWindow);
         g_actionWindow = NULL;
@@ -105,6 +110,7 @@ void run(Action action) {
     case OpenAIAssistant: AIAssistant::toggle(); break;
     case OpenAISettings: AISettingsDialog::show(); break;
     case OpenDonation: DonationDialog::show(); break;
+    case OpenDictionary: DictionaryPalette::toggle(); break;
     case None: break;
     }
 }
@@ -126,10 +132,11 @@ void loadSettings() {
     APP_GET_DATA(vRestoreHotKey, 0x352);
     APP_GET_DATA(vAIEnabled, 1);
     APP_GET_DATA(vAIHotKey, 0x341);
+    APP_GET_DATA(vDictionaryHotKey, VOK_DICTIONARY_DEFAULT_HOTKEY);
     APP_GET_DATA(vDonationAcknowledged, 0);
     AISettings::load();
     //a shortcut saved as 0 is "none" for the engine of macOS: here too
-    int* all[] = {&vSnippetHotKey, &vCaseBarHotKey, &vRestoreHotKey, &vAIHotKey};
+    int* all[] = {&vSnippetHotKey, &vCaseBarHotKey, &vRestoreHotKey, &vAIHotKey, &vDictionaryHotKey};
     for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++) {
         if (*all[i] == 0)
             *all[i] = (int)VOK_SHORTCUT_NONE;

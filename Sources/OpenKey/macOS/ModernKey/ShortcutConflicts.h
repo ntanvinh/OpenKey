@@ -14,7 +14,8 @@ typedef NS_ENUM(NSInteger, VOKShortcutOwner) {
     VOKShortcutOwnerSnippet,    //open the snippets
     VOKShortcutOwnerRestore,    //give back the keys of the word being typed
     VOKShortcutOwnerAI,         //open the AI assistant
-    VOKShortcutOwnerCaseBar     //open the list that changes the case of the selected text
+    VOKShortcutOwnerCaseBar,    //open the list that changes the case of the selected text
+    VOKShortcutOwnerDictionary  //open the dictionary lookup dialog
 };
 
 #ifdef __cplusplus

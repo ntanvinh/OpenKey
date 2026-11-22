@@ -8,6 +8,7 @@
 #import "CaseTransform.h"
 #import "AISelection.h"
 #import "CaretLocator.h"
+#import "DictionaryPalette.h"
 #import "SnippetInserter.h"
 #import "ShortcutRecorder.h"
 #import <Carbon/Carbon.h>
@@ -27,6 +28,7 @@ static const NSTimeInterval kAutoLifetime = 20;       //a list nobody used goes 
 static const CGFloat kDragDistance = 5;               //less than this is a click
 
 static const NSInteger kCopyStyle = -1;               //the "style" of the row that copies the selection
+static const NSInteger kTranslateStyle = -2;          //the "style" of the row that opens Dictionary lookup
 
 static CaseBarPanel* sPanel;
 static NSString* sText;                               //the whole selection
@@ -237,9 +239,11 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
     NSArray<NSDictionary*>* styles = [CaseTransform offersForText:[self headOfText:text]];
     if (styles.count == 0)
         return;
-    //the first row copies the selection as it is; the styles follow
-    NSMutableArray<NSDictionary*>* offers = [NSMutableArray arrayWithObject:
-        @{@"style": @(kCopyStyle), @"name": @"Sao chép", @"separatorAfter": @YES, @"text": [self headOfText:text]}];
+    //the first row copies the selection as it is, the second row sends it to Dictionary lookup; the styles follow
+    NSMutableArray<NSDictionary*>* offers = [NSMutableArray arrayWithObjects:
+        @{@"style": @(kCopyStyle), @"name": @"Sao chép", @"text": [self headOfText:text]},
+        @{@"style": @(kTranslateStyle), @"name": @"Tra từ điển", @"separatorAfter": @YES, @"text": [self headOfText:text]},
+        nil];
     [offers addObjectsFromArray:styles];
     if (sPanel == nil) {
         sPanel = [[CaseBarPanel alloc] init];
@@ -252,7 +256,7 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
     sExplicit = isExplicit;
     NSUInteger generation = ++sGeneration;
     [sPanel setOffers:offers];
-    sPanel.highlighted = isExplicit ? 1 : -1; //↩ applies the first style; the copy row is one ↓↑ away
+    sPanel.highlighted = isExplicit ? 2 : -1; //↩ applies the first style; Sao chép and Tra từ điển sit above it
     if (line.size.height <= 0) //the application does not say where: under the pointer
         [sPanel showNearPoint:[NSEvent mouseLocation]];
     else
@@ -279,6 +283,12 @@ static const CGKeyCode kDigitKeys[10] = {18, 19, 20, 21, 23, 22, 26, 28, 25, 29}
         NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
         [pasteboard clearContents];
         [pasteboard setString:copied forType:NSPasteboardTypeString];
+        return;
+    }
+    if (styleValue == kTranslateStyle) {
+        NSString* query = sText;
+        [self hide];
+        [DictionaryPalette showWithQuery:query];
         return;
     }
     VOKCaseStyle style = (VOKCaseStyle)styleValue;

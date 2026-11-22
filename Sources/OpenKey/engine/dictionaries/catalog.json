@@ -1,0 +1,557 @@
+{
+  "version": 1,
+  "dictionaries": [
+    {
+      "id": "en-vi-thichhoc",
+      "name": "Anh - Việt (Thích Học)",
+      "shortName": "Anh - Việt (Mới)",
+      "badge": "EN→VI",
+      "sourceLang": "en",
+      "targetLang": "vi",
+      "priority": 10,
+      "recommended": true,
+      "headwordCount": 147193,
+      "downloadBytes": 6650022,
+      "author": "thichhoc.org / Hồ Ngọc Đức (OVDP)",
+      "license": "MIT / CC BY-SA 4.0",
+      "description": "Bộ từ điển Anh - Việt hiện đại gồm 147.193 mục từ và 138.538 biến thể động từ/danh từ, trình bày rõ ràng theo phiên âm, từ loại và ví dụ.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "stardict-en-vi.zip",
+          "url": "https://github.com/thichhoc-org/thichhoc-dict/releases/download/v0.9.0/stardict-en-vi.zip",
+          "sizeBytes": 6650022
+        }
+      ]
+    },
+    {
+      "id": "vi-en-ovdp",
+      "name": "Việt - Anh (OVDP)",
+      "shortName": "Việt - Anh",
+      "badge": "VI→EN",
+      "sourceLang": "vi",
+      "targetLang": "en",
+      "priority": 20,
+      "recommended": true,
+      "headwordCount": 42155,
+      "downloadBytes": 1340852,
+      "author": "Hồ Ngọc Đức (Free Vietnamese Dictionary Project)",
+      "license": "GPL-3.0",
+      "description": "Từ điển Việt - Anh mã nguồn mở phổ biến (OVDP), gọn nhẹ, hỗ trợ tra cứu có dấu và không dấu.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_vietanh.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_vietanh.stardict.zip",
+          "sizeBytes": 1340852
+        }
+      ]
+    },
+    {
+      "id": "en-vi-ovdp",
+      "name": "Anh - Việt (OVDP Đầy đủ)",
+      "shortName": "Anh - Việt (OVDP)",
+      "badge": "EN→VI",
+      "sourceLang": "en",
+      "targetLang": "vi",
+      "priority": 30,
+      "recommended": false,
+      "headwordCount": 386600,
+      "downloadBytes": 11900047,
+      "author": "Hồ Ngọc Đức (Free Vietnamese Dictionary Project)",
+      "license": "GPL-3.0",
+      "description": "Bộ từ điển Anh - Việt kinh điển với hơn 386.600 mục từ, bao gồm thuật ngữ chuyên ngành và cụm từ.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_anhviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_anhviet.stardict.zip",
+          "sizeBytes": 11900047
+        }
+      ]
+    },
+    {
+      "id": "vi-vi-hnd",
+      "name": "Việt - Việt (Hồ Ngọc Đức)",
+      "shortName": "Việt - Việt",
+      "badge": "VI→VI",
+      "sourceLang": "vi",
+      "targetLang": "vi",
+      "priority": 40,
+      "recommended": false,
+      "headwordCount": 23798,
+      "downloadBytes": 2074811,
+      "author": "Hồ Ngọc Đức (OVDP)",
+      "license": "GPL-3.0",
+      "description": "Từ điển giải nghĩa tiếng Việt gồm 23.798 mục từ cơ bản và từ ghép tiếng Việt.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_vietviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_vietviet.stardict.zip",
+          "sizeBytes": 2074811
+        }
+      ]
+    },
+    {
+      "id": "en-en-wordnet",
+      "name": "Anh - Anh (WordNet 2.0)",
+      "shortName": "Anh - Anh",
+      "badge": "EN→EN",
+      "sourceLang": "en",
+      "targetLang": "en",
+      "priority": 50,
+      "recommended": false,
+      "headwordCount": 154559,
+      "downloadBytes": 9551856,
+      "author": "Princeton University (WordNet)",
+      "license": "WordNet License",
+      "description": "Từ điển Anh - Anh chuẩn học thuật gồm 154.559 mục từ, giải nghĩa sắc thái và từ đồng nghĩa tiếng Anh.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "WordNet2.0.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/WordNet2.0.stardict.zip",
+          "sizeBytes": 9551856
+        }
+      ]
+    },
+    {
+      "id": "ja-vi-ovdp",
+      "name": "Nhật - Việt (OVDP)",
+      "shortName": "Nhật - Việt",
+      "badge": "JA→VI",
+      "sourceLang": "ja",
+      "targetLang": "vi",
+      "priority": 60,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 13263582,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Nhật - Việt mã nguồn mở (Kanji, Hiragana, Katakana sang tiếng Việt).",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_nhatviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_nhatviet.stardict.zip",
+          "sizeBytes": 13263582
+        }
+      ]
+    },
+    {
+      "id": "vi-ja-ovdp",
+      "name": "Việt - Nhật (OVDP)",
+      "shortName": "Việt - Nhật",
+      "badge": "VI→JA",
+      "sourceLang": "vi",
+      "targetLang": "ja",
+      "priority": 70,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 885065,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Nhật mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_vietnhat.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_vietnhat.stardict.zip",
+          "sizeBytes": 885065
+        }
+      ]
+    },
+    {
+      "id": "zh-vi-ovdp",
+      "name": "Trung - Việt (OVDP)",
+      "shortName": "Trung - Việt",
+      "badge": "ZH→VI",
+      "sourceLang": "zh",
+      "targetLang": "vi",
+      "priority": 80,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 8680269,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Trung - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_trungviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_trungviet.stardict.zip",
+          "sizeBytes": 8680269
+        }
+      ]
+    },
+    {
+      "id": "vi-zh-ovdp",
+      "name": "Việt - Trung",
+      "shortName": "Việt - Trung",
+      "badge": "VI→ZH",
+      "sourceLang": "vi",
+      "targetLang": "zh",
+      "priority": 90,
+      "recommended": false,
+      "headwordCount": 19767,
+      "downloadBytes": 4195934,
+      "author": "catusf / OVDP",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Trung gồm 19.767 mục từ.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "Viet-Trung.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/Viet-Trung.stardict.zip",
+          "sizeBytes": 4195934
+        }
+      ]
+    },
+    {
+      "id": "ko-vi-ovdp",
+      "name": "Hàn - Việt (OVDP)",
+      "shortName": "Hàn - Việt",
+      "badge": "KO→VI",
+      "sourceLang": "ko",
+      "targetLang": "vi",
+      "priority": 100,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 16672455,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Hàn - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_hanviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_hanviet.stardict.zip",
+          "sizeBytes": 16672455
+        }
+      ]
+    },
+    {
+      "id": "vi-ko-ovdp",
+      "name": "Việt - Hàn (OVDP)",
+      "shortName": "Việt - Hàn",
+      "badge": "VI→KO",
+      "sourceLang": "vi",
+      "targetLang": "ko",
+      "priority": 110,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 1728370,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Hàn mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_viethan.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_viethan.stardict.zip",
+          "sizeBytes": 1728370
+        }
+      ]
+    },
+    {
+      "id": "fr-vi-ovdp",
+      "name": "Pháp - Việt (OVDP)",
+      "shortName": "Pháp - Việt",
+      "badge": "FR→VI",
+      "sourceLang": "fr",
+      "targetLang": "vi",
+      "priority": 120,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 2704806,
+      "author": "Hồ Ngọc Đức (OVDP)",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Pháp - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_phapviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_phapviet.stardict.zip",
+          "sizeBytes": 2704806
+        }
+      ]
+    },
+    {
+      "id": "vi-fr-ovdp",
+      "name": "Việt - Pháp (OVDP)",
+      "shortName": "Việt - Pháp",
+      "badge": "VI→FR",
+      "sourceLang": "vi",
+      "targetLang": "fr",
+      "priority": 130,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 1602814,
+      "author": "Hồ Ngọc Đức (OVDP)",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Pháp mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_vietphap.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_vietphap.stardict.zip",
+          "sizeBytes": 1602814
+        }
+      ]
+    },
+    {
+      "id": "de-vi-ovdp",
+      "name": "Đức - Việt (OVDP)",
+      "shortName": "Đức - Việt",
+      "badge": "DE→VI",
+      "sourceLang": "de",
+      "targetLang": "vi",
+      "priority": 140,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 3540364,
+      "author": "Hồ Ngọc Đức (OVDP)",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Đức - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_ducviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_ducviet.stardict.zip",
+          "sizeBytes": 3540364
+        }
+      ]
+    },
+    {
+      "id": "vi-de-ovdp",
+      "name": "Việt - Đức (OVDP)",
+      "shortName": "Việt - Đức",
+      "badge": "VI→DE",
+      "sourceLang": "vi",
+      "targetLang": "de",
+      "priority": 150,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 369710,
+      "author": "Hồ Ngọc Đức (OVDP)",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Đức mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_vietduc.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_vietduc.stardict.zip",
+          "sizeBytes": 369710
+        }
+      ]
+    },
+    {
+      "id": "ru-vi-ovdp",
+      "name": "Nga - Việt (OVDP)",
+      "shortName": "Nga - Việt",
+      "badge": "RU→VI",
+      "sourceLang": "ru",
+      "targetLang": "vi",
+      "priority": 160,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 2423349,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Nga - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_ngaviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_ngaviet.stardict.zip",
+          "sizeBytes": 2423349
+        }
+      ]
+    },
+    {
+      "id": "vi-ru-ovdp",
+      "name": "Việt - Nga (OVDP)",
+      "shortName": "Việt - Nga",
+      "badge": "VI→RU",
+      "sourceLang": "vi",
+      "targetLang": "ru",
+      "priority": 170,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 929204,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Nga mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_vietnga.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_vietnga.stardict.zip",
+          "sizeBytes": 929204
+        }
+      ]
+    },
+    {
+      "id": "es-vi-ovdp",
+      "name": "Tây Ban Nha - Việt (OVDP)",
+      "shortName": "TBN - Việt",
+      "badge": "ES→VI",
+      "sourceLang": "es",
+      "targetLang": "vi",
+      "priority": 180,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 1823661,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Tây Ban Nha - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_tbnviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_tbnviet.stardict.zip",
+          "sizeBytes": 1823661
+        }
+      ]
+    },
+    {
+      "id": "vi-es-ovdp",
+      "name": "Việt - Tây Ban Nha (OVDP)",
+      "shortName": "Việt - TBN",
+      "badge": "VI→ES",
+      "sourceLang": "vi",
+      "targetLang": "es",
+      "priority": 190,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 578740,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Việt - Tây Ban Nha mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_viettbn.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_viettbn.stardict.zip",
+          "sizeBytes": 578740
+        }
+      ]
+    },
+    {
+      "id": "han-vi-thieuchuu",
+      "name": "Hán - Việt (Thiều Chửu)",
+      "shortName": "Hán - Việt",
+      "badge": "HÁN→VI",
+      "sourceLang": "lzh",
+      "targetLang": "vi",
+      "priority": 200,
+      "recommended": false,
+      "headwordCount": 9897,
+      "downloadBytes": 756208,
+      "author": "Thiều Chửu / catusf",
+      "license": "CC0 / Public Domain",
+      "description": "Hán - Việt Tự Điển kinh điển của học giả Thiều Chửu.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "TudienThienChuu.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/TudienThienChuu.stardict.zip",
+          "sizeBytes": 756208
+        }
+      ]
+    },
+    {
+      "id": "it-vi-ovdp",
+      "name": "Ý - Việt (OVDP)",
+      "shortName": "Ý - Việt",
+      "badge": "IT→VI",
+      "sourceLang": "it",
+      "targetLang": "vi",
+      "priority": 210,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 8194375,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Ý - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_yviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_yviet.stardict.zip",
+          "sizeBytes": 8194375
+        }
+      ]
+    },
+    {
+      "id": "cs-vi-ovdp",
+      "name": "Séc - Việt (OVDP)",
+      "shortName": "Séc - Việt",
+      "badge": "CS→VI",
+      "sourceLang": "cs",
+      "targetLang": "vi",
+      "priority": 220,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 4582242,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Séc - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_secviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_secviet.stardict.zip",
+          "sizeBytes": 4582242
+        }
+      ]
+    },
+    {
+      "id": "nb-vi-ovdp",
+      "name": "Na Uy - Việt (OVDP)",
+      "shortName": "Na Uy - Việt",
+      "badge": "NB→VI",
+      "sourceLang": "nb",
+      "targetLang": "vi",
+      "priority": 230,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 1476832,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Na Uy - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_nauyviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_nauyviet.stardict.zip",
+          "sizeBytes": 1476832
+        }
+      ]
+    },
+    {
+      "id": "pt-vi-ovdp",
+      "name": "Bồ Đào Nha - Việt (OVDP)",
+      "shortName": "BĐN - Việt",
+      "badge": "PT→VI",
+      "sourceLang": "pt",
+      "targetLang": "vi",
+      "priority": 240,
+      "recommended": false,
+      "headwordCount": 0,
+      "downloadBytes": 1904758,
+      "author": "OVDP / catusf",
+      "license": "GPL-3.0",
+      "description": "Từ điển tiếng Bồ Đào Nha - Việt mã nguồn mở.",
+      "format": "stardict-zip",
+      "files": [
+        {
+          "name": "star_bdnviet.stardict.zip",
+          "url": "https://github.com/catusf/tudien/releases/download/v4.4/star_bdnviet.stardict.zip",
+          "sizeBytes": 1904758
+        }
+      ]
+    }
+  ]
+}

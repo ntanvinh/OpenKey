@@ -14,3 +14,4 @@
 #define IDR_MACRO_PRESETS       2005  //engine/dictionaries/vi-macros.txt
 #define IDR_AI_PRESETS          2006  //engine/ai/ai-presets.json
 #define IDB_DONATION_QR         2007  //engine/donation/donation-qr.bmp (a BITMAP resource, not RCDATA)
+#define IDR_DICT_CATALOG        2008  //engine/dictionaries/catalog.json

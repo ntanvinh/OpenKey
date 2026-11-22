@@ -13,6 +13,8 @@
 #include "../../../engine/MacroPresets.h"
 #include "ShortcutField.h"
 #include "AISettingsDialog.h"
+#include "DictionaryPalette.h"
+#include "DictionaryService.h"
 #include "DonationDialog.h"
 #include "SnippetEditor.h"
 #include "SnippetService.h"
@@ -34,7 +36,8 @@ enum {
     kIdAISettings = 365,
     kIdMacroPresets = 366,
     kIdDonate = 367,
-    kIdSuggestionOptions = 368
+    kIdSuggestionOptions = 368,
+    kIdDictionaryManager = 369
 };
 
 struct CheckSpec {
@@ -68,6 +71,7 @@ const ShortcutSpec kShortcuts[] = {
     {L"Phím tắt mở snippet", &vSnippetHotKey, L"vSnippetHotKey"},
     {L"Phím tắt đổi chữ hoa thường cho đoạn đang chọn", &vCaseBarHotKey, L"vCaseBarHotKey"},
     {L"Phím tắt khôi phục từ đang gõ", &vRestoreHotKey, L"vRestoreHotKey"},
+    {L"Phím tắt tra từ điển", &vDictionaryHotKey, L"vDictionaryHotKey"},
 };
 const int kShortcutCount = sizeof(kShortcuts) / sizeof(kShortcuts[0]);
 
@@ -169,9 +173,9 @@ void build() {
     g_aiShortcut = control(L"EDIT", L"", WS_TABSTOP | ES_READONLY | ES_CENTER, width - fieldWidth - px(16), y, fieldWidth, px(28), kIdShortcutFirst + 6, WS_EX_CLIENTEDGE);
     ShortcutField::attach(g_aiShortcut, &vAIHotKey, L"vAIHotKey", setStatus);
     y += px(36);
-    control(L"BUTTON", L"Cài đặt AI...", WS_TABSTOP | BS_PUSHBUTTON, px(24), y, px(170), px(28), kIdAISettings);
-    //on the same row: the window is as high as a small screen allows already
-    control(L"BUTTON", L"Ủng hộ VOpenKey AI...", WS_TABSTOP | BS_PUSHBUTTON, px(24) + px(170) + px(8), y, px(200), px(28), kIdDonate);
+    control(L"BUTTON", L"Cài đặt AI...", WS_TABSTOP | BS_PUSHBUTTON, px(24), y, px(160), px(28), kIdAISettings);
+    control(L"BUTTON", L"Quản lý bộ từ điển...", WS_TABSTOP | BS_PUSHBUTTON, px(192), y, px(176), px(28), kIdDictionaryManager);
+    control(L"BUTTON", L"Ủng hộ VOpenKey AI...", WS_TABSTOP | BS_PUSHBUTTON, px(376), y, px(196), px(28), kIdDonate);
     y += px(40);
     //the check box of a setting that is the last of the list (snippet) is built above, the one of macros sits with the bar
     g_status = control(L"STATIC", L"", 0, px(16), y + px(4), width - px(32), px(40), kIdStatus);
@@ -256,6 +260,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             addMacroPresets();
         } else if (id == kIdAISettings) {
             AISettingsDialog::show();
+        } else if (id == kIdDictionaryManager) {
+            DictionaryPalette::showManager();
         } else if (id == kIdSnippetEditor) {
             SnippetEditor::show();
         } else if (id == kIdDonate) {

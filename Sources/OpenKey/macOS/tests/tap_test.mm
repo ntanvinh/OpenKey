@@ -16,6 +16,8 @@
 #import "AIAssistant.h"
 #import "CaseBar.h"
 #import "CaseBarPanel.h"
+#import "DictionaryPalette.h"
+#import "DictionaryService.h"
 #import "AISettings.h"
 #import "ShortcutConflicts.h"
 #import "SnippetPalette.h"
@@ -447,7 +449,22 @@ static void runCaseBarTests() {
     CHECK([VOKShortcutConflict(VOK_CASEBAR_DEFAULT_HOTKEY, VOKShortcutOwnerAI) isEqualToString:@"Đổi chữ hoa/thường"]);
     CHECK(VOKShortcutConflict(VOK_CASEBAR_DEFAULT_HOTKEY, VOKShortcutOwnerCaseBar) == nil);
     CHECK([VOKShortcutConflict(VOK_AI_DEFAULT_HOTKEY, VOKShortcutOwnerCaseBar) isEqualToString:@"Mở trợ lý AI"]);
+    CHECK([VOKShortcutConflict(VOK_DICTIONARY_DEFAULT_HOTKEY, VOKShortcutOwnerCaseBar) isEqualToString:@"Tra từ điển"]);
+    CHECK(VOKShortcutConflict(VOK_DICTIONARY_DEFAULT_HOTKEY, VOKShortcutOwnerDictionary) == nil);
     method_setImplementation(toggle, original);
+
+    //dictionary shortcut (⌃⌥D) swallows the key and opens DictionaryPalette
+    static int sDictOpens = 0;
+    sDictOpens = 0;
+    Method dictShow = class_getClassMethod([DictionaryPalette class], @selector(showPalette));
+    IMP origDictShow = method_getImplementation(dictShow);
+    method_setImplementation(dictShow, imp_implementationWithBlock(^(id self){ sDictOpens++; }));
+    newWord();
+    passed = sendKey(kVK_ANSI_D, kCGEventFlagMaskControl | kCGEventFlagMaskAlternate, 'd');
+    CHECK(!passed);
+    Spin(0.1);
+    CHECK(sDictOpens == 1);
+    method_setImplementation(dictShow, origDictShow);
 
     //with the list up, ⌥1 chooses, and the key is not the application's (nor its key up)
     __block NSString* pasted = nil;
@@ -461,7 +478,7 @@ static void runCaseBarTests() {
     [CaseBar presentText:@"xin chào" application:other explicit:NO anchor:NSMakeRect(100, 100, 0, 18)];
     [[CaseBar panel] setFrameOrigin:NSMakePoint(-30000, -30000)];
     CHECK([CaseBar isVisible]);
-    passed = sendKey(kVK_ANSI_1, kCGEventFlagMaskAlternate, '1');
+    passed = sendKey(kVK_ANSI_3, kCGEventFlagMaskAlternate, '3');
     CHECK(!passed);
     CHECK([pasted isEqualToString:@"XIN CHÀO"]);
     CHECK(![CaseBar isVisible]);
@@ -808,6 +825,7 @@ int main() {
         vAIHotKey = VOK_AI_DEFAULT_HOTKEY;
         vCaseBarHotKey = VOK_CASEBAR_DEFAULT_HOTKEY;
         vCaseBarAuto = 1;
+        vDictionaryHotKey = VOK_DICTIONARY_DEFAULT_HOTKEY;
 
         vFixRecommendBrowser = 0;
         runTypingTests("typing");

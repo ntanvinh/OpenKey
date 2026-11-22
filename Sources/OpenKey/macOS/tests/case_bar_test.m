@@ -8,6 +8,7 @@
 #import <Cocoa/Cocoa.h>
 #import "CaseBar.h"
 #import "CaseBarPanel.h"
+#import "DictionaryPalette.h"
 
 static int failures = 0;
 #define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL line %d: ", __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
@@ -104,22 +105,22 @@ int main(int argc, const char* argv[]) {
         CHECK(![CaseBar keyDown:18 flags:opt], "⌥1 with no list is the application's");
         CHECK(![CaseBar keyDown:126 flags:0], "arrow with no list");
 
-        //the list opened by the shortcut: ⌥digits
+        //the list opened by the shortcut: ⌥1 Sao chép, ⌥2 Tra từ điển, ⌥3+ styles
         Present(@"xin chào thế giới", YES);
         CHECK([CaseBar isVisible], "visible after present");
         CHECK(boundaries == 1, "boundary on open: %d", boundaries);
-        CHECK(Key(19, opt), "⌥2 taken");
+        CHECK(Key(20, opt), "⌥3 taken");
         CHECK(![CaseBar isVisible], "hidden after a choice");
-        CHECK([sPasted isEqualToString:@"XIN CHÀO THẾ GIỚI"], "⌥2 pastes upper: %s", sPasted.UTF8String);
+        CHECK([sPasted isEqualToString:@"XIN CHÀO THẾ GIỚI"], "⌥3 pastes upper: %s", sPasted.UTF8String);
         CHECK(boundaries == 2, "boundary on close: %d", boundaries);
 
         Present(@"xin chào thế giới", YES);
-        //rows: CHỮ HOA, Viết Hoa Từng Từ, Viết hoa đầu câu (chữ thường is the text itself: no row), camelCase...
-        CHECK(Key(20, opt), "⌥3 taken");
-        CHECK([sPasted isEqualToString:@"Xin Chào Thế Giới"], "⌥3 pastes title: %s", sPasted.UTF8String);
-        Present(@"xin chào thế giới", YES);
+        //rows: CHỮ HOA, Viết Hoa Từng Từ, Viết hoa đầu câu...
         CHECK(Key(21, opt), "⌥4 taken");
-        CHECK([sPasted isEqualToString:@"Xin chào thế giới"], "⌥4 pastes sentence case: %s", sPasted.UTF8String);
+        CHECK([sPasted isEqualToString:@"Xin Chào Thế Giới"], "⌥4 pastes title: %s", sPasted.UTF8String);
+        Present(@"xin chào thế giới", YES);
+        CHECK(Key(23, opt), "⌥5 taken");
+        CHECK([sPasted isEqualToString:@"Xin chào thế giới"], "⌥5 pastes sentence case: %s", sPasted.UTF8String);
 
         //⌥1 is the copy row: the selection goes to the clipboard as it is, nothing is pasted
         sPasted = nil;
@@ -129,19 +130,29 @@ int main(int argc, const char* argv[]) {
         CHECK(![CaseBar isVisible] && sPasted == nil, "copy pastes nothing");
         CHECK([[[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString] isEqualToString:@"xin chào thế giới"], "copy fills the clipboard");
 
-        //↑ ↓ ↩ Esc in the list opened by the shortcut
+        //⌥2 is the Tra từ điển row: opens DictionaryPalette with the selection, nothing is pasted
         sPasted = nil;
         Present(@"xin chào thế giới", YES);
-        CHECK(Key(125, 0), "down taken");   //row 0 is lit at the start: now row 1
-        CHECK(Key(125, 0), "down taken 2"); //row 2
+        CHECK(Key(19, opt), "⌥2 taken");
+        CHECK(![CaseBar isVisible] && sPasted == nil, "translate pastes nothing");
+        CHECK([DictionaryPalette isVisible], "translate opens DictionaryPalette");
+        CHECK([[[DictionaryPalette shared] searchField].stringValue isEqualToString:@"xin chào thế giới"], "translate fills query");
+        [DictionaryPalette hidePalette];
+
+        //↑ ↓ ↩ Esc in the list opened by the shortcut (starts highlighted on row 2 = first case style)
+        sPasted = nil;
+        Present(@"xin chào thế giới", YES);
+        CHECK(Key(125, 0), "down taken");   //row 2 -> row 3
+        CHECK(Key(125, 0), "down taken 2"); //row 3 -> row 4
         CHECK(Key(36, 0), "return taken");
         CHECK(sPasted != nil, "return pastes the lit row: %s", sPasted.UTF8String);
-        NSString* thirdRow = sPasted;
+        NSString* fourthRow = sPasted;
         Present(@"xin chào thế giới", YES);
-        CHECK(Key(126, 0), "up taken");     //the copy row
-        CHECK(Key(126, 0), "up taken 2");   //wraps to the last row
+        CHECK(Key(126, 0), "up taken");     //row 1 (Tra từ điển)
+        CHECK(Key(126, 0), "up taken 2");   //row 0 (Sao chép)
+        CHECK(Key(126, 0), "up taken 3");   //wraps to the last row
         CHECK(Key(76, 0), "enter (keypad) taken");
-        CHECK(sPasted != nil && ![sPasted isEqualToString:thirdRow], "up wraps to the last row: %s", sPasted.UTF8String);
+        CHECK(sPasted != nil && ![sPasted isEqualToString:fourthRow], "up wraps to the last row: %s", sPasted.UTF8String);
         sPasted = nil;
         Present(@"xin chào thế giới", YES);
         CHECK(Key(53, 0), "Esc taken when opened by the shortcut");
@@ -192,7 +203,7 @@ int main(int argc, const char* argv[]) {
         CHECK([CaseBar isVisible], "show() found the selection");
         CHECK(sReaderAllowCopy, "the shortcut may use ⌘C");
         Park();
-        CHECK(Key(19, opt) && [sPasted isEqualToString:@"HELLO WORLD"], "pasted %s", sPasted.UTF8String);
+        CHECK(Key(20, opt) && [sPasted isEqualToString:@"HELLO WORLD"], "pasted %s", sPasted.UTF8String);
 
         //by itself: after a drag
         sSelection = @"xin chào";
@@ -279,7 +290,7 @@ int main(int argc, const char* argv[]) {
         NSMutableString* big = [NSMutableString string];
         for (int i = 0; i < 3000; i++) [big appendString:@"xin chào "];
         Present(big, YES);
-        CHECK(Key(19, opt), "choose on a long text");
+        CHECK(Key(20, opt), "choose on a long text");
         CHECK(sPasted.length == big.length && [sPasted hasPrefix:@"XIN CHÀO XIN CHÀO"] && [sPasted hasSuffix:@"CHÀO "], "the whole text is changed: %lu of %lu", (unsigned long)sPasted.length, (unsigned long)big.length);
         //too long to be a thing for this list
         NSMutableString* huge = [NSMutableString stringWithString:@"a"];
@@ -294,11 +305,11 @@ int main(int argc, const char* argv[]) {
         Present(@"xin chào thế giới", YES);
         CaseBarPanel* panel = [CaseBar panel];
         CGFloat height = panel.frame.size.height;
-        CGFloat rowY = height - (5 + 26 * 1 + 13); //second row, from the bottom
+        CGFloat rowY = height - (5 + 26 * 2 + 13); //third row from the top (first case style)
         NSEvent* down = [NSEvent mouseEventWithType:NSEventTypeLeftMouseDown location:NSMakePoint(80, rowY) modifierFlags:0 timestamp:0
                                        windowNumber:panel.windowNumber context:nil eventNumber:0 clickCount:1 pressure:1];
         [panel sendEvent:down];
-        CHECK(panel.highlighted == 1, "pressing on a row lights it: %ld", (long)panel.highlighted);
+        CHECK(panel.highlighted == 2, "pressing on a row lights it: %ld", (long)panel.highlighted);
         NSEvent* up = [NSEvent mouseEventWithType:NSEventTypeLeftMouseUp location:NSMakePoint(80, rowY) modifierFlags:0 timestamp:0
                                      windowNumber:panel.windowNumber context:nil eventNumber:0 clickCount:1 pressure:0];
         [panel sendEvent:up];

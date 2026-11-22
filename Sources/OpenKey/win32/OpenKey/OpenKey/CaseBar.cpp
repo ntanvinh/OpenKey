@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "CaseBar.h"
 #include "CaseTransformWindows.h"
+#include "DictionaryPalette.h"
 #include "FeatureTheme.h"
 #include "SuggestionController.h"
 #include "TextInserter.h"
@@ -37,6 +38,7 @@ const int kWidth = 420;
 const int kPadding = 6;
 const int kRowHeight = 42;
 const int kRowGap = 2;
+const int kSepGap = 7;
 const int kRowRadius = 6;
 const int kMessageHeight = 56;
 
@@ -48,10 +50,20 @@ const UINT kMouseWaitMs = 150;             //the program updates its selection a
 const UINT kKeyWaitMs = 350;               //Shift+arrow repeats: wait until the selection stopped moving
 const UINT kAutoLifetimeMs = 20000;        //a list nobody used goes away by itself
 
+enum class RowKind { Copy, Translate, Style };
+
+struct CaseRow {
+    RowKind kind;
+    bool separatorAfter;
+    std::wstring name;
+    std::u16string preview;
+    vcase::Style style;
+};
+
 HWND g_window = NULL;
 HWND g_target = NULL;
 std::u16string g_text;                  //the whole selection
-std::vector<vcase::Offer> g_offers;     //computed on the start of it
+std::vector<CaseRow> g_rows;            //Copy, Tra tu dien, then case styles
 int g_chosen = 0;
 bool g_message = false;                 //the window shows a message instead of rows
 std::wstring g_messageText;
@@ -111,13 +123,23 @@ void makeFonts() {
     g_hintFont = FeatureTheme::font(8, g_dpi);
 }
 
+int rowTopY(size_t index) {
+    int y = px(kPadding);
+    for (size_t i = 0; i < index; i++) {
+        y += px(kRowHeight) + px(kRowGap);
+        if (g_rows[i].separatorAfter)
+            y += px(kSepGap);
+    }
+    return y;
+}
+
 int rowAt(int y) {
-    int top = px(kPadding);
-    int step = px(kRowHeight) + px(kRowGap);
-    if (y < top)
-        return -1;
-    int row = (y - top) / step;
-    return row < (int)g_offers.size() && (y - top) % step < px(kRowHeight) ? row : -1;
+    for (size_t i = 0; i < g_rows.size(); i++) {
+        int top = rowTopY(i);
+        if (y >= top && y < top + px(kRowHeight))
+            return (int)i;
+    }
+    return -1;
 }
 
 void paint(HWND window) {
@@ -150,7 +172,7 @@ void paint(HWND window) {
     }
 
     int y = px(kPadding);
-    for (size_t i = 0; i < g_offers.size(); i++) {
+    for (size_t i = 0; i < g_rows.size(); i++) {
         bool chosen = (int)i == g_chosen;
         RECT row = {px(kPadding), y, client.right - px(kPadding), y + px(kRowHeight)};
         if (chosen) {
@@ -174,16 +196,25 @@ void paint(HWND window) {
         RECT name = {row.left + px(10), row.top + px(4), hint.left - px(6), row.top + px(22)};
         SelectObject(dc, g_nameFont);
         SetTextColor(dc, main);
-        std::wstring nameText = utf8ToWideString(g_offers[i].name);
-        DrawTextW(dc, nameText.c_str(), (int)nameText.size(), &name, DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
+        DrawTextW(dc, g_rows[i].name.c_str(), (int)g_rows[i].name.size(), &name, DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
 
         RECT preview = {row.left + px(10), row.top + px(22), hint.left - px(6), row.bottom - px(3)};
         SelectObject(dc, g_smallFont);
         SetTextColor(dc, quiet);
-        std::wstring previewText = previewOf(g_offers[i].text);
+        std::wstring previewText = previewOf(g_rows[i].preview);
         DrawTextW(dc, previewText.c_str(), (int)previewText.size(), &preview, DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
         SelectObject(dc, old);
         y += px(kRowHeight) + px(kRowGap);
+        if (g_rows[i].separatorAfter) {
+            int sepY = y + px(3);
+            HPEN sepPen = CreatePen(PS_SOLID, 1, theme.border);
+            HGDIOBJ oldPen = SelectObject(dc, sepPen);
+            MoveToEx(dc, px(14), sepY, NULL);
+            LineTo(dc, client.right - px(14), sepY);
+            SelectObject(dc, oldPen);
+            DeleteObject(sepPen);
+            y += px(kSepGap);
+        }
     }
     EndPaint(window, &ps);
 }
@@ -206,14 +237,38 @@ void pasteChosen() {
 }
 
 void choose(int row) {
-    if (g_message || row < 0 || (size_t)row >= g_offers.size())
+    if (g_message || row < 0 || (size_t)row >= g_rows.size())
         return;
-    vcase::Style style = g_offers[(size_t)row].style;
+    CaseRow selectedRow = g_rows[(size_t)row];
     std::u16string text = g_text;
     g_pasteTarget = g_target;
     CaseBar::hide();
+    if (selectedRow.kind == RowKind::Copy) {
+        std::wstring copied = CaseTransformWindows::toWide(text);
+        if (OpenClipboard(g_pasteTarget)) {
+            EmptyClipboard();
+            size_t bytes = (copied.size() + 1) * sizeof(wchar_t);
+            HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, bytes);
+            if (mem) {
+                void* ptr = GlobalLock(mem);
+                if (ptr) {
+                    memcpy(ptr, copied.c_str(), bytes);
+                    GlobalUnlock(mem);
+                    SetClipboardData(CF_UNICODETEXT, mem);
+                } else {
+                    GlobalFree(mem);
+                }
+            }
+            CloseClipboard();
+        }
+        return;
+    }
+    if (selectedRow.kind == RowKind::Translate) {
+        DictionaryPalette::showWithText(text);
+        return;
+    }
     //the selection is still selected in the program, pasting replaces it
-    g_pasteText = CaseTransformWindows::toWide(vcase::apply(CaseTransformWindows::unicode(), style, text));
+    g_pasteText = CaseTransformWindows::toWide(vcase::apply(CaseTransformWindows::unicode(), selectedRow.style, text));
     TextInserter::runWhenKeysReleased(pasteChosen);
 }
 
@@ -275,8 +330,11 @@ bool create() {
 void present(const RECT& line) {
     g_dpi = FeatureTheme::dpi();
     makeFonts();
-    int height = g_message ? px(kMessageHeight)
-                           : px(kPadding) * 2 + (int)g_offers.size() * px(kRowHeight) + ((int)g_offers.size() - 1) * px(kRowGap);
+    int contentH = px(kPadding) * 2 + (int)g_rows.size() * px(kRowHeight) + (g_rows.empty() ? 0 : ((int)g_rows.size() - 1) * px(kRowGap));
+    for (size_t i = 0; i < g_rows.size(); i++) {
+        if (g_rows[i].separatorAfter) contentH += px(kSepGap);
+    }
+    int height = g_message ? px(kMessageHeight) : contentH;
     int width = px(kWidth);
 
     POINT corner = {line.left, line.bottom};
@@ -299,7 +357,7 @@ void present(const RECT& line) {
 void showMessage(const wchar_t* text, const RECT& line) {
     g_message = true;
     g_messageText = text;
-    g_offers.clear();
+    g_rows.clear();
     present(line);
     SetTimer(g_window, kTimerHide, kEmptyHideMs, NULL);
 }
@@ -322,17 +380,43 @@ bool buildOffers(const RECT& line, bool announce) {
     std::u16string start = g_text.substr(0, kPreviewLength);
     if (start.size() == kPreviewLength && start[start.size() - 1] >= 0xD800 && start[start.size() - 1] <= 0xDBFF)
         start.resize(start.size() - 1);
-    g_offers = vcase::offersForText(CaseTransformWindows::unicode(), start);
-    if (g_offers.size() > 10)
-        g_offers.resize(10);
-    if (g_offers.empty()) {
+    std::vector<vcase::Offer> offers = vcase::offersForText(CaseTransformWindows::unicode(), start);
+    if (offers.size() > 8)
+        offers.resize(8);
+    if (offers.empty()) {
         if (announce)
             showMessage(L"Đoạn chữ này không có gì để đổi hoa thường.", line);
         return false;
     }
+    std::u16string headPreview = g_text.substr(0, kPreviewChars * 4);
+    g_rows.clear();
+    CaseRow copyRow;
+    copyRow.kind = RowKind::Copy;
+    copyRow.separatorAfter = false;
+    copyRow.name = L"Sao chép";
+    copyRow.preview = headPreview;
+    copyRow.style = offers[0].style;
+    g_rows.push_back(copyRow);
+
+    CaseRow translateRow;
+    translateRow.kind = RowKind::Translate;
+    translateRow.separatorAfter = true;
+    translateRow.name = L"Tra từ điển";
+    translateRow.preview = headPreview;
+    translateRow.style = offers[0].style;
+    g_rows.push_back(translateRow);
+
     //the previews show the start of the whole selection, not of the part the rows were chosen on
-    for (size_t i = 0; i < g_offers.size(); i++)
-        g_offers[i].text = vcase::apply(CaseTransformWindows::unicode(), g_offers[i].style, g_text.substr(0, kPreviewChars * 4));
+    for (size_t i = 0; i < offers.size(); i++) {
+        std::u16string preview = vcase::apply(CaseTransformWindows::unicode(), offers[i].style, g_text.substr(0, kPreviewChars * 4));
+        CaseRow r;
+        r.kind = RowKind::Style;
+        r.separatorAfter = false;
+        r.name = utf8ToWideString(offers[i].name);
+        r.preview = preview;
+        r.style = offers[i].style;
+        g_rows.push_back(r);
+    }
     return true;
 }
 
@@ -361,7 +445,7 @@ void openAfterRelease() {
         return;
     g_explicit = true;
     g_message = false;
-    g_chosen = 0;
+    g_chosen = g_rows.size() > 2 ? 2 : 0;
     present(line);
 }
 
@@ -560,7 +644,7 @@ void hide() {
     KillTimer(g_window, kTimerHide);
     KillTimer(g_window, kTimerLook);
     ShowWindow(g_window, SW_HIDE);
-    g_offers.clear();
+    g_rows.clear();
     g_text.clear();
 }
 
@@ -571,7 +655,7 @@ void toggle() {
         } else {
             //the list came up by itself: the shortcut hands it the keys (arrows, Enter, Esc)
             g_explicit = true;
-            g_chosen = 0;
+            g_chosen = g_rows.size() > 2 ? 2 : 0;
             KillTimer(g_window, kTimerHide);
             InvalidateRect(g_window, NULL, FALSE);
         }
@@ -597,7 +681,7 @@ bool keyDown(unsigned virtualKey, bool alt, bool control, bool shift, bool win) 
         if (!alt) {
             if (g_explicit) {
                 if (virtualKey == VK_DOWN || virtualKey == VK_UP) {
-                    int count = (int)g_offers.size();
+                    int count = (int)g_rows.size();
                     g_chosen = (g_chosen + (virtualKey == VK_DOWN ? 1 : count - 1)) % count;
                     InvalidateRect(g_window, NULL, FALSE);
                     return true;
@@ -613,7 +697,7 @@ bool keyDown(unsigned virtualKey, bool alt, bool control, bool shift, bool win) 
             }
         } else if (virtualKey >= '0' && virtualKey <= '9') {
             int row = virtualKey == '0' ? 9 : (int)(virtualKey - '1');
-            if ((size_t)row < g_offers.size()) {
+            if ((size_t)row < g_rows.size()) {
                 PostMessageW(g_window, kMessageChoose, (WPARAM)row, 0);
                 return true;
             }

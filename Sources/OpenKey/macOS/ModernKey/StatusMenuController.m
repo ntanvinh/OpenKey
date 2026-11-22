@@ -12,6 +12,8 @@
 #import "CapsLockMonitor.h"
 #import "CapsLockToast.h"
 #import "CaseBar.h"
+#import "DictionaryPalette.h"
+#import "DictionaryService.h"
 #import "Donation.h"
 #import "OpenKeyManager.h"
 #import "SecureInputMonitor.h"
@@ -73,6 +75,7 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     NSMenuItem* _snippetItem;
     NSMenuItem* _aiItem;
     NSMenuItem* _caseItem;
+    NSMenuItem* _dictionaryItem;
     NSMenuItem* _donateItem;
     NSArray<NSMenuItem*>* _inputTypeItems;
     NSArray<NSMenuItem*>* _codeTableItems;
@@ -160,6 +163,8 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     [_menu addItem:_aiItem];
     _caseItem = MakeItem(@"Đổi chữ hoa/thường…", @"textformat.abc", self, @selector(openCaseBar:));
     [_menu addItem:_caseItem];
+    _dictionaryItem = MakeItem(@"Tra từ điển…", @"book.closed", self, @selector(openDictionary:));
+    [_menu addItem:_dictionaryItem];
     [_menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem* settings = MakeItem(@"Cài đặt…", @"gearshape", self, @selector(openSettings:));
@@ -242,6 +247,9 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
     BOOL caseShortcut = !VOKShortcutIsEmpty(vCaseBarHotKey);
     _caseItem.keyEquivalent = caseShortcut ? VOKShortcutKeyEquivalent(vCaseBarHotKey) : @"";
     _caseItem.keyEquivalentModifierMask = caseShortcut ? VOKShortcutModifierMask(vCaseBarHotKey) : 0;
+    BOOL dictShortcut = !VOKShortcutIsEmpty(vDictionaryHotKey);
+    _dictionaryItem.keyEquivalent = dictShortcut ? VOKShortcutKeyEquivalent(vDictionaryHotKey) : @"";
+    _dictionaryItem.keyEquivalentModifierMask = dictShortcut ? VOKShortcutModifierMask(vDictionaryHotKey) : 0;
     if (@available(macOS 14.4, *)) {
         //what is selected, written under the name of the submenu
         _inputTypeParent.subtitle = inputType >= 0 && inputType < (NSInteger)InputTypeNames().count ? InputTypeNames()[inputType] : nil;
@@ -343,6 +351,10 @@ static NSMenuItem* MakeItem(NSString* title, NSString* symbol, id target, SEL ac
 
 -(void)openCaseBar:(id)sender {
     [CaseBar show];
+}
+
+-(void)openDictionary:(id)sender {
+    [DictionaryPalette showPalette];
 }
 
 -(void)openSettings:(id)sender {

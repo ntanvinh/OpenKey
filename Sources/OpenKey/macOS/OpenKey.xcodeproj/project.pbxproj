@@ -100,6 +100,13 @@
 		5EC0DE3020261016001C /* AILocalSetup.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016001B /* AILocalSetup.m */; };
 		5EC0DE30202610160020 /* AILocalSetupController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3020261016001F /* AILocalSetupController.m */; };
 		5EC0DE30202610160022 /* local-models.json in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE30202610160021 /* local-models.json */; };
+		5EC0DE32202611220002 /* DictCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220001 /* DictCatalog.cpp */; };
+		5EC0DE32202611220005 /* DictInflate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220004 /* DictInflate.cpp */; };
+		5EC0DE32202611220008 /* DictStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220007 /* DictStore.cpp */; };
+		5EC0DE3220261122000B /* DictionaryService.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3220261122000A /* DictionaryService.mm */; };
+		5EC0DE3220261122000E /* DictionaryPalette.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE3220261122000D /* DictionaryPalette.m */; };
+		5EC0DE32202611220011 /* catalog.json in Resources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220010 /* catalog.json */; };
+		5EC0DE32202611220013 /* MiniJson.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE32202611220012 /* MiniJson.cpp */; };
 		5EC0DE30202610170001 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23A984BE220ED07E000914A2 /* IOKit.framework */; };
 		5EC0DE40202610190012 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EC0DE40202610190011 /* QuartzCore.framework */; };
 		5EC0DE31202610180004 /* AILocalControl.m in Sources */ = {isa = PBXBuildFile; fileRef = 5EC0DE31202610180003 /* AILocalControl.m */; };
@@ -306,6 +313,19 @@
 		5EC0DE30202610160021 /* local-models.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = local-models.json; path = ai/local-models.json; sourceTree = "<group>"; };
 		5EC0DE31202610180001 /* AILocalControl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AILocalControl.h; sourceTree = "<group>"; };
 		5EC0DE31202610180003 /* AILocalControl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AILocalControl.m; sourceTree = "<group>"; };
+		5EC0DE32202611220001 /* DictCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DictCatalog.cpp; sourceTree = "<group>"; };
+		5EC0DE32202611220003 /* DictCatalog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DictCatalog.h; sourceTree = "<group>"; };
+		5EC0DE32202611220004 /* DictInflate.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DictInflate.cpp; sourceTree = "<group>"; };
+		5EC0DE32202611220006 /* DictInflate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DictInflate.h; sourceTree = "<group>"; };
+		5EC0DE32202611220007 /* DictStore.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DictStore.cpp; sourceTree = "<group>"; };
+		5EC0DE32202611220009 /* DictStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DictStore.h; sourceTree = "<group>"; };
+		5EC0DE3220261122000A /* DictionaryService.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DictionaryService.mm; sourceTree = "<group>"; };
+		5EC0DE3220261122000C /* DictionaryService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DictionaryService.h; sourceTree = "<group>"; };
+		5EC0DE3220261122000D /* DictionaryPalette.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DictionaryPalette.m; sourceTree = "<group>"; };
+		5EC0DE3220261122000F /* DictionaryPalette.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DictionaryPalette.h; sourceTree = "<group>"; };
+		5EC0DE32202611220010 /* catalog.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = catalog.json; path = dictionaries/catalog.json; sourceTree = "<group>"; };
+		5EC0DE32202611220012 /* MiniJson.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MiniJson.cpp; sourceTree = "<group>"; };
+		5EC0DE32202611220014 /* MiniJson.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MiniJson.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -423,6 +443,10 @@
 				5EC0DE1D202610150014 /* CaseBarPanel.h */,
 				5EC0DE1D202610150016 /* CaseBar.m */,
 				5EC0DE1D202610150017 /* CaseBar.h */,
+				5EC0DE3220261122000A /* DictionaryService.mm */,
+				5EC0DE3220261122000C /* DictionaryService.h */,
+				5EC0DE3220261122000D /* DictionaryPalette.m */,
+				5EC0DE3220261122000F /* DictionaryPalette.h */,
 				5EC0DE1A20261014000B /* SnippetPalette.m */,
 				5EC0DE1A202610140009 /* SnippetPalette.h */,
 				5EC0DE1A202610140007 /* SnippetInserter.mm */,
@@ -578,6 +602,15 @@
 			isa = PBXGroup;
 			children = (
 				5EC0DE30202610160021 /* local-models.json */,
+				5EC0DE32202611220010 /* catalog.json */,
+				5EC0DE32202611220001 /* DictCatalog.cpp */,
+				5EC0DE32202611220003 /* DictCatalog.h */,
+				5EC0DE32202611220004 /* DictInflate.cpp */,
+				5EC0DE32202611220006 /* DictInflate.h */,
+				5EC0DE32202611220007 /* DictStore.cpp */,
+				5EC0DE32202611220009 /* DictStore.h */,
+				5EC0DE32202611220012 /* MiniJson.cpp */,
+				5EC0DE32202611220014 /* MiniJson.h */,
 				5EC0DE1A202610140013 /* SnippetSearch.cpp */,
 				5EC0DE1A202610140011 /* SnippetSearch.h */,
 				5EC0DE19202610140003 /* default-snippets.json */,
@@ -669,6 +702,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5EC0DE30202610160022 /* local-models.json in Resources */,
+				5EC0DE32202611220011 /* catalog.json in Resources */,
 				5EC0DE19202610140004 /* default-snippets.json in Resources */,
 				5EC0DE19202610140002 /* lss-logo.png in Resources */,
 				234F70AC21FB50BD00D2F2CA /* StatusHighlightedEng.png in Resources */,
@@ -721,6 +755,12 @@
 				5EC0DE1D202610150012 /* CaseTransform.m in Sources */,
 				5EC0DE1D202610150015 /* CaseBarPanel.m in Sources */,
 				5EC0DE1D202610150018 /* CaseBar.m in Sources */,
+				5EC0DE32202611220002 /* DictCatalog.cpp in Sources */,
+				5EC0DE32202611220005 /* DictInflate.cpp in Sources */,
+				5EC0DE32202611220008 /* DictStore.cpp in Sources */,
+				5EC0DE3220261122000B /* DictionaryService.mm in Sources */,
+				5EC0DE3220261122000E /* DictionaryPalette.m in Sources */,
+				5EC0DE32202611220013 /* MiniJson.cpp in Sources */,
 				5EC0DE1A20261014000C /* SnippetPalette.m in Sources */,
 				5EC0DE1A202610140008 /* SnippetInserter.mm in Sources */,
 				5EC0DE1A202610140004 /* SnippetStore.mm in Sources */,
