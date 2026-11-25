@@ -1,6 +1,8 @@
 # OpenKey Change Log
 
-##### VOpenKey 3.7.33 (build 111): (22/11/2026)
+##### VOpenKey 3.7.33 (build 111): (25/11/2026)
+- feat(ai): show login status and simplify the AI settings window
+- fix(secure-input): name the holder of secure input more accurately, including headless browsers
 - fix(dictionary): draw badges as macOS capsule tags with centred text
 
 ##### VOpenKey 3.7.32 (build 110): (22/11/2026)

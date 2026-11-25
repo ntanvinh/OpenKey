@@ -7,6 +7,8 @@
 
 #import "SecureInputHolder.h"
 #import <libproc.h>
+#import <sys/sysctl.h>
+#import <unistd.h>
 #import <errno.h>
 #import <signal.h>
 
@@ -68,6 +70,65 @@ static NSString* SecureKeyboardEntryKey(NSString* bundleIdentifier) {
 }
 
 static NSArray<NSDictionary*>* (^sApplicationsProvider)(void);
+static NSArray<NSDictionary*>* (^sProcessesProvider)(void);
+
+static BOOL IsBrowserOrElectronPath(NSString* lowercasePath) {
+    return ContainsAny(lowercasePath, @[@"chrome", @"chromium", @"brave", @"microsoft edge", @"firefox", @"webkit",
+                                        @"opera", @"vivaldi", @"arc.app", @"electron", @"playwright"]);
+}
+
+static BOOL IsHelperProcessPath(NSString* lowercasePath) {
+    return ContainsAny(lowercasePath, @[@" helper", @"crashpad", @".xpc/"]);
+}
+
+//Reads argv of a running process owned by the current user via sysctl(KERN_PROCARGS2). Returns nil if unreadable.
+static NSArray<NSString*>* ProcessArguments(pid_t pid) {
+    int mib[3] = {CTL_KERN, KERN_PROCARGS2, pid};
+    size_t size = 0;
+    if (sysctl(mib, 3, NULL, &size, NULL, 0) != 0 || size < sizeof(int) || size > 1024 * 1024)
+        return nil;
+    NSMutableData* data = [NSMutableData dataWithLength:size];
+    if (sysctl(mib, 3, data.mutableBytes, &size, NULL, 0) != 0 || size < sizeof(int))
+        return nil;
+
+    const char* bytes = (const char*)data.bytes;
+    const char* end = bytes + size;
+    int argc = 0;
+    memcpy(&argc, bytes, sizeof(argc));
+    if (argc <= 0 || argc > 512)
+        return nil;
+
+    const char* cursor = bytes + sizeof(argc);
+    //skip exec_path
+    while (cursor < end && *cursor != '\0')
+        cursor++;
+    //skip null padding between exec_path and argv[0]
+    while (cursor < end && *cursor == '\0')
+        cursor++;
+
+    NSMutableArray<NSString*>* args = [NSMutableArray arrayWithCapacity:(NSUInteger)argc];
+    for (int i = 0; i < argc && cursor < end; i++) {
+        const char* start = cursor;
+        while (cursor < end && *cursor != '\0')
+            cursor++;
+        NSString* arg = [[NSString alloc] initWithBytes:start length:(NSUInteger)(cursor - start) encoding:NSUTF8StringEncoding];
+        if (arg != nil)
+            [args addObject:arg];
+        if (cursor < end)
+            cursor++;
+    }
+    return args;
+}
+
+static NSString* ParentProcessName(pid_t pid) {
+    struct proc_bsdinfo bsd;
+    if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, PROC_PIDTBSDINFO_SIZE) != PROC_PIDTBSDINFO_SIZE)
+        return nil;
+    if (bsd.pbi_ppid <= 1)
+        return nil;
+    pid_t ppid = (pid_t)bsd.pbi_ppid;
+    return NonEmpty([NSRunningApplication runningApplicationWithProcessIdentifier:ppid].localizedName) ?: NonEmpty(ProcessName(ppid));
+}
 
 @implementation SecureInputSuspect
 
@@ -86,22 +147,85 @@ static NSArray<NSDictionary*>* (^sApplicationsProvider)(void);
     if (HasAnyPrefix(bundle, @[@"com.1password.", @"com.agilebits.", @"com.bitwarden.", @"org.keepassxc.", @"com.hicknhacksoftware.macpass",
                                @"com.dashlane.", @"com.lastpass.", @"com.apple.passwords", @"com.enpass.", @"com.keepersecurity."]))
         return @"trình quản lý mật khẩu";
+    //macOS XPC/WebKit helper processes (e.g. "Remote Desktop Manager Web Content", "AutoFill (Remote Desktop Manager)") share the host
+    //app's name under a com.apple.* bundle ID: skip them so the suspect list is not flooded with 20 helper entries.
+    if ([bundle hasPrefix:@"com.apple."] || ContainsAny(title, @[@"web content", @"graphics and media", @"networking", @"autofill", @"viewservice"]))
+        return nil;
     //nobody listed it, but its name says what it is
     if (ContainsAny(title, @[@"remote desktop", @"anydesk", @"teamviewer", @"vnc viewer", @"rustdesk", @"splashtop"]))
         return @"điều khiển từ xa";
     return nil;
 }
 
++(NSString*)reasonForCommandLineArguments:(NSArray<NSString*>*)arguments executablePath:(NSString*)executablePath {
+    NSString* path = executablePath.lowercaseString ?: @"";
+    if (path.length == 0 || IsHelperProcessPath(path))
+        return nil;
+
+    BOOL hasHeadlessFlag = NO;
+    BOOL hasAutomationArg = NO;
+    for (NSUInteger i = 1; i < arguments.count; i++) {
+        NSString* arg = arguments[i];
+        NSString* lower = arg.lowercaseString;
+        //Chromium/Electron child processes (renderer, gpu-process, utility, crashpad) never hold the top-level session on their own
+        if ([lower hasPrefix:@"--type="] || [lower isEqualToString:@"--monitor-self"])
+            return nil;
+        if ([lower isEqualToString:@"--headless"] || [lower hasPrefix:@"--headless="])
+            hasHeadlessFlag = YES;
+        if ([lower containsString:@"playwright"] || [lower containsString:@"puppeteer"])
+            hasAutomationArg = YES;
+    }
+
+    if (ContainsAny(path, @[@"chrome for testing", @"chromium_headless_shell", @"ms-playwright"]))
+        return @"trình duyệt tự động (Playwright/Testing)";
+    if (!IsBrowserOrElectronPath(path))
+        return nil;
+    if (hasHeadlessFlag)
+        return @"trình duyệt chạy nền (--headless)";
+    if (hasAutomationArg)
+        return @"trình duyệt tự động (Playwright/Puppeteer)";
+    return nil;
+}
+
 +(NSArray<SecureInputSuspect*>*)suspectsAmongApplications:(NSArray<NSDictionary*>*)applications excludingPIDs:(NSArray<NSNumber*>*)pids {
     NSMutableArray* suspects = [NSMutableArray array];
+    NSMutableSet<NSString*>* seen = [NSMutableSet set];
     for (NSDictionary* app in applications) {
         pid_t pid = (pid_t)[app[@"pid"] intValue];
         if (pid <= 0 || [pids containsObject:@(pid)])
             continue;
-        NSString* reason = [self reasonForBundleIdentifier:NonEmpty(app[@"bundleID"]) name:app[@"name"]
+        NSString* bundle = NonEmpty(app[@"bundleID"]);
+        NSString* name = app[@"name"] ?: @"";
+        NSString* reason = [self reasonForBundleIdentifier:bundle name:name
                                        secureKeyboardEntry:[app[@"secureKeyboardEntry"] boolValue]];
-        if (reason != nil)
-            [suspects addObject:[[SecureInputSuspect alloc] initWithPID:pid name:app[@"name"] bundleIdentifier:NonEmpty(app[@"bundleID"]) reason:reason]];
+        if (reason != nil) {
+            NSString* key = [NSString stringWithFormat:@"%@|%@", bundle.lowercaseString ?: @"", name.lowercaseString];
+            if ([seen containsObject:key])
+                continue;
+            [seen addObject:key];
+            [suspects addObject:[[SecureInputSuspect alloc] initWithPID:pid name:name bundleIdentifier:bundle reason:reason]];
+        }
+    }
+    return suspects;
+}
+
++(NSArray<SecureInputSuspect*>*)suspectsAmongProcesses:(NSArray<NSDictionary*>*)processes excludingPIDs:(NSArray<NSNumber*>*)pids {
+    NSMutableArray* suspects = [NSMutableArray array];
+    for (NSDictionary* proc in processes) {
+        pid_t pid = (pid_t)[proc[@"pid"] intValue];
+        if (pid <= 0 || [pids containsObject:@(pid)])
+            continue;
+        NSString* path = NonEmpty(proc[@"path"]);
+        NSArray<NSString*>* args = proc[@"arguments"];
+        NSString* baseReason = [self reasonForCommandLineArguments:args executablePath:path];
+        if (baseReason == nil)
+            continue;
+        NSString* name = NonEmpty(proc[@"name"]) ?: NonEmpty(path.lastPathComponent) ?: [NSString stringWithFormat:@"tiến trình %d", pid];
+        NSString* parent = NonEmpty(proc[@"parentName"]);
+        NSString* reason = parent != nil
+            ? [NSString stringWithFormat:@"%@, PID %d, mở bởi %@", baseReason, pid, parent]
+            : [NSString stringWithFormat:@"%@, PID %d", baseReason, pid];
+        [suspects addObject:[[SecureInputSuspect alloc] initWithPID:pid name:name bundleIdentifier:NonEmpty(proc[@"bundleID"]) reason:reason]];
     }
     return suspects;
 }
@@ -144,8 +268,62 @@ static BOOL SecureKeyboardEntryIsOn(NSString* bundleIdentifier) {
     return [self suspectsAmongApplications:applications excludingPIDs:pids];
 }
 
++(NSArray<SecureInputSuspect*>*)runningHeadlessBrowserSuspectsExcludingPIDs:(NSArray<NSNumber*>*)pids {
+    if (sProcessesProvider != nil)
+        return [self suspectsAmongProcesses:sProcessesProvider() excludingPIDs:pids];
+    //when a test replaces NSWorkspace, keep it isolated from live processes on the Mac unless it sets a processes provider too
+    if (sApplicationsProvider != nil)
+        return @[];
+
+    int count = proc_listallpids(NULL, 0);
+    if (count <= 0)
+        return @[];
+    int capacity = count + 64;
+    NSMutableData* buffer = [NSMutableData dataWithLength:(NSUInteger)capacity * sizeof(pid_t)];
+    int filled = proc_listallpids(buffer.mutableBytes, (int)buffer.length);
+    if (filled <= 0)
+        return @[];
+
+    const pid_t* all = (const pid_t*)buffer.bytes;
+    uid_t me = getuid();
+    NSMutableArray<NSDictionary*>* candidates = [NSMutableArray array];
+    for (int i = 0; i < filled; i++) {
+        pid_t pid = all[i];
+        if (pid <= 1 || [pids containsObject:@(pid)])
+            continue;
+        NSString* path = ProcessPath(pid);
+        if (path.length == 0)
+            continue;
+        NSString* lower = path.lowercaseString;
+        if (IsHelperProcessPath(lower) || !IsBrowserOrElectronPath(lower))
+            continue;
+        struct proc_bsdinfo bsd;
+        if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, PROC_PIDTBSDINFO_SIZE) == PROC_PIDTBSDINFO_SIZE && bsd.pbi_uid != me)
+            continue;
+        NSArray<NSString*>* args = ProcessArguments(pid);
+        if (args.count == 0)
+            continue;
+        NSString* name = NonEmpty(path.lastPathComponent) ?: NonEmpty(ProcessName(pid)) ?: @"";
+        NSString* parent = ParentProcessName(pid);
+        NSMutableDictionary* info = [NSMutableDictionary dictionaryWithDictionary:@{
+            @"pid": @(pid),
+            @"name": name,
+            @"path": path,
+            @"arguments": args,
+        }];
+        if (parent != nil)
+            info[@"parentName"] = parent;
+        [candidates addObject:info];
+    }
+    return [self suspectsAmongProcesses:candidates excludingPIDs:pids];
+}
+
 +(void)setApplicationsProvider:(NSArray<NSDictionary*>* (^)(void))provider {
     sApplicationsProvider = [provider copy];
+}
+
++(void)setProcessesProvider:(NSArray<NSDictionary*>* (^)(void))provider {
+    sProcessesProvider = [provider copy];
 }
 
 -(instancetype)initWithPID:(pid_t)pid name:(NSString*)name bundleIdentifier:(NSString*)bundleIdentifier reason:(NSString*)reason {
@@ -248,12 +426,18 @@ static BOOL SecureKeyboardEntryIsOn(NSString* bundleIdentifier) {
 
 -(instancetype)holderWithDoubt:(NSString*)doubt earlierReports:(NSArray<SecureInputHolder*>*)earlierReports
                       suspects:(NSArray<SecureInputSuspect*>*)suspects {
+    return [self holderWithDoubt:doubt earlierReports:earlierReports suspects:suspects recentToggleCount:0];
+}
+
+-(instancetype)holderWithDoubt:(NSString*)doubt earlierReports:(NSArray<SecureInputHolder*>*)earlierReports
+                      suspects:(NSArray<SecureInputSuspect*>*)suspects recentToggleCount:(NSUInteger)recentToggleCount {
     SecureInputHolder* copy = [[SecureInputHolder alloc] initWithPID:_pid role:_role processExists:_processExists name:_name
                                                     bundleIdentifier:_bundleIdentifier version:_version path:_path startDate:_startDate
                                                            parentPID:_parentPID parentName:_parentName icon:_icon];
     copy->_doubt = NonEmpty(doubt);
     copy->_earlierReports = [earlierReports copy] ?: @[];
     copy->_suspects = [suspects copy] ?: @[];
+    copy->_recentToggleCount = recentToggleCount;
     return copy;
 }
 
@@ -271,6 +455,7 @@ static BOOL SecureKeyboardEntryIsOn(NSString* bundleIdentifier) {
     if (other == nil)
         return NO;
     return _pid == other.pid && _role == other.role && _processExists == other.processExists && _parentPID == other.parentPID &&
+        _recentToggleCount == other.recentToggleCount &&
         SameObject(_name, other.name) && SameObject(_bundleIdentifier, other.bundleIdentifier) &&
         SameObject(_version, other.version) && SameObject(_path, other.path) && SameObject(_parentName, other.parentName) &&
         SameObject(_doubt, other.doubt) &&

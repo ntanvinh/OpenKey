@@ -42,3 +42,6 @@ These are identifiers or file names that must not move, they are not the name of
 ## Feature texts
 - Each feature with a picture is written twice: `marketing/features/<id>.json` and its entry in `docs/vopenkey-ai/product.json`. Change both in the same commit; the title and description must match in both languages. `scripts/check-product-docs.py` checks it.
 - Visitor text never names an internal file (the README, `marketing/positioning.md`, a changelog): a visitor cannot open it. Describe the feature itself. The checker rejects `README`, `.md` and `CHANGELOG` in these texts.
+
+## Release notes follow the code
+- When a user-visible commit lands after `marketing/releases/notes/<version>.md` and the `CHANGELOG.md` entry were written, and that version is not released yet, add it to both (en-US and vi) in the same commit and update the date. Check `git log` since the notes commit and `git status` before every deploy.

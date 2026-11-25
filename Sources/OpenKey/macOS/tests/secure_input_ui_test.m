@@ -266,6 +266,16 @@ static void TestChecked(void) {
     w = Show(@"released-doubtful", nil, SecureInputEffectNone, [me holderWithDoubt:doubt earlierReports:@[electron] suspects:@[rdm]], [NSDate date]);
     CHECK(w.tipTexts.count == 0);
     CHECK([w.headingLabel.stringValue isEqualToString:@"Secure Input đã tắt"]);
+
+    //intermittent flapping with a background headless browser suspect (e.g. Playwright running Chrome --headless)
+    SecureInputSuspect* headless = [[SecureInputSuspect alloc] initWithPID:85186 name:@"Google Chrome" bundleIdentifier:nil
+                                                                    reason:@"trình duyệt chạy nền (--headless), PID 85186, mở bởi node"];
+    w = Show(@"flapping-headless", [electron holderWithDoubt:doubt earlierReports:@[] suspects:@[headless] recentToggleCount:5],
+             SecureInputEffectBlocked, nil, nil);
+    CHECK(Has(w.tipTexts, @"bật/tắt liên tục 5 lần"));
+    CHECK(Has(w.tipTexts, @"Google Chrome (trình duyệt chạy nền (--headless), PID 85186, mở bởi node)"));
+    CHECK([[w informationText] containsString:@"Trạng thái chập chờn: bật/tắt 5 lần"]);
+    CHECK([[w informationText] containsString:@"PID 85186"]);
 }
 
 static void TestReleased(void) {

@@ -52,6 +52,14 @@ static NSMutableDictionary<NSNumber*, NSNumber*>* _fieldVerdicts;   //what was f
 static pid_t _fieldQueryPID;                          //the application whose field was asked about last: asked again only when macOS names another
 static NSUInteger _stretch;                           //counts the times secure input went on: an answer that comes late is for an earlier one
 static dispatch_queue_t _fieldQueue;                  //where the field of another application is looked into, never on the main thread
+static dispatch_queue_t _suspectQueue;                //where process arguments are scanned for headless browsers, never on the main thread
+static NSArray<SecureInputSuspect*>* _backgroundSuspects;
+static NSTimeInterval _lastBackgroundScan = -1;
+static BOOL _backgroundScanInFlight;
+static NSMutableArray<NSNumber*>* _recentOnTimes;     //timestamps (Now()) of recent OFF -> ON transitions, to spot intermittent flapping
+
+static const NSTimeInterval kFlappingWindow = 60.0;
+static const NSTimeInterval kBackgroundScanInterval = 3.0;
 
 static NSTimeInterval Now(void) {
     return sClock != nil ? sClock() : [NSProcessInfo processInfo].systemUptime;
@@ -200,6 +208,10 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     _fallbackWantedSince = -1;
     _fieldVerdicts = nil;
     _fieldQueryPID = 0;
+    _backgroundSuspects = nil;
+    _lastBackgroundScan = -1;
+    _backgroundScanInFlight = NO;
+    _recentOnTimes = nil;
     _stretch++;                                 //an answer still on its way is for a time that is over
     [self publishDescription:nil];
 }
@@ -209,6 +221,16 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     dispatch_async(dispatch_get_main_queue(), ^{
         [self evaluate];
     });
+}
+
++(void)pruneRecentOnTimes:(NSTimeInterval)now {
+    if (_recentOnTimes.count == 0)
+        return;
+    NSIndexSet* stale = [_recentOnTimes indexesOfObjectsPassingTest:^BOOL(NSNumber* ts, NSUInteger idx, BOOL* stop) {
+        return now - ts.doubleValue > kFlappingWindow;
+    }];
+    if (stale.count > 0)
+        [_recentOnTimes removeObjectsAtIndexes:stale];
 }
 
 +(void)evaluate {
@@ -221,6 +243,7 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     if (frontmostPID != getpid())
         _lastOtherFrontPID = frontmostPID;
 
+    NSTimeInterval now = Now();
     BOOL secure = IsSecureEventInputEnabled();
     if (secure != _secure) {
         _secure = secure;
@@ -231,6 +254,11 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
             _period = [NSMutableArray array];       //a new time secure input is on: nobody has been named yet,
             _fieldVerdicts = [NSMutableDictionary dictionary];   //and nothing is known about the fields
             _fieldQueryPID = 0;
+            _lastBackgroundScan = -1;               //scan running headless/automated browsers for this new stretch
+            if (_recentOnTimes == nil)
+                _recentOnTimes = [NSMutableArray array];
+            [_recentOnTimes addObject:@(now)];
+            [self pruneRecentOnTimes:now];
             _stretch++;
         }
         //keys typed while macOS hides them were never seen, what OpenKey remembers of the current word is stale
@@ -243,6 +271,7 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     SecureInputHolder* snapshot = nil;
     BOOL wantFallback = NO;
     if (secure) {
+        [self pruneRecentOnTimes:now];
         NSDictionary* session = CFBridgingRelease(CGSessionCopyCurrentDictionary());
         pid_t holderPID = [session[kSecureInputPIDKey] intValue];
         NSRunningApplication* holder = holderPID > 0 ? [NSRunningApplication runningApplicationWithProcessIdentifier:holderPID] : nil;
@@ -250,7 +279,7 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
         NSNumber* onConsole = session[(__bridge NSString*)kCGSessionOnConsoleKey];
         BOOL sessionInFront = (onConsole == nil || onConsole.boolValue) && ![session[kScreenIsLockedKey] boolValue];
         SecureInputHolder* named = [SecureInputHolder holderForPID:holderPID sessionInFront:sessionInFront frontmostPID:_lastOtherFrontPID];
-        snapshot = [self checked:named];
+        snapshot = [self checked:named now:now];
         //not only apps have a name: a process that is not one is named by the program it runs
         holderName = holder.localizedName ?: snapshot.name;
         //NSApplicationActivationPolicyRegular is 0, which is also what a nil holder answers
@@ -265,7 +294,6 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     //macOS names the application in front, so "an ordinary application that is not in front holds it" is what a switch of the front
     //application looks like for a moment (the name still is the one before): macOS' input source takes over only once that has
     //stayed true for SecureInputFallbackDelay, and gives the input source back at once when it stops being true
-    NSTimeInterval now = Now();
     if (!wantFallback)
         _fallbackWantedSince = -1;
     else if (_fallbackWantedSince < 0)
@@ -330,9 +358,43 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     });
 }
 
+//Scans running processes off the main thread for headless/automated browsers (e.g. Chrome --headless, Playwright, Puppeteer),
+//which trigger macOS Secure Event Input globally whenever a hidden page focuses <input type="password">.
++(void)scanBackgroundSuspectsIfNeeded:(NSTimeInterval)now {
+    if (_backgroundScanInFlight)
+        return;
+    if (_lastBackgroundScan >= 0 && now - _lastBackgroundScan < kBackgroundScanInterval)
+        return;
+    _backgroundScanInFlight = YES;
+    _lastBackgroundScan = now;
+    if (_suspectQueue == nil)
+        _suspectQueue = dispatch_queue_create("vn.io.lssoft.vopenkey.secureinput.suspects", DISPATCH_QUEUE_SERIAL);
+    pid_t selfPID = getpid();
+    dispatch_async(_suspectQueue, ^{
+        NSArray<SecureInputSuspect*>* found = [SecureInputSuspect runningHeadlessBrowserSuspectsExcludingPIDs:@[@(selfPID)]];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            _backgroundScanInFlight = NO;
+            if (_timer == nil)
+                return;
+            NSArray<SecureInputSuspect*>* previous = _backgroundSuspects ?: @[];
+            BOOL changed = ![[previous valueForKey:@"pid"] isEqualToArray:[found valueForKey:@"pid"]] ||
+                           ![[previous valueForKey:@"reason"] isEqualToArray:[found valueForKey:@"reason"]];
+            _backgroundSuspects = found;
+            if (changed && found.count > 0) {
+                NSMutableArray* labels = [NSMutableArray array];
+                for (SecureInputSuspect* s in found)
+                    [labels addObject:[NSString stringWithFormat:@"%@ (%@)", s.name, s.reason]];
+                VOKDiag(@"secure", @"headless/automated browser suspects running: %@", [labels componentsJoinedByString:@", "]);
+            }
+            if (changed && _secure)
+                [self evaluate];
+        });
+    });
+}
+
 //What macOS named, checked against what can be seen from here: whom it named before during this time secure input has been on,
 //whether the process it names could be holding it at all, and which other running applications are known to take it.
-+(SecureInputHolder*)checked:(SecureInputHolder*)named {
++(SecureInputHolder*)checked:(SecureInputHolder*)named now:(NSTimeInterval)now {
     if (_period == nil)
         _period = [NSMutableArray array];
     BOOL first = NO;
@@ -379,18 +441,31 @@ const NSTimeInterval SecureInputFallbackDelay = 1.0;
     }
 
     //the lock screen and the password prompts of macOS are not what an application that is running in the background takes
-    NSArray<SecureInputSuspect*>* suspects = @[];
-    if (named.role != SecureInputHolderRoleSystem && named.role != SecureInputHolderRoleLockedSession)
-        suspects = [SecureInputSuspect runningSuspectsExcludingPIDs:@[@(named.pid), @(getpid())]];
+    NSMutableArray<SecureInputSuspect*>* suspects = [NSMutableArray array];
+    if (named.role != SecureInputHolderRoleSystem && named.role != SecureInputHolderRoleLockedSession) {
+        [self scanBackgroundSuspectsIfNeeded:now];
+        [suspects addObjectsFromArray:[SecureInputSuspect runningSuspectsExcludingPIDs:@[@(named.pid), @(getpid())]]];
+        NSMutableSet<NSNumber*>* seenPIDs = [NSMutableSet setWithObjects:@(named.pid), @(getpid()), nil];
+        for (SecureInputSuspect* s in suspects)
+            [seenPIDs addObject:@(s.pid)];
+        for (SecureInputSuspect* s in _backgroundSuspects) {
+            if (![seenPIDs containsObject:@(s.pid)]) {
+                [seenPIDs addObject:@(s.pid)];
+                [suspects addObject:s];
+            }
+        }
+    }
 
-    SecureInputHolder* checked = [named holderWithDoubt:doubt earlierReports:earlier suspects:suspects];
+    NSUInteger recentToggles = _recentOnTimes.count >= 3 ? _recentOnTimes.count : 0;
+    SecureInputHolder* checked = [named holderWithDoubt:doubt earlierReports:earlier suspects:suspects recentToggleCount:recentToggles];
     if (first) {
         //the evidence for the next time the name is wrong: who macOS named, who was in front, whom it named before, what else could be it
-        VOKDiag(@"secure", @"macOS names %@ (pid %d) as the holder; in front: %@; named before in this stretch: %@; also running and known to take it: %@%@",
+        VOKDiag(@"secure", @"macOS names %@ (pid %d) as the holder; in front: %@; named before in this stretch: %@; also running and known to take it: %@%@%@",
                 named.displayName, named.pid, [NSWorkspace sharedWorkspace].frontmostApplication.bundleIdentifier ?: @"?",
                 earlier.count > 0 ? [[earlier valueForKey:@"displayName"] componentsJoinedByString:@", "] : @"nobody",
                 suspects.count > 0 ? [[suspects valueForKey:@"name"] componentsJoinedByString:@", "] : @"none",
-                doubt != nil ? @"; name unconfirmed (macOS names the application in front, not the holder)" : @"");
+                doubt != nil ? @"; name unconfirmed (macOS names the application in front, not the holder)" : @"",
+                recentToggles >= 3 ? [NSString stringWithFormat:@"; flapping (%lu times in 60s)", (unsigned long)recentToggles] : @"");
     }
     return checked;
 }

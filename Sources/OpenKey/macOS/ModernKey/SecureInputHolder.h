@@ -31,16 +31,26 @@ typedef NS_ENUM(NSInteger, SecureInputHolderRole) {
 
 // nil when the application is not known to take secure input. A terminal only counts while its Secure Keyboard Entry is on.
 +(NSString*)reasonForBundleIdentifier:(NSString*)bundleIdentifier name:(NSString*)name secureKeyboardEntry:(BOOL)secureKeyboardEntry;
+// nil unless the process is a main headless/automated browser (e.g. Chrome/Brave --headless, Chrome for Testing, Playwright/Puppeteer).
+// Child helpers (--type=renderer, gpu-process, crashpad) and non-browser tools (e.g. java -Djava.awt.headless=true) return nil.
++(NSString*)reasonForCommandLineArguments:(NSArray<NSString*>*)arguments executablePath:(NSString*)executablePath;
 
 // `applications` are dictionaries with @"pid" (NSNumber), @"name", @"bundleID" and @"secureKeyboardEntry" (NSNumber BOOL), the order is kept.
 +(NSArray<SecureInputSuspect*>*)suspectsAmongApplications:(NSArray<NSDictionary*>*)applications excludingPIDs:(NSArray<NSNumber*>*)pids;
+// `processes` are dictionaries with @"pid" (NSNumber), @"name", @"path", @"arguments" (NSArray<NSString*>), optional @"parentName".
++(NSArray<SecureInputSuspect*>*)suspectsAmongProcesses:(NSArray<NSDictionary*>*)processes excludingPIDs:(NSArray<NSNumber*>*)pids;
 // YES when the application that runs under this process number is a terminal (Terminal, iTerm2) whose Secure Keyboard Entry is on:
 // then it holds secure input itself while it is in front, which confirms the name macOS gave.
 +(BOOL)secureKeyboardEntryIsOnForPID:(pid_t)pid;
 // The same over the applications that run now (NSWorkspace), or over what `+setApplicationsProvider:` returns.
 +(NSArray<SecureInputSuspect*>*)runningSuspectsExcludingPIDs:(NSArray<NSNumber*>*)pids;
+// Scans running user processes for headless/automated browsers (Playwright, Puppeteer, Chrome --headless, Chrome for Testing),
+// or over what `+setProcessesProvider:` returns. Call off the main thread.
++(NSArray<SecureInputSuspect*>*)runningHeadlessBrowserSuspectsExcludingPIDs:(NSArray<NSNumber*>*)pids;
 // For tests: stands in for NSWorkspace. nil puts NSWorkspace back.
 +(void)setApplicationsProvider:(NSArray<NSDictionary*>* (^)(void))provider;
+// For tests: stands in for scanning live processes. nil puts live process scanning back.
++(void)setProcessesProvider:(NSArray<NSDictionary*>* (^)(void))provider;
 
 -(instancetype)initWithPID:(pid_t)pid name:(NSString*)name bundleIdentifier:(NSString*)bundleIdentifier reason:(NSString*)reason;
 @end
@@ -89,10 +99,14 @@ typedef NS_ENUM(NSInteger, SecureInputHolderRole) {
 @property (nonatomic, readonly, copy) NSArray<SecureInputHolder*>* earlierReports;
 // Other running applications that are known to take secure input, apart from this one.
 @property (nonatomic, readonly, copy) NSArray<SecureInputSuspect*>* suspects;
+// How many times secure input turned ON within the recent flapping window (e.g. 60 s): >= 3 points to a background automated/flapping holder.
+@property (nonatomic, readonly) NSUInteger recentToggleCount;
 
 // A copy with those three facts. The monitor adds them to what `holderForPID:` looked up.
 -(instancetype)holderWithDoubt:(NSString*)doubt earlierReports:(NSArray<SecureInputHolder*>*)earlierReports
                       suspects:(NSArray<SecureInputSuspect*>*)suspects;
+-(instancetype)holderWithDoubt:(NSString*)doubt earlierReports:(NSArray<SecureInputHolder*>*)earlierReports
+                      suspects:(NSArray<SecureInputSuspect*>*)suspects recentToggleCount:(NSUInteger)recentToggleCount;
 
 // Same process, same role, same facts: the start time and the icon do not count.
 -(BOOL)isEqualToHolder:(SecureInputHolder*)other;

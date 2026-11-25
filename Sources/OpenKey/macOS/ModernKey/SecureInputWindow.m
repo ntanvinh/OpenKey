@@ -153,7 +153,7 @@ static NSArray<NSString*>* TipsFor(SecureInputHolder* holder) {
 
 //What to try when nobody is named, or the name cannot be trusted
 static NSArray<NSString*>* SearchTips(void) {
-    return @[@"Thử thoát lần lượt những ứng dụng hay bật nó: Terminal hoặc iTerm2 (Secure Keyboard Entry), trình quản lý mật khẩu, ứng dụng điều khiển từ xa, VPN. Biểu tượng trên thanh menu hết vàng ngay khi bạn thoát đúng ứng dụng.",
+    return @[@"Thử thoát lần lượt những ứng dụng hay bật nó: Terminal hoặc iTerm2 (Secure Keyboard Entry), trình quản lý mật khẩu, ứng dụng điều khiển từ xa, VPN, hoặc trình duyệt chạy ngầm (headless/Playwright). Biểu tượng trên thanh menu hết vàng ngay khi bạn thoát đúng ứng dụng.",
              @"Nếu đã thoát hết mà Secure Input vẫn bật, hãy đăng xuất rồi đăng nhập lại."];
 }
 
@@ -191,6 +191,10 @@ static NSArray<NSString*>* AllTipsFor(SecureInputHolder* holder) {
         //macOS names the application in front, so these are the applications the person typed in while secure input stayed on
         [tips addObject:[NSString stringWithFormat:@"Secure Input vẫn bật liên tục trong khi app bạn gõ đổi giữa: %@. Ô mật khẩu thường nhả nó khi bạn rời đi, nên nhiều khả năng một ứng dụng chạy nền đang giữ.",
                          NamedInOrderText(holder)]];
+    }
+    if (holder.recentToggleCount >= 3 && (doubtful || holder.role == SecureInputHolderRoleUnknown)) {
+        [tips addObject:[NSString stringWithFormat:@"Secure Input đã bật/tắt liên tục %lu lần trong 1 phút qua: thường do một tiến trình chạy nền hoặc kịch bản tự động (Playwright/trình duyệt headless) liên tục mở và đóng ô mật khẩu.",
+                         (unsigned long)holder.recentToggleCount]];
     }
     if (holder.suspects.count > 0) {
         [tips addObject:[NSString stringWithFormat:@"Cũng đang chạy và hay giữ Secure Input: %@. Thoát từng ứng dụng này; biểu tượng trên thanh menu hết vàng ngay khi bạn thoát đúng ứng dụng.",
@@ -405,6 +409,8 @@ static NSArray<SecureInputRow*>* RowsFor(SecureInputHolder* holder) {
         [lines addObject:[@"Lưu ý: " stringByAppendingString:holder.doubt]];
     if (holder.earlierReports.count > 0)
         [lines addObject:[@"macOS đã nêu lần lượt: " stringByAppendingString:NamedInOrderText(holder)]];
+    if (holder.recentToggleCount >= 3)
+        [lines addObject:[NSString stringWithFormat:@"Trạng thái chập chờn: bật/tắt %lu lần trong 1 phút qua", (unsigned long)holder.recentToggleCount]];
     if (holder.suspects.count > 0)
         [lines addObject:[@"Cũng đang chạy và hay giữ Secure Input: " stringByAppendingString:SuspectsText(holder.suspects)]];
     return [lines componentsJoinedByString:@"\n"];

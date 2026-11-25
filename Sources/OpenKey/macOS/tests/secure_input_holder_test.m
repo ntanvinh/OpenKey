@@ -271,10 +271,18 @@ static void TestSuspects(void) {
     CHECK(Reason(@"com.apple.finder", @"Finder", NO) == nil);
     CHECK(Reason(@"com.google.Chrome", @"Google Chrome", NO) == nil);
     CHECK(Reason(nil, nil, NO) == nil);
+    //macOS XPC/WebKit helper processes named after a host app must NOT flood the suspect list
+    CHECK(Reason(@"com.apple.WebKit.WebContent", @"Remote Desktop Manager Web Content", NO) == nil);
+    CHECK(Reason(@"com.apple.WebKit.Networking", @"Remote Desktop Manager Networking", NO) == nil);
+    CHECK(Reason(@"com.apple.WebKit.GPU", @"Remote Desktop Manager Graphics and Media", NO) == nil);
+    CHECK(Reason(@"com.apple.SafariPlatformSupport.Helper", @"AutoFill (Remote Desktop Manager)", NO) == nil);
+    CHECK(Reason(@"com.apple.ThemeWidgetControlViewService", @"ThemeWidgetControlViewService (Remote Desktop Manager)", NO) == nil);
 
     NSArray* apps = @[App(10, @"Remote Desktop Manager", @"com.devolutions.remotedesktopmanager", NO), App(11, @"Finder", @"com.apple.finder", NO),
                       App(12, @"1Password", @"com.1password.1password", NO), App(13, @"Terminal", @"com.apple.Terminal", NO),
                       App(14, @"iTerm2", @"com.googlecode.iterm2", YES), App(15, @"AnyDesk", @"com.example.unlisted", NO),
+                      App(16, @"Remote Desktop Manager", @"com.devolutions.remotedesktopmanager", NO), //duplicate entry deduplicated
+                      App(17, @"Remote Desktop Manager Web Content", @"com.apple.WebKit.WebContent", NO),
                       App(0, @"Nobody", @"com.devolutions.remotedesktopmanager", NO)];
     NSArray<SecureInputSuspect*>* found = [SecureInputSuspect suspectsAmongApplications:apps excludingPIDs:@[@12]];
     CHECK(found.count == 3);
@@ -284,7 +292,41 @@ static void TestSuspects(void) {
         CHECK([found[0].reason containsString:@"từ xa"]);
         CHECK(found[1].pid == 14 && found[2].pid == 15);                       //the order of the list is kept
     }
-    CHECK([SecureInputSuspect suspectsAmongApplications:apps excludingPIDs:@[@10, @12, @14, @15]].count == 0);
+    CHECK([SecureInputSuspect suspectsAmongApplications:apps excludingPIDs:@[@10, @12, @14, @15, @16]].count == 0);
+
+    //headless / automated browser detection via command-line arguments
+    NSString* chromePath = @"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    NSString* rendererPath = @"/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)";
+    NSString* crashpadPath = @"/Users/someone/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/Frameworks/Helpers/chrome_crashpad_handler";
+    NSString* testingPath = @"/Users/someone/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+    NSString* electronPath = @"/Users/someone/app/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron";
+    NSString* javaPath = @"/opt/homebrew/Cellar/openjdk@17/bin/java";
+
+    CHECK([[SecureInputSuspect reasonForCommandLineArguments:@[chromePath, @"--headless", @"--user-data-dir=/tmp/playwright_chromiumdev_profile-abc"] executablePath:chromePath] containsString:@"--headless"]);
+    CHECK([[SecureInputSuspect reasonForCommandLineArguments:@[chromePath, @"--headless=new"] executablePath:chromePath] containsString:@"--headless"]);
+    CHECK([SecureInputSuspect reasonForCommandLineArguments:@[chromePath, @"--user-data-dir=/Users/vinh/Profile"] executablePath:chromePath] == nil);
+    CHECK([SecureInputSuspect reasonForCommandLineArguments:@[rendererPath, @"--type=renderer", @"--headless"] executablePath:rendererPath] == nil);
+    CHECK([SecureInputSuspect reasonForCommandLineArguments:@[crashpadPath, @"--monitor-self"] executablePath:crashpadPath] == nil);
+    CHECK([[SecureInputSuspect reasonForCommandLineArguments:@[testingPath, @"--no-sandbox"] executablePath:testingPath] containsString:@"Playwright"]);
+    CHECK([[SecureInputSuspect reasonForCommandLineArguments:@[electronPath, @"-r", @"/path/playwright-core/loader.js"] executablePath:electronPath] containsString:@"Playwright"]);
+    CHECK([SecureInputSuspect reasonForCommandLineArguments:@[electronPath, @"."] executablePath:electronPath] == nil);
+    CHECK([SecureInputSuspect reasonForCommandLineArguments:@[javaPath, @"-Djava.awt.headless=true"] executablePath:javaPath] == nil);
+
+    NSArray* procs = @[
+        @{@"pid": @85186, @"name": @"Google Chrome", @"path": chromePath, @"arguments": @[chromePath, @"--headless", @"--no-sandbox"], @"parentName": @"node"},
+        @{@"pid": @85187, @"name": @"Google Chrome Helper", @"path": rendererPath, @"arguments": @[rendererPath, @"--type=renderer", @"--headless"]},
+        @{@"pid": @8073, @"name": @"Google Chrome", @"path": chromePath, @"arguments": @[chromePath]},
+    ];
+    NSArray<SecureInputSuspect*>* headless = [SecureInputSuspect suspectsAmongProcesses:procs excludingPIDs:@[]];
+    CHECK(headless.count == 1);
+    if (headless.count == 1) {
+        CHECK(headless[0].pid == 85186);
+        CHECK([headless[0].name isEqualToString:@"Google Chrome"]);
+        CHECK([headless[0].reason containsString:@"--headless"]);
+        CHECK([headless[0].reason containsString:@"PID 85186"]);
+        CHECK([headless[0].reason containsString:@"mở bởi node"]);
+    }
+    CHECK([SecureInputSuspect suspectsAmongProcesses:procs excludingPIDs:@[@85186]].count == 0);
 
     //the applications that run now come from a provider, so that a test does not depend on the Mac it runs on
     [SecureInputSuspect setApplicationsProvider:^NSArray<NSDictionary*>* { return apps; }];
@@ -295,6 +337,7 @@ static void TestSuspects(void) {
     CHECK(![SecureInputSuspect secureKeyboardEntryIsOnForPID:999]);
     [SecureInputSuspect setApplicationsProvider:nil];
     CHECK([SecureInputSuspect runningSuspectsExcludingPIDs:@[@(getpid())]] != nil);   //what NSWorkspace says, whatever the Mac runs
+    CHECK([SecureInputSuspect runningHeadlessBrowserSuspectsExcludingPIDs:@[@(getpid())]] != nil);
 }
 
 static pid_t SuspectPIDsInclude(SecureInputHolder* holder, pid_t pid) {
@@ -663,6 +706,90 @@ static void TestFieldConfirmation(void) {
     [SecureInputSuspect setApplicationsProvider:nil];
 }
 
+//Async background scan finds headless/automated browsers off the main thread, and rapid OFF->ON cycles record flapping
+static void TestHeadlessAndFlapping(void) {
+    printf("-- headless browser suspects and intermittent flapping\n");
+    NSRunningApplication* finder = [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.finder"].firstObject;
+    if (finder == nil) {
+        printf("   (Finder is not running: skipped)\n");
+        return;
+    }
+    vLanguage = 0;
+    fakeSecure = NO;
+    fakeLocked = NO;
+    fakeHolderPID = 0;
+    fakeNow = 500;
+    [SecureInputMonitor setClockForTesting:^NSTimeInterval { return fakeNow; }];
+    [SecureInputSuspect setApplicationsProvider:^NSArray<NSDictionary*>* { return @[]; }];
+    __block BOOL scannedOnMainThread = NO;
+    __block int scans = 0;
+    NSString* chromePath = @"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    [SecureInputSuspect setProcessesProvider:^NSArray<NSDictionary*>* {
+        if ([NSThread isMainThread])
+            scannedOnMainThread = YES;
+        scans++;
+        return @[
+            @{@"pid": @85186, @"name": @"Google Chrome", @"path": chromePath,
+              @"arguments": @[chromePath, @"--headless", @"--user-data-dir=/tmp/playwright_chromiumdev_profile-xyz"], @"parentName": @"node"},
+        ];
+    }];
+
+    [SecureInputMonitor start];
+    Evaluate();
+
+    //first ON: triggers async background scan for headless browsers off the main thread
+    fakeSecure = YES;
+    fakeHolderPID = finder.processIdentifier;
+    Evaluate();
+    CHECK([SecureInputMonitor currentHolder].recentToggleCount == 0);
+    WaitUntil(^BOOL { return SuspectPIDsInclude([SecureInputMonitor currentHolder], 85186) == 85186; });
+    CHECK(!scannedOnMainThread);
+    CHECK(scans >= 1);
+    CHECK([SecureInputMonitor currentHolder].suspects.count == 1);
+    CHECK([[SecureInputMonitor statusDescription] containsString:@"Google Chrome"]);
+
+    //second ON (5s later): still below flapping threshold
+    fakeNow = 504;
+    fakeSecure = NO;
+    Evaluate();
+    fakeNow = 505;
+    fakeSecure = YES;
+    Evaluate();
+    CHECK([SecureInputMonitor currentHolder].recentToggleCount == 0);
+
+    //third ON (10s later): flapping detected (3 toggles in 60s)
+    fakeNow = 509;
+    fakeSecure = NO;
+    Evaluate();
+    fakeNow = 510;
+    fakeSecure = YES;
+    Evaluate();
+    CHECK([SecureInputMonitor currentHolder].recentToggleCount == 3);
+
+    //fourth ON (15s later): count rises to 4
+    fakeNow = 514;
+    fakeSecure = NO;
+    Evaluate();
+    fakeNow = 515;
+    fakeSecure = YES;
+    Evaluate();
+    CHECK([SecureInputMonitor currentHolder].recentToggleCount == 4);
+
+    //after >60s of quiet, stale toggles are pruned so a single new ON is not flagged as flapping
+    fakeNow = 600;
+    fakeSecure = NO;
+    Evaluate();
+    fakeNow = 601;
+    fakeSecure = YES;
+    Evaluate();
+    CHECK([SecureInputMonitor currentHolder].recentToggleCount == 0);
+
+    [SecureInputMonitor stop];
+    [SecureInputMonitor setClockForTesting:nil];
+    [SecureInputSuspect setProcessesProvider:nil];
+    [SecureInputSuspect setApplicationsProvider:nil];
+}
+
 int main(void) {
     @autoreleasepool {
         [NSApplication sharedApplication];
@@ -674,6 +801,7 @@ int main(void) {
         TestAnnotations();
         TestFallbackDelay();
         TestFieldConfirmation();
+        TestHeadlessAndFlapping();
         printf(failures == 0 ? "secure_input_holder_test: ALL OK\n" : "secure_input_holder_test: %d FAILED\n", failures);
     }
     return failures == 0 ? 0 : 1;
