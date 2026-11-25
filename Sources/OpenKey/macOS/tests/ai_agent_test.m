@@ -695,6 +695,48 @@ static void TestProcess(void) {
     CHECK(limited.length >= 1000 && limited.length < 400000);
 }
 
+static void TestLogin(void) {
+    printf("-- signed in or not\n");
+    AIAgentLogin* l = [AIAgentCLI loginFromOutput:@"{\n \"loggedIn\": true,\n \"email\": \"a@b.vn\",\n \"orgName\": \"X\"\n}\n" exitStatus:0 forKind:AIAgentKindClaude];
+    CHECK(l.state == AIAgentLoginSignedIn && [l.account isEqualToString:@"a@b.vn"]);
+    l = [AIAgentCLI loginFromOutput:@"{\"loggedIn\": false}" exitStatus:1 forKind:AIAgentKindClaude];
+    CHECK(l.state == AIAgentLoginSignedOut && l.account == nil);
+    CHECK([AIAgentCLI loginFromOutput:@"nothing like JSON" exitStatus:0 forKind:AIAgentKindClaude].state == AIAgentLoginUnknown);
+    l = [AIAgentCLI loginFromOutput:@"Logged in using ChatGPT\n" exitStatus:0 forKind:AIAgentKindCodex];
+    CHECK(l.state == AIAgentLoginSignedIn && [l.method isEqualToString:@"ChatGPT"] && l.account == nil);
+    l = [AIAgentCLI loginFromOutput:@"Logged in using an API key - sk-abc...\n" exitStatus:0 forKind:AIAgentKindCodex];
+    CHECK(l.state == AIAgentLoginSignedIn && [l.method isEqualToString:@"an API key"]);
+    CHECK([AIAgentCLI loginFromOutput:@"Not logged in\n" exitStatus:1 forKind:AIAgentKindCodex].state == AIAgentLoginSignedOut);
+    CHECK([AIAgentCLI loginFromOutput:@"a new sentence\n" exitStatus:1 forKind:AIAgentKindCodex].state == AIAgentLoginUnknown);   //not understood is not "signed out"
+    CHECK([AIAgentCLI loginFromOutput:@"Logged in using ChatGPT" exitStatus:0 forKind:AIAgentKindAntigravity].state == AIAgentLoginUnknown);
+    CHECK([[AIAgentCLI forProvider:Provider(@"codex-cli")] hasLoginStatusCommand] && ![[AIAgentCLI forProvider:Provider(@"agy-cli")] hasLoginStatusCommand]);
+
+    //real runs against the fake programs
+    __block AIAgentLogin* got = nil;
+    __block BOOL done = NO;
+    void (^check)(NSString*) = ^(NSString* providerId) {
+        got = nil; done = NO;
+        [[AIAgentCLI forProvider:Provider(providerId)] checkLoginOfExecutable:Link(CommandOf(providerId)) completion:^(AIAgentLogin* login) { got = login; done = YES; }];
+        SpinUntil(^BOOL { return done; }, 15);
+    };
+    Mode(@"ok");
+    check(@"codex-cli");
+    CHECK(got.state == AIAgentLoginSignedIn && [got.method isEqualToString:@"ChatGPT"]);
+    check(@"claude-cli");
+    CHECK(got.state == AIAgentLoginSignedIn && [got.account isEqualToString:@"ten@example.vn"]);
+    check(@"agy-cli");
+    CHECK(got.state == AIAgentLoginUnknown);                          //no command: nothing is run, nothing is guessed
+    Mode(@"login");
+    check(@"codex-cli");
+    CHECK(got.state == AIAgentLoginSignedOut);
+    check(@"claude-cli");
+    CHECK(got.state == AIAgentLoginSignedOut);
+    got = nil; done = NO;
+    [[AIAgentCLI forProvider:Provider(@"codex-cli")] checkLoginOfExecutable:@"/nonexistent/codex" completion:^(AIAgentLogin* login) { got = login; done = YES; }];
+    SpinUntil(^BOOL { return done; }, 5);
+    CHECK(got.state == AIAgentLoginUnknown);                          //the program cannot be run: not known
+}
+
 static void TestModelLists(void) {
     printf("-- models asked of the programs\n");
     __block NSArray<AIAgentModel*>* models = nil;
@@ -1192,6 +1234,7 @@ int main(int argc, char** argv) {
         TestProcess();
         TestRuns();                 //before the lists of models: the first request of Codex asks for its catalog by itself
         TestModelLists();
+        TestLogin();
         TestWorkFolder();
         TestBigPrompt();
         TestStopping();

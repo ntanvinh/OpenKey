@@ -58,7 +58,7 @@ NSString* const VOKAIErrorDomain = @"vn.io.lssoft.vopenkey.ai";
                                               note:@"Một key dùng được nhiều AI. Tên model có dạng nhà-cung-cấp/tên-model."],
             [[AIProvider alloc] initWithIdentifier:@"ollama" name:@"Ollama (chạy trên máy)" protocol:AIProtocolOpenAI
                                            baseURL:@"http://localhost:11434/v1" model:@"llama3.2" local:YES needsKey:NO
-                                           keyPage:nil note:@"Không cần key. Bấm “Cài AI chạy trên máy…” ở phần trên để VOpenKey AI cài giúp, hoặc tự chạy `ollama serve` rồi tải model bằng `ollama pull`."],
+                                           keyPage:nil note:@"Không cần key. Bấm “Cài AI chạy trên máy…” ở phần trên để VOpenKey AI cài giúp, hoặc tự cài Ollama rồi tải một model."],
             [[AIProvider alloc] initWithIdentifier:@"lmstudio" name:@"LM Studio (chạy trên máy)" protocol:AIProtocolOpenAI
                                            baseURL:@"http://localhost:1234/v1" model:@"local-model" local:YES needsKey:NO
                                            keyPage:nil note:@"Không cần key. Bật Local Server trong LM Studio."],
@@ -68,7 +68,7 @@ NSString* const VOKAIErrorDomain = @"vn.io.lssoft.vopenkey.ai";
             //agents that are already signed in on this Mac: no key, VOpenKey AI only runs the program
             [[AIProvider alloc] initWithIdentifier:@"codex-cli" name:@"Codex CLI (ChatGPT)" protocol:AIProtocolAgentCLI
                                            baseURL:@"" model:@"" local:NO needsKey:NO keyPage:nil
-                                              note:@"Dùng chương trình codex đã đăng nhập sẵn trên máy này (codex login): không cần API key."],
+                                              note:@"Dùng chương trình codex đã đăng nhập sẵn trên máy này: không cần API key."],
             [[AIProvider alloc] initWithIdentifier:@"claude-cli" name:@"Claude Code CLI (Claude)" protocol:AIProtocolAgentCLI
                                            baseURL:@"" model:@"haiku" local:NO needsKey:NO keyPage:nil
                                               note:@"Dùng chương trình claude đã đăng nhập sẵn trên máy này (tài khoản Claude hoặc API của chính CLI): không cần API key."],

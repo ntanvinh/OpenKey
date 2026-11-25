@@ -38,6 +38,10 @@ unsigned generateImage(const vai::Config& config, const std::string& request, HW
 /// Asks the program for its models; the answer comes as AIClient::kMessageModels with the identifiers.
 unsigned listModels(const vai::Config& config, HWND window, std::wstring& reason);
 
+/// Asks the program whether it is signed in (its own status command: Codex `login status`, Claude Code `auth status`; Antigravity has none and
+/// answers Unknown): the answer comes as AIClient::kMessageLogin. Nothing else is run, no file of the program is opened.
+unsigned checkLogin(const vai::Config& config, HWND window, std::wstring& reason);
+
 /// Stops a request. Nothing more is delivered for that id.
 void cancel(unsigned id);
 

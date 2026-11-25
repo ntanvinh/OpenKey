@@ -95,8 +95,11 @@ Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
    Watch for: a list that comes up while only clicking, selecting files in Explorer, or typing fast; keys lagging while it is up.
 16. Codex, Claude Code and Antigravity as the AI (added 2026-11-04, nothing of it was ever run on Windows; the paths and the flags of the Windows
    builds of these programs are guesses taken from macOS): Cài đặt AI > "Codex CLI": the program is found (PATH, `%APPDATA%\npm`,
-   `%USERPROFILE%\.local\bin`...) or "Chọn..." works; "Tải danh sách" fills the model box (Codex: `codex debug models`, fast; Antigravity:
-   `agy models`, several seconds); the level box follows the model; a request streams into the assistant window; Esc stops it and no
+   `%USERPROFILE%\.local\bin`...) is found by itself (the row "Chương trình trên máy" and "Chọn..." only show when it is not; install it, come back to the window and the row goes);
+   "Tài khoản" shows "Đã đăng nhập: <email>" (Claude) or "Đã đăng nhập bằng ChatGPT" (Codex) by itself, and when signed out the guide
+   with "Sao chép lệnh" (the clipboard holds `codex login`) and "Mở PowerShell"; log in there, come back to the window and the row turns green
+   (never run on Windows: `codex login status` / `claude auth status` through `.cmd` and `.exe`); the model box fills by itself, no button (Codex: `codex debug models`, fast; Antigravity: `agy models`, several seconds) and starts with
+   "Tự động (khuyên dùng)"; the level box follows the model; a request streams into the assistant window; Esc stops it and no
    `codex.exe` / `node.exe` is left in Task Manager (job object); signed out gives the sentence with `codex login`; a wrong model name
    says so; "Claude Code CLI" with `claude.cmd` says it needs the .exe, with `claude.exe` works; Antigravity says its prompt limit for
    a 40,000 character selection; the folder `%TEMP%\VOpenKey-agent-*` is gone after each request; a request that runs 10 minutes is
@@ -111,7 +114,7 @@ Try each on Windows 10 or 11, x64 and x86 (a 32 bit Windows or WoW64):
    chosen; Ctrl+Shift+C puts a bitmap (and a "PNG") on the clipboard and closes: paste in Paint (bitmap) and in Word/Teams (PNG keeps
    transparency); Ctrl+Shift+Enter pastes into the program that was in front and the clipboard of the user comes back (test with text on
    it); a transparent PNG shows on white; Codex that makes no picture says so with what it said; `%CODEX_HOME%` set elsewhere is found;
-   Settings > AI > Codex CLI shows "Lệnh tạo ảnh" and "Dùng lệnh mặc định" and keeps an edited sentence after a restart.
+   Settings > AI shows no "Lệnh tạo ảnh" and no system prompt box (2026-11-25: simple choices only); a sentence edited in an older build is still used.
    Check the path `generated_images\<thread id>\*.png` on the real Windows build of Codex: it is taken from macOS.
 17a. Sizes of pictures (added 2026-11-19, never run on Windows): next to "Tạo ảnh" the menu "Kích thước ảnh:" starts with "Tự chọn", then the sizes
    under three titles (— Mạng xã hội —, — Icon & logo —, — Thiệp & ấn phẩm —); a title cannot be chosen (the choice goes back); it is off with the

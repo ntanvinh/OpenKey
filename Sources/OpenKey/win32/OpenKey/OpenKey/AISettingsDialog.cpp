@@ -14,6 +14,7 @@
 #include "ShortcutField.h"
 #include "AIAgentRunner.h"
 #include "../../../engine/AIAgent.h"
+#include <map>
 #include <shellapi.h>
 #include <commdlg.h>
 
@@ -28,40 +29,49 @@ enum {
     kIdNote,
     kIdAddress,
     kIdModel,
-    kIdLoadModels,
+    kIdModelChoice,
     kIdKey,
     kIdSaveKey,
     kIdRemoveKey,
     kIdGetKey,
     kIdKeyState,
-    kIdPrompt,
-    kIdDefaultPrompt,
     kIdCopySelection,
     kIdEnabled,
     kIdShortcut,
     kIdStatus,
-    kIdProgram,
     kIdBrowse,
-    kIdFindAgain,
     kIdProgramState,
+    kIdLoginState,
+    kIdLoginGuide,
+    kIdLoginCommand,
+    kIdCopyCommand,
+    kIdOpenTerminal,
     kIdEffort,
-    kIdImagePrompt,
-    kIdDefaultImagePrompt,
     kIdLabel            //the static labels, all with this id (no id needed)
 };
 
 HWND g_window = NULL;
-HWND g_provider, g_note, g_address, g_model, g_loadModels, g_key, g_saveKey, g_removeKey, g_getKey, g_keyState, g_prompt, g_defaultPrompt,
+HWND g_provider, g_note, g_address, g_model, g_modelChoice, g_key, g_saveKey, g_removeKey, g_getKey, g_keyState,
      g_copySelection, g_enabled, g_shortcut, g_status;
-//the programs of the computer (Codex CLI...): where the program is, and the thinking level
-HWND g_program, g_browse, g_findAgain, g_programState, g_effort;
-HWND g_labelImagePrompt, g_imagePrompt, g_defaultImagePrompt;   //Codex only: the sentence said to it to make a picture
-HWND g_labelProvider, g_labelAddress, g_labelProgram, g_labelModel, g_labelEffort, g_labelKey, g_labelPrompt, g_labelAssistant;
+//the programs of the computer (Codex CLI...): found by themselves, so the file is only asked for when it was not found; and the thinking level
+HWND g_browse, g_programState, g_effort;
+HWND g_labelProvider, g_labelAddress, g_labelProgram, g_labelModel, g_labelEffort, g_labelKey, g_labelAssistant;
+HWND g_labelLogin, g_loginState, g_loginGuide, g_loginCommand, g_copyCommand, g_openTerminal;   //signed in or not, and how to sign in
+std::map<std::string, vai::agent::LoginStatus> g_logins;   //what each program said last
+std::map<std::string, ULONGLONG> g_loginsAsked;
+unsigned g_loginRequest = 0;
+std::string g_loginRequestFor;
+const UINT_PTR kTimerCopied = 1;
+bool g_programFound = true;                 //the row of the program is only there when it was not found
+std::vector<std::string> g_modelChoiceValues;   //what each row of the box of models of a program stands for: "" = choose for me, or a model
+std::map<std::string, std::vector<std::string> > g_serviceModels;   //what each service answered, so the box is not empty between two asks
+std::map<std::string, ULONGLONG> g_modelsAsked;   //when the list of each service was asked last: it is asked again by itself
 std::vector<std::string> g_effortValues;   //what each row of the level box stands for: "" = choose for me, "default", or a level
 HFONT g_font = NULL, g_boldFont = NULL;
 HBRUSH g_fieldBrush = NULL, g_backgroundBrush = NULL;
 int g_dpi = 96;
 unsigned g_modelsRequest = 0;
+std::string g_modelsRequestFor;             //the service the request in flight is for
 bool g_filling = false;
 
 int px(int at96) {
@@ -110,28 +120,6 @@ const vai::agent::Agent* chosenAgent() {
     return vai::agent::find(chosenProvider().id);
 }
 
-//the edit boxes of Windows want CR LF, the settings keep LF
-std::wstring toEditText(const std::wstring& text) {
-    std::wstring result;
-    for (size_t i = 0; i < text.size(); i++) {
-        if (text[i] == L'\n' && (i == 0 || text[i - 1] != L'\r'))
-            result += L'\r';
-        result += text[i];
-    }
-    return result;
-}
-
-std::string fromEditText(const std::wstring& text) {
-    std::string utf8 = wideStringToUtf8(text);
-    std::string clean;
-    for (size_t i = 0; i < utf8.size(); i++) {
-        if (utf8[i] == '\r' && i + 1 < utf8.size() && utf8[i + 1] == '\n')
-            continue;
-        clean += utf8[i];
-    }
-    return clean;
-}
-
 std::wstring nameOfEffort(const std::string& effort) {
     if (effort == "minimal") return L"Tối thiểu";
     if (effort == "low") return L"Thấp (nhanh nhất)";
@@ -174,25 +162,63 @@ void fillEfforts() {
     g_filling = false;
 }
 
-//Where the program is: the one the user chose, or the one found by its name
+//Whether the program is there: the one the user chose, or the one found by its name. Its row is only shown when it was not found.
 void showProgram() {
     const vai::agent::Agent* program = chosenAgent();
     if (program == NULL)
         return;
     const vai::Provider& provider = chosenProvider();
     std::wstring chosen = utf8ToWideString(AISettings::programFor(provider));
-    std::wstring found = AIAgentRunner::findProgram(*program, chosen);
-    SetWindowTextW(g_program, found.c_str());
-    if (!found.empty()) {
-        SetWindowTextW(g_programState, (!chosen.empty() && found == chosen ? L"Đang dùng tệp bạn đã chọn." : L"Đã tìm thấy trên máy này.") );
-    } else {
-        std::wstring install = program->installHint.empty() ? std::wstring() : L" Cài bằng: " + utf8ToWideString(program->installHint) + L".";
-        SetWindowTextW(g_programState, (L"Không tìm thấy chương trình \"" + utf8ToWideString(program->command) + L"\" trên máy." + install +
-                                        L" Hoặc bấm \"Chọn...\" để chỉ tệp.").c_str());
+    g_programFound = !AIAgentRunner::findProgram(*program, chosen).empty();
+    if (!g_programFound) {
+        std::wstring name = utf8ToWideString(program->displayName);
+        SetWindowTextW(g_programState, (L"Chưa tìm thấy " + name + L" trên máy này. Hãy cài " + name +
+                                        L" rồi mở lại cửa sổ này, hoặc bấm \"Chọn...\" để chỉ tới chương trình.").c_str());
     }
 }
 
+//The box of models of a program: "automatic" and what the program has. A name saved earlier that the program does not list stays at the end.
+void fillModelChoice() {
+    const vai::agent::Agent* program = chosenAgent();
+    if (program == NULL)
+        return;
+    std::string saved = AISettings::modelFor(chosenProvider());
+    std::vector<vai::agent::Model> models = AIAgentRunner::knownModels(*program);
+    g_filling = true;
+    SendMessageW(g_modelChoice, CB_RESETCONTENT, 0, 0);
+    g_modelChoiceValues.clear();
+    g_modelChoiceValues.push_back("");
+    SendMessageW(g_modelChoice, CB_ADDSTRING, 0, (LPARAM)L"Tự động (khuyên dùng)");
+    size_t select = 0;
+    for (size_t i = 0; i < models.size(); i++) {
+        g_modelChoiceValues.push_back(models[i].id);
+        SendMessageW(g_modelChoice, CB_ADDSTRING, 0, (LPARAM)utf8ToWideString(models[i].name.empty() ? models[i].id : models[i].name).c_str());
+        if (!saved.empty() && models[i].id == saved)
+            select = g_modelChoiceValues.size() - 1;
+    }
+    if (!saved.empty() && select == 0) {
+        g_modelChoiceValues.push_back(saved);
+        SendMessageW(g_modelChoice, CB_ADDSTRING, 0, (LPARAM)utf8ToWideString(saved).c_str());
+        select = g_modelChoiceValues.size() - 1;
+    }
+    SendMessageW(g_modelChoice, CB_SETCURSEL, (WPARAM)select, 0);
+    g_filling = false;
+}
+
+//The box of a service: what it answered the last time
+void fillServiceModels() {
+    SendMessageW(g_model, CB_RESETCONTENT, 0, 0);
+    std::map<std::string, std::vector<std::string> >::const_iterator found = g_serviceModels.find(chosenProvider().id);
+    if (found == g_serviceModels.end())
+        return;
+    for (size_t i = 0; i < found->second.size(); i++)
+        SendMessageW(g_model, CB_ADDSTRING, 0, (LPARAM)utf8ToWideString(found->second[i]).c_str());
+}
+
 void layout();
+void requestModels(bool force);
+void requestLogin();
+void showLogin();
 
 //The fields show the service that is chosen
 void showProvider() {
@@ -202,25 +228,21 @@ void showProvider() {
     std::wstring note = AIText::noteForProvider(provider.id);
     SetWindowTextW(g_note, note.c_str());
     SetWindowTextW(g_address, utf8ToWideString(AISettings::baseUrlFor(provider)).c_str());
-    SetWindowTextW(g_model, utf8ToWideString(AISettings::modelFor(provider)).c_str());
-    SendMessageW(g_model, CB_RESETCONTENT, 0, 0);
-    if (program != NULL) {
-        //what the program offers, when it has said already (Claude Code has a list of its own)
-        std::vector<vai::agent::Model> models = AIAgentRunner::knownModels(*program);
-        for (size_t i = 0; i < models.size(); i++)
-            SendMessageW(g_model, CB_ADDSTRING, 0, (LPARAM)utf8ToWideString(models[i].id).c_str());
-    }
+    fillServiceModels();
+    SetWindowTextW(g_model, utf8ToWideString(AISettings::modelFor(provider)).c_str());      //after the list: emptying a list empties the text
     SetWindowTextW(g_key, L"");
     g_filling = false;
     showKeyState();
     if (program != NULL) {
         showProgram();
+        fillModelChoice();
         fillEfforts();
-        if (program->canMakeImages)
-            SetWindowTextW(g_imagePrompt, toEditText(utf8ToWideString(AISettings::imagePrompt())).c_str());
+        showLogin();
     }
     layout();
     setStatus(L"");
+    requestModels(false);
+    requestLogin();
 }
 
 void fillProviders() {
@@ -256,6 +278,8 @@ bool saveAddress() {
 }
 
 void saveModel() {
+    if (chosenAgent() != NULL)
+        return;                      //a program has its own box, which saves by itself
     AISettings::setModel(chosenProvider(), trimmed(textOf(g_model)));
 }
 
@@ -275,6 +299,7 @@ void saveKey() {
     SetWindowTextW(g_key, L""); //the key is not shown again
     showKeyState();
     setStatus(L"Đã lưu key.");
+    requestModels(true);                      //the models of the service can be listed now
 }
 
 void removeKey() {
@@ -288,47 +313,147 @@ void removeKey() {
     setStatus(L"Đã xoá key.");
 }
 
-void loadModels() {
+//The list of models is asked by itself, when the window opens or comes back and when the service changes; once in half a minute at most
+//for each service unless `force`. Nothing is said when it fails (no key yet, no network): a name can be typed, and the test of the
+//connection tells what is wrong.
+void requestModels(bool force) {
     const vai::Provider& provider = chosenProvider();
     bool isProgram = chosenAgent() != NULL;
-    if (!isProgram && !saveAddress())
+    ULONGLONG now = GetTickCount64();
+    std::map<std::string, ULONGLONG>::const_iterator last = g_modelsAsked.find(provider.id);
+    if (!force && last != g_modelsAsked.end() && now - last->second < 30000)
         return;
-    saveModel();
-    //a key typed but not saved yet is used for this one request
     vai::Config config;
     std::wstring reason;
-    if (isProgram) {
-        if (!AISettings::configurationFor(provider, false, config, reason)) {
-            setStatus(reason);
+    if (!AISettings::configurationFor(provider, false, config, reason)) {
+        if (isProgram)
             return;
-        }
-    } else if (!AISettings::configurationFor(provider, false, config, reason)) {
+        //a key typed but not saved yet is used for this one request
         vai::KeyProblem problem;
         std::string typed = vai::cleanKey(wideStringToUtf8(textOf(g_key)), problem);
-        if (typed.empty()) {
-            setStatus(reason);
+        if (typed.empty())
             return;
-        }
         vai::AddressProblem addressProblem;
         config.provider = provider;
         config.baseUrl = vai::cleanBaseUrl(AISettings::baseUrlFor(provider), addressProblem);
         config.model = AISettings::modelFor(provider);
         config.key = typed;
-    } else {
-        vai::KeyProblem problem;
-        std::string typed = vai::cleanKey(wideStringToUtf8(textOf(g_key)), problem);
-        if (!typed.empty())
-            config.key = typed;
     }
     if (g_modelsRequest)
         AIClient::cancel(g_modelsRequest);
     g_modelsRequest = AIClient::listModels(config, g_window, reason);
-    if (!g_modelsRequest) {
-        setStatus(reason);
-        return;
+    if (g_modelsRequest) {
+        g_modelsRequestFor = provider.id;
+        g_modelsAsked[provider.id] = now;
     }
-    setStatus(isProgram ? L"Đang hỏi chương trình danh sách model (có thể vài giây)..." : L"Đang tải danh sách model...");
-    EnableWindow(g_loadModels, FALSE);
+}
+
+// --- signed in or not ---------------------------------------------------------------------------------------------------
+
+//Whether the program says it is signed in: nothing is known before it has answered, and Antigravity has no way to say
+bool loginKnown(const vai::agent::Agent& program, vai::agent::LoginStatus& status) {
+    std::map<std::string, vai::agent::LoginStatus>::const_iterator found = g_logins.find(program.providerId);
+    if (found != g_logins.end()) {
+        status = found->second;
+        return true;
+    }
+    return false;
+}
+
+//The guide and the command are there unless the program is signed in (or the answer is still awaited)
+bool loginNeedsGuide() {
+    const vai::agent::Agent* program = chosenAgent();
+    if (program == NULL || !g_programFound)
+        return false;
+    std::vector<std::string> args;
+    vai::agent::LoginStatus status;
+    bool hasCommand = vai::agent::loginStatusArguments(*program, args);
+    if (!loginKnown(*program, status))
+        return !hasCommand;
+    return status.state != vai::agent::LoginState::SignedIn;
+}
+
+bool copyToClipboard(const std::wstring& text) {
+    if (!OpenClipboard(g_window))
+        return false;
+    EmptyClipboard();
+    size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (!memory) {
+        CloseClipboard();
+        return false;
+    }
+    memcpy(GlobalLock(memory), text.c_str(), bytes);
+    GlobalUnlock(memory);
+    if (!SetClipboardData(CF_UNICODETEXT, memory)) {
+        GlobalFree(memory);
+        CloseClipboard();
+        return false;
+    }
+    CloseClipboard();
+    return true;
+}
+
+void showLogin() {
+    const vai::agent::Agent* program = chosenAgent();
+    if (program == NULL || !g_loginState)
+        return;
+    std::wstring name = utf8ToWideString(program->displayName);
+    std::vector<std::string> args;
+    bool hasCommand = vai::agent::loginStatusArguments(*program, args);
+    vai::agent::LoginStatus status;
+    bool known = loginKnown(*program, status);
+    std::wstring text;
+    if (!known && hasCommand) {
+        text = L"Đang kiểm tra...";
+    } else if (known && status.state == vai::agent::LoginState::SignedIn) {
+        std::wstring how = utf8ToWideString(status.method);
+        if (how.find(L"API key") != std::wstring::npos)
+            how = L"API key";
+        text = !status.account.empty() ? L"\u2713 Đã đăng nhập: " + utf8ToWideString(status.account)
+             : !how.empty() ? L"\u2713 Đã đăng nhập bằng " + how : std::wstring(L"\u2713 Đã đăng nhập");
+    } else if (known && status.state == vai::agent::LoginState::SignedOut) {
+        text = L"Chưa đăng nhập";
+    } else if (hasCommand) {
+        text = L"Chưa xác định được trạng thái đăng nhập.";
+    } else {
+        text = name + L" không báo trạng thái đăng nhập. Hãy đăng nhập theo hướng dẫn dưới đây, rồi thử \"Kiểm tra kết nối\" của trợ lý.";
+    }
+    SetWindowTextW(g_loginState, text.c_str());
+    SetWindowTextW(g_loginGuide, (L"Đăng nhập một lần: bấm \"Mở PowerShell\", dán lệnh dưới đây (Ctrl+V) rồi nhấn Enter, làm theo hướng dẫn của " + name +
+                                  L". Xong, quay lại cửa sổ này, trạng thái tự cập nhật.").c_str());
+    SetWindowTextW(g_loginCommand, utf8ToWideString(program->loginHint).c_str());
+    InvalidateRect(g_loginState, NULL, TRUE);
+}
+
+//Asks the program, always while nobody is signed in (the user may be doing it in the terminal now, and coming back to the window is what brings the
+//answer), once in half a minute at most when somebody is.
+void requestLogin() {
+    const vai::agent::Agent* program = chosenAgent();
+    if (program == NULL || !g_programFound)
+        return;
+    std::vector<std::string> args;
+    if (!vai::agent::loginStatusArguments(*program, args))
+        return;
+    const vai::Provider& provider = chosenProvider();
+    vai::agent::LoginStatus last;
+    ULONGLONG now = GetTickCount64();
+    std::map<std::string, ULONGLONG>::const_iterator asked = g_loginsAsked.find(provider.id);
+    if (loginKnown(*program, last) && last.state == vai::agent::LoginState::SignedIn && asked != g_loginsAsked.end() && now - asked->second < 30000)
+        return;
+    if (g_loginRequest && g_loginRequestFor == provider.id)
+        return;                                          //it is being asked
+    vai::Config config;
+    std::wstring reason;
+    if (!AISettings::configurationFor(provider, false, config, reason))
+        return;
+    if (g_loginRequest)
+        AIAgentRunner::cancel(g_loginRequest);
+    g_loginRequest = AIAgentRunner::checkLogin(config, g_window, reason);
+    if (g_loginRequest) {
+        g_loginRequestFor = provider.id;
+        g_loginsAsked[provider.id] = now;
+    }
 }
 
 //The file of the program: chosen by the user
@@ -353,13 +478,9 @@ void browseProgram() {
     }
     AISettings::setProgram(chosenProvider(), wideStringToUtf8(file));
     showProgram();
+    layout();
     setStatus(L"");
-}
-
-void findProgramAgain() {
-    AISettings::setProgram(chosenProvider(), "");
-    showProgram();
-    setStatus(L"");
+    requestModels(true);
 }
 
 HWND child(const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, int w, int h, int id, DWORD exStyle = 0) {
@@ -384,21 +505,22 @@ void build() {
     g_address = child(L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL, 0, 0, 10, 10, kIdAddress, WS_EX_CLIENTEDGE);
 
     g_labelProgram = sectionLabel(L"Chương trình trên máy");
-    g_program = child(L"EDIT", L"", WS_TABSTOP | ES_READONLY | ES_AUTOHSCROLL, 0, 0, 10, 10, kIdProgram, WS_EX_CLIENTEDGE);
     g_browse = child(L"BUTTON", L"Chọn...", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdBrowse);
-    g_findAgain = child(L"BUTTON", L"Tìm lại", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdFindAgain);
     g_programState = child(L"STATIC", L"", 0, 0, 0, 10, 10, kIdProgramState);
+
+    g_labelLogin = sectionLabel(L"Tài khoản");
+    g_loginState = child(L"STATIC", L"", 0, 0, 0, 10, 10, kIdLoginState);
+    g_loginGuide = child(L"STATIC", L"", 0, 0, 0, 10, 10, kIdLoginGuide);
+    g_loginCommand = child(L"EDIT", L"", WS_TABSTOP | ES_READONLY | ES_AUTOHSCROLL, 0, 0, 10, 10, kIdLoginCommand, WS_EX_CLIENTEDGE);
+    g_copyCommand = child(L"BUTTON", L"Sao chép lệnh", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdCopyCommand);
+    g_openTerminal = child(L"BUTTON", L"Mở PowerShell", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdOpenTerminal);
 
     g_labelModel = sectionLabel(L"Model");
     g_model = child(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWN | CBS_AUTOHSCROLL, 0, 0, 10, 10, kIdModel);
-    g_loadModels = child(L"BUTTON", L"Tải danh sách", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdLoadModels);
+    g_modelChoice = child(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, 0, 0, 10, 10, kIdModelChoice);
 
     g_labelEffort = sectionLabel(L"Mức suy nghĩ (càng cao càng chậm, có thể vài chục giây)");
     g_effort = child(L"COMBOBOX", L"", WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, 0, 0, 10, 10, kIdEffort);
-
-    g_labelImagePrompt = sectionLabel(L"Lệnh tạo ảnh ({prompt} là mô tả của bạn)");
-    g_imagePrompt = child(L"EDIT", L"", WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, 0, 0, 10, 10, kIdImagePrompt, WS_EX_CLIENTEDGE);
-    g_defaultImagePrompt = child(L"BUTTON", L"Dùng lệnh mặc định", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdDefaultImagePrompt);
 
     g_labelKey = sectionLabel(L"API key");
     g_key = child(L"EDIT", L"", WS_TABSTOP | ES_AUTOHSCROLL | ES_PASSWORD, 0, 0, 10, 10, kIdKey, WS_EX_CLIENTEDGE);
@@ -406,10 +528,6 @@ void build() {
     g_removeKey = child(L"BUTTON", L"Xoá key", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdRemoveKey);
     g_keyState = child(L"STATIC", L"", 0, 0, 0, 10, 10, kIdKeyState);
     g_getKey = child(L"BUTTON", L"Lấy key...", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdGetKey);
-
-    g_labelPrompt = sectionLabel(L"Lời dặn gửi kèm mỗi yêu cầu");
-    g_prompt = child(L"EDIT", L"", WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, 0, 0, 10, 10, kIdPrompt, WS_EX_CLIENTEDGE);
-    g_defaultPrompt = child(L"BUTTON", L"Dùng lời dặn mặc định", WS_TABSTOP | BS_PUSHBUTTON, 0, 0, 10, 10, kIdDefaultPrompt);
 
     g_labelAssistant = sectionLabel(L"Trợ lý AI");
     g_enabled = child(L"BUTTON", L"Bật phím tắt mở trợ lý AI", WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 10, 10, kIdEnabled);
@@ -431,7 +549,6 @@ void layout() {
     int y = pad;
     int rowHeight = px(28);
     int fieldWidth = width - pad * 2;
-    int loadWidth = px(140);
     int keyButton = px(96);
     int smallButton = px(100);
     auto place = [&](HWND window, int x, int top, int w, int h, bool visible) {
@@ -456,32 +573,41 @@ void layout() {
     place(g_address, pad, y, fieldWidth, rowHeight, !isProgram);
     if (!isProgram) y += rowHeight + px(10);
 
-    place(g_labelProgram, pad, y, fieldWidth, px(20), isProgram);
-    if (isProgram) y += px(22);
-    place(g_program, pad, y, fieldWidth - smallButton * 2 - px(16), rowHeight, isProgram);
-    place(g_browse, width - pad - smallButton * 2 - px(8), y, smallButton, rowHeight, isProgram);
-    place(g_findAgain, width - pad - smallButton, y, smallButton, rowHeight, isProgram);
-    if (isProgram) y += rowHeight + px(4);
-    place(g_programState, pad, y, fieldWidth, px(40), isProgram);
-    if (isProgram) y += px(44);
+    //the row of the program is only there when it was not found: the program is found by itself
+    bool programMissing = isProgram && !g_programFound;
+    place(g_labelProgram, pad, y, fieldWidth, px(20), programMissing);
+    if (programMissing) y += px(22);
+    place(g_programState, pad, y, fieldWidth, px(40), programMissing);
+    if (programMissing) y += px(44);
+    place(g_browse, pad, y, smallButton, rowHeight, programMissing);
+    if (programMissing) y += rowHeight + px(10);
 
+    //who is signed in, once the program is found; the guide, the command to paste and the two buttons only while nobody is
+    bool loginRow = isProgram && g_programFound;
+    bool guide = loginNeedsGuide();
+    place(g_labelLogin, pad, y, fieldWidth, px(20), loginRow);
+    if (loginRow) y += px(22);
+    place(g_loginState, pad, y, fieldWidth, px(36), loginRow);
+    if (loginRow) y += px(38);
+    place(g_loginGuide, pad, y, fieldWidth, px(52), loginRow && guide);
+    if (loginRow && guide) y += px(56);
+    place(g_loginCommand, pad, y, fieldWidth, rowHeight, loginRow && guide);
+    if (loginRow && guide) y += rowHeight + px(6);
+    place(g_copyCommand, pad, y, px(130), rowHeight, loginRow && guide);
+    place(g_openTerminal, pad + px(138), y, px(130), rowHeight, loginRow && guide);
+    if (loginRow && guide) y += rowHeight + px(10);
+    else if (loginRow) y += px(6);
+
+    //the model of a service is typed or chosen; that of a program is only chosen, and is "automatic" by default. The list is asked by itself
     place(g_labelModel, pad, y, fieldWidth, px(20), true); y += px(22);
-    place(g_model, pad, y, fieldWidth - loadWidth - px(8), px(240), true);
-    place(g_loadModels, width - pad - loadWidth, y, loadWidth, rowHeight, true);
+    place(g_model, pad, y, fieldWidth, px(240), !isProgram);
+    place(g_modelChoice, pad, y, fieldWidth, px(240), isProgram);
     y += rowHeight + px(10);
 
     place(g_labelEffort, pad, y, fieldWidth, px(20), isProgram);
     if (isProgram) y += px(22);
     place(g_effort, pad, y, fieldWidth, px(240), isProgram);
     if (isProgram) y += rowHeight + px(10);
-
-    //Codex makes pictures: the sentence it is given, with the button that brings the default back on the line of its title
-    bool imageRow = chosenAgent() != NULL && chosenAgent()->canMakeImages;
-    place(g_labelImagePrompt, pad, y, fieldWidth - px(190), px(20), imageRow);
-    place(g_defaultImagePrompt, width - pad - px(180), y - px(3), px(180), px(26), imageRow);
-    if (imageRow) y += px(24);
-    place(g_imagePrompt, pad, y, fieldWidth, px(50), imageRow);
-    if (imageRow) y += px(58);
 
     place(g_labelKey, pad, y, fieldWidth, px(20), !isProgram);
     if (!isProgram) y += px(22);
@@ -492,10 +618,6 @@ void layout() {
     place(g_keyState, pad, y + px(4), fieldWidth - px(160), px(20), !isProgram);
     place(g_getKey, width - pad - px(150), y, px(150), rowHeight, !isProgram);
     if (!isProgram) y += rowHeight + px(10);
-
-    place(g_labelPrompt, pad, y, fieldWidth, px(20), true); y += px(22);
-    place(g_prompt, pad, y, fieldWidth, px(76), true); y += px(80);
-    place(g_defaultPrompt, pad, y, px(190), rowHeight, true); y += rowHeight + px(10);
 
     place(g_labelAssistant, pad, y, fieldWidth, px(20), true); y += px(22);
     place(g_enabled, pad, y, fieldWidth - px(220), px(24), true);
@@ -529,8 +651,16 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     case WM_CTLCOLORBTN: {
         FeatureTheme::Colors theme = FeatureTheme::colors();
         int id = GetDlgCtrlID((HWND)lParam);
-        bool quiet = id == kIdNote || id == kIdKeyState || id == kIdStatus || id == kIdProgramState;
-        SetTextColor((HDC)wParam, quiet ? theme.secondaryText : theme.text);
+        bool quiet = id == kIdNote || id == kIdKeyState || id == kIdStatus || id == kIdLoginGuide;
+        COLORREF color = quiet ? theme.secondaryText : theme.text;
+        if (id == kIdLoginState) {
+            vai::agent::LoginStatus status;
+            const vai::agent::Agent* program = chosenAgent();
+            if (program != NULL && loginKnown(*program, status))
+                color = status.state == vai::agent::LoginState::SignedIn ? RGB(46, 160, 67)
+                      : status.state == vai::agent::LoginState::SignedOut ? RGB(224, 131, 0) : theme.secondaryText;
+        }
+        SetTextColor((HDC)wParam, color);
         SetBkColor((HDC)wParam, theme.background);
         return (LRESULT)g_backgroundBrush;
     }
@@ -540,7 +670,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             AISettings::setProviderId(chosenProvider().id);
             showProvider();
         } else if (id == kIdAddress && code == EN_KILLFOCUS && !g_filling) {
-            saveAddress();
+            if (saveAddress())
+                requestModels(true);          //another address, another list
         } else if (id == kIdModel && (code == CBN_KILLFOCUS || code == CBN_SELCHANGE || code == CBN_SELENDOK) && !g_filling) {
             if (code == CBN_SELCHANGE || code == CBN_SELENDOK) {
                 //the chosen name is not yet in the text of the box at this moment
@@ -553,20 +684,22 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             } else {
                 saveModel();
             }
-            if (chosenAgent() != NULL)
+        } else if (id == kIdModelChoice && code == CBN_SELCHANGE && !g_filling) {
+            int row = (int)SendMessageW(g_modelChoice, CB_GETCURSEL, 0, 0);
+            if (row >= 0 && (size_t)row < g_modelChoiceValues.size()) {
+                AISettings::setModel(chosenProvider(), g_modelChoiceValues[(size_t)row]);
                 fillEfforts(); //the levels belong to the model
-        } else if (id == kIdLoadModels) {
-            loadModels();
-        } else if (id == kIdImagePrompt && code == EN_KILLFOCUS) {
-            AISettings::setImagePrompt(fromEditText(textOf(g_imagePrompt)));
-        } else if (id == kIdDefaultImagePrompt) {
-            AISettings::setImagePrompt("");
-            SetWindowTextW(g_imagePrompt, toEditText(utf8ToWideString(AISettings::defaultImagePrompt())).c_str());
-            setStatus(L"Đã dùng lệnh tạo ảnh mặc định.");
+            }
         } else if (id == kIdBrowse) {
             browseProgram();
-        } else if (id == kIdFindAgain) {
-            findProgramAgain();
+        } else if (id == kIdCopyCommand) {
+            const vai::agent::Agent* program = chosenAgent();
+            if (program != NULL && copyToClipboard(utf8ToWideString(program->loginHint))) {
+                SetWindowTextW(g_copyCommand, L"Đã sao chép \u2713");
+                SetTimer(g_window, kTimerCopied, 2000, NULL);
+            }
+        } else if (id == kIdOpenTerminal) {
+            ShellExecuteW(NULL, L"open", L"powershell.exe", NULL, NULL, SW_SHOWNORMAL);
         } else if (id == kIdEffort && code == CBN_SELCHANGE && !g_filling) {
             int row = (int)SendMessageW(g_effort, CB_GETCURSEL, 0, 0);
             if (row >= 0 && (size_t)row < g_effortValues.size())
@@ -579,26 +712,6 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             std::wstring page = utf8ToWideString(chosenProvider().keyPage);
             if (!page.empty())
                 ShellExecuteW(NULL, L"open", page.c_str(), NULL, NULL, SW_SHOWNORMAL);
-        } else if (id == kIdPrompt && code == EN_KILLFOCUS) {
-            //the line breaks of the box are CR LF; the instruction keeps LF
-            std::string prompt = trimmed(textOf(g_prompt));
-            std::string clean;
-            for (size_t i = 0; i < prompt.size(); i++) {
-                if (prompt[i] == '\r' && i + 1 < prompt.size() && prompt[i + 1] == '\n')
-                    continue;
-                clean += prompt[i];
-            }
-            AISettings::setSystemPrompt(clean);
-        } else if (id == kIdDefaultPrompt) {
-            AISettings::setSystemPrompt("");
-            std::wstring text = utf8ToWideString(AISettings::defaultSystemPrompt());
-            std::wstring edit;
-            for (size_t i = 0; i < text.size(); i++) {
-                if (text[i] == L'\n') edit += L'\r';
-                edit += text[i];
-            }
-            SetWindowTextW(g_prompt, edit.c_str());
-            setStatus(L"Đã dùng lời dặn mặc định.");
         } else if (id == kIdEnabled && code == BN_CLICKED) {
             vAIEnabled = SendMessageW(g_enabled, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0;
             OpenKeyHelper::setRegInt(L"vAIEnabled", vAIEnabled);
@@ -610,32 +723,62 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         }
         return 0;
     }
+    case WM_TIMER:
+        if (wParam == kTimerCopied) {
+            KillTimer(window, kTimerCopied);
+            SetWindowTextW(g_copyCommand, L"Sao chép lệnh");
+        }
+        return 0;
+    case AIClient::kMessageLogin: {
+        AIClient::Login* login = (AIClient::Login*)lParam;
+        if (login) {
+            if ((unsigned)wParam == g_loginRequest) {
+                g_loginRequest = 0;
+                g_logins[g_loginRequestFor] = login->status;
+                if (g_loginRequestFor == chosenProvider().id) {
+                    showLogin();
+                    layout();                  //the guide comes or goes with the answer
+                }
+            }
+            delete login;
+        }
+        return 0;
+    }
     case AIClient::kMessageModels: {
         AIClient::Models* models = (AIClient::Models*)lParam;
         if (models) {
             if ((unsigned)wParam == g_modelsRequest) {
                 g_modelsRequest = 0;
-                EnableWindow(g_loadModels, TRUE);
-                if (models->error.ok()) {
-                    std::wstring current = textOf(g_model);
-                    SendMessageW(g_model, CB_RESETCONTENT, 0, 0);
-                    for (size_t i = 0; i < models->names.size(); i++)
-                        SendMessageW(g_model, CB_ADDSTRING, 0, (LPARAM)utf8ToWideString(models->names[i]).c_str());
-                    SetWindowTextW(g_model, current.c_str());
+                //nothing is said when the list could not be had: a name can be typed, and the test of the connection tells what is wrong
+                if (models->error.ok() && !models->names.empty() && g_modelsRequestFor == chosenProvider().id) {
                     if (chosenAgent() != NULL) {
-                        fillEfforts(); //the levels of the models are known now
-                        setStatus(L"Đã tải " + std::to_wstring(models->names.size()) + L" model từ chương trình. Bấm mũi tên ở ô Model để chọn; để trống là dùng model nhẹ.");
+                        fillModelChoice();   //the program has said what it offers (its models are known to AIAgentRunner now)
+                        fillEfforts();
                     } else {
-                        setStatus(L"Đã tải " + std::to_wstring(models->names.size()) + L" model. Key và địa chỉ dùng được. Bấm mũi tên ở ô Model để chọn.");
+                        g_serviceModels[g_modelsRequestFor] = models->names;
+                        std::wstring current = textOf(g_model);
+                        fillServiceModels();
+                        SetWindowTextW(g_model, current.c_str());
                     }
-                } else {
-                    setStatus(models->message);
                 }
             }
             delete models;
         }
         return 0;
     }
+    case WM_ACTIVATE:
+        //coming back to the window: the program may have been installed, and it may offer new models, in the meantime
+        if (LOWORD(wParam) != WA_INACTIVE && g_provider && chosenAgent() != NULL) {
+            bool found = g_programFound;
+            showProgram();
+            if (found != g_programFound)
+                layout();
+            requestModels(false);
+            requestLogin();
+        } else if (LOWORD(wParam) != WA_INACTIVE && g_provider) {
+            requestModels(false);
+        }
+        break;
     case WM_CLOSE:
         ShowWindow(window, SW_HIDE);
         return 0;
@@ -696,16 +839,11 @@ void show() {
         return;
     g_filling = true;
     fillProviders();
-    std::wstring prompt = utf8ToWideString(AISettings::systemPrompt());
-    std::wstring edit;
-    for (size_t i = 0; i < prompt.size(); i++) {
-        if (prompt[i] == L'\n') edit += L'\r';
-        edit += prompt[i];
-    }
-    SetWindowTextW(g_prompt, edit.c_str());
     SendMessageW(g_enabled, BM_SETCHECK, vAIEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(g_copySelection, BM_SETCHECK, vAICopySelection ? BST_CHECKED : BST_UNCHECKED, 0);
     g_filling = false;
+    g_modelsAsked.clear();                       //the window was closed: the lists are asked again
+    g_loginsAsked.clear();
     showProvider();
     ShortcutField::refresh();
     ShowWindow(g_window, SW_SHOWNORMAL);

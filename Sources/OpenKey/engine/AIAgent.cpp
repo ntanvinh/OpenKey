@@ -585,6 +585,81 @@ bool listModelsArguments(const Agent& agent, std::vector<std::string>& out) {
     return false;
 }
 
+bool loginStatusArguments(const Agent& agent, std::vector<std::string>& out) {
+    out.clear();
+    switch (agent.kind) {
+        case Kind::Codex:
+            out.push_back("login");
+            out.push_back("status");
+            return true;
+        case Kind::Claude:
+            out.push_back("auth");
+            out.push_back("status");
+            return true;
+        case Kind::Antigravity:
+            break;
+    }
+    return false;
+}
+
+static std::string lowerAscii(std::string text) {
+    for (size_t i = 0; i < text.size(); i++)
+        if (text[i] >= 'A' && text[i] <= 'Z')
+            text[i] = (char)(text[i] - 'A' + 'a');
+    return text;
+}
+
+//one line of what a program printed, without what could not be shown: control characters out, 120 characters at most
+static std::string shownLine(const std::string& text) {
+    std::string line;
+    for (size_t i = 0; i < text.size() && line.size() < 120; i++) {
+        unsigned char c = (unsigned char)text[i];
+        if (c == '\n' || c == '\r')
+            break;
+        if (c >= ' ' && c != 0x7f)
+            line += (char)c;
+    }
+    size_t a = 0, b = line.size();
+    while (a < b && line[a] == ' ') a++;
+    while (b > a && line[b - 1] == ' ') b--;
+    return line.substr(a, b - a);
+}
+
+LoginStatus loginStatusFromOutput(const Agent& agent, const std::string& output, int exitCode) {
+    LoginStatus status;
+    if (agent.kind == Kind::Claude) {
+        //`claude auth status` prints JSON: {"loggedIn": true, "email": "..."}; a program that is not signed in says loggedIn false
+        vjson::Value root;
+        size_t start = output.find('{');
+        if (start == std::string::npos || !vjson::parse(output.substr(start), root) || !root.isObject() || !root["loggedIn"].isBool())
+            return status;
+        if (root["loggedIn"].asBool(false)) {
+            status.state = LoginState::SignedIn;
+            status.account = shownLine(root["email"].stringOr(""));
+        } else {
+            status.state = LoginState::SignedOut;
+        }
+        return status;
+    }
+    if (agent.kind == Kind::Codex) {
+        //`codex login status`: "Logged in using ChatGPT" (or "...using an API key"); signed out it says so and ends with an error
+        std::string lower = lowerAscii(output);
+        if (lower.find("not logged in") != std::string::npos || lower.find("not signed in") != std::string::npos) {
+            status.state = LoginState::SignedOut;
+        } else if (exitCode == 0 && lower.find("logged in") != std::string::npos) {
+            status.state = LoginState::SignedIn;
+            size_t using_ = lower.find(" using ");
+            if (using_ != std::string::npos)
+                status.method = shownLine(output.substr(using_ + 7));
+            size_t dash = status.method.find(" - ");      //"using an API key - sk-...": what comes after may be a part of the key, never shown
+            if (dash != std::string::npos)
+                status.method = status.method.substr(0, dash);
+        }
+        return status;
+    }
+    return status;
+}
+
 // --- pictures (Codex) ---------------------------------------------------------------------------------------------------
 
 std::string defaultImagePromptTemplate() {

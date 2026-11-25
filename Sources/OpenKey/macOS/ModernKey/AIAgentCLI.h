@@ -55,6 +55,22 @@ extern NSString* const AIAgentEffortProgramDefault;
 @property (nonatomic) BOOL light;
 @end
 
+typedef NS_ENUM(NSInteger, AIAgentLoginState) {
+    AIAgentLoginUnknown,      //the program has no command for it, or said something that is not understood: never shown as "signed out"
+    AIAgentLoginSignedIn,
+    AIAgentLoginSignedOut,
+};
+
+/// Whether a program is signed in, as the program itself says it (its own status command): VOpenKey AI never opens the files where the
+/// programs keep their tokens.
+@interface AIAgentLogin : NSObject
+@property (nonatomic) AIAgentLoginState state;
+/// The e-mail the program says it is signed in with. nil when it does not say (Codex only says how it is signed in).
+@property (nonatomic, copy) NSString* account;
+/// "ChatGPT", "an API key"...: how it is signed in, when the program says. nil otherwise.
+@property (nonatomic, copy) NSString* method;
+@end
+
 @interface AIAgentCLI : NSObject
 
 @property (nonatomic, readonly) AIAgentKind kind;
@@ -97,6 +113,16 @@ extern NSString* const AIAgentEffortProgramDefault;
 /// The PATH to give the program: its own folder first (a script that starts with `env node` needs the node that sits next to it),
 /// then the usual folders, then the PATH this application has.
 +(NSString*)pathForExecutable:(NSString*)executable home:(NSString*)home environmentPath:(NSString*)path;
+
+#pragma mark Signed in or not
+
+/// The program has a command that tells whether it is signed in (Codex: `codex login status`; Claude Code: `claude auth status`). Antigravity has none.
+-(BOOL)hasLoginStatusCommand;
+/// Runs that command and says what it said; `completion` is called on the main thread. A program that cannot be run, or that does not answer in
+/// 15 seconds, gives Unknown.
+-(void)checkLoginOfExecutable:(NSString*)executable completion:(void (^)(AIAgentLogin* login))completion;
+/// What the command printed (the standard output and the error output together: Codex writes on the second) and how it ended.
++(AIAgentLogin*)loginFromOutput:(NSString*)output exitStatus:(int)status forKind:(AIAgentKind)kind;
 
 #pragma mark Models and thinking levels
 

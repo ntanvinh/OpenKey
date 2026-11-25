@@ -108,6 +108,22 @@ bool standardInput(const Agent& agent, const std::string& prompt, const std::str
 /// The arguments that list the models of the program, and whether it has such a command (Claude has not).
 bool listModelsArguments(const Agent& agent, std::vector<std::string>& out);
 
+// --- who is signed in --------------------------------------------------------------------------------------------------
+
+enum class LoginState { Unknown, SignedIn, SignedOut };
+struct LoginStatus {
+    LoginState state;
+    std::string account;      //the e-mail the program says it is signed in with; empty when it does not say (Codex only says how)
+    std::string method;       //"ChatGPT", "an API key"...: how, when the program says; empty otherwise
+    LoginStatus() : state(LoginState::Unknown) {}
+};
+/// The arguments of the command that tells whether the program is signed in, and whether it has one (Antigravity has not: its state is Unknown).
+/// Only that command is run: the files where the programs keep their tokens are never opened.
+bool loginStatusArguments(const Agent& agent, std::vector<std::string>& out);
+/// What the command said (the standard output and the error output put together: Codex writes on the second) and how it ended.
+/// Anything that is not understood is Unknown, never "signed out": a program that changed its words must not look signed out.
+LoginStatus loginStatusFromOutput(const Agent& agent, const std::string& output, int exitCode);
+
 // --- pictures (Codex) ---------------------------------------------------------------------------------------------------
 
 /// "Use $imagegen skill to create picture {prompt}, follow our design system." Codex makes poor pictures unless its imagegen skill is named in

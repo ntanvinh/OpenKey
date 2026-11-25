@@ -495,7 +495,37 @@ static void testPictures() {
     CHECK(choosePicture("t", ties, 0, false) == 0);
 }
 
+static void testLogin() {
+    const Agent* codex = find("codex-cli");
+    const Agent* claude = find("claude-cli");
+    const Agent* agy = find("agy-cli");
+    List args;
+    CHECK(loginStatusArguments(*codex, args) && args == listOf("login", "status"));
+    CHECK(loginStatusArguments(*claude, args) && args == listOf("auth", "status"));
+    CHECK(!loginStatusArguments(*agy, args) && args.empty());
+    LoginStatus s = loginStatusFromOutput(*claude, "{\n  \"loggedIn\": true,\n  \"email\": \"a@b.vn\",\n  \"orgName\": \"X\"\n}\n", 0);
+    CHECK(s.state == LoginState::SignedIn && s.account == "a@b.vn");
+    s = loginStatusFromOutput(*claude, "{\"loggedIn\": false}", 1);
+    CHECK(s.state == LoginState::SignedOut && s.account.empty());
+    s = loginStatusFromOutput(*claude, "not json at all", 0);
+    CHECK(s.state == LoginState::Unknown);
+    s = loginStatusFromOutput(*claude, "{\"loggedIn\": true, \"email\": \"bad\\u0007x\\ny\"}", 0);
+    CHECK(s.state == LoginState::SignedIn && s.account == "badx");
+    s = loginStatusFromOutput(*codex, "Logged in using ChatGPT\n", 0);
+    CHECK(s.state == LoginState::SignedIn && s.method == "ChatGPT" && s.account.empty());
+    s = loginStatusFromOutput(*codex, "Logged in using an API key - sk-...\n", 0);
+    CHECK(s.state == LoginState::SignedIn && s.method == "an API key");
+    s = loginStatusFromOutput(*codex, "Not logged in\n", 1);
+    CHECK(s.state == LoginState::SignedOut);
+    s = loginStatusFromOutput(*codex, "something new the program says\n", 1);
+    CHECK(s.state == LoginState::Unknown);                       //not understood is never "signed out"
+    s = loginStatusFromOutput(*codex, "", 0);
+    CHECK(s.state == LoginState::Unknown);
+    CHECK(loginStatusFromOutput(*agy, "Logged in using ChatGPT", 0).state == LoginState::Unknown);
+}
+
 int main() {
+    testLogin();
     testAgents();
     testCatalog();
     testAntigravityList();

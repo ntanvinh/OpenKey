@@ -13,6 +13,7 @@
 #pragma once
 #include "stdafx.h"
 #include "../../../engine/AIProtocol.h"
+#include "../../../engine/AIAgent.h"
 
 namespace AIClient {
 
@@ -21,6 +22,7 @@ const UINT kMessageText = WM_APP + 61;     //lParam: std::wstring* with a piece 
 const UINT kMessageDone = WM_APP + 62;     //lParam: Done*; the window deletes it
 const UINT kMessageModels = WM_APP + 63;   //lParam: Models*; the window deletes it
 const UINT kMessageImage = WM_APP + 64;    //lParam: ImageDone*; the window deletes it
+const UINT kMessageLogin = WM_APP + 65;    //lParam: Login*; the window deletes it (AIAgentRunner::checkLogin)
 
 struct Done {
     vai::Error error;          //code None: the answer is complete
@@ -31,6 +33,10 @@ struct Models {
     std::vector<std::string> names;
     vai::Error error;
     std::wstring message;
+};
+
+struct Login {
+    vai::agent::LoginStatus status;   //whether the program is signed in, as its own status command says; Unknown when it cannot say
 };
 
 struct ImageDone {

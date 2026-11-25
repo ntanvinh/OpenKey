@@ -615,7 +615,7 @@ static void SetKeyHeaders(NSMutableURLRequest* request, AIConfiguration* c) {
     if (status == 401 || status == 403)
         return MakeError(VOKAIErrorAuthentication, [NSString stringWithFormat:@"%@ không chấp nhận key này, hoặc key không có quyền dùng model “%@”. Kiểm tra lại key trong Cài đặt > AI.%@", c.provider.name, c.model, detail]);
     if (status == 404)
-        return MakeError(VOKAIErrorModel, [NSString stringWithFormat:@"Không tìm thấy model “%@” hoặc địa chỉ máy chủ sai. Dùng nút “Tải danh sách” trong Cài đặt > AI để chọn model.%@", c.model, detail]);
+        return MakeError(VOKAIErrorModel, [NSString stringWithFormat:@"Không tìm thấy model “%@” hoặc địa chỉ máy chủ sai. Hãy chọn model khác trong Cài đặt > AI.%@", c.model, detail]);
     if (status == 429)
         return MakeError(VOKAIErrorRateLimit, [NSString stringWithFormat:@"Đã vượt giới hạn yêu cầu hoặc hết hạn mức của %@. Thử lại sau, hoặc kiểm tra gói sử dụng.%@", c.provider.name, detail]);
     if (status >= 300 && status < 400)

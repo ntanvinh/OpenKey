@@ -57,7 +57,7 @@ static std::wstring forAgentError(const vai::Error& error, const vai::Config& co
                utf8ToWideString(program.loginHint) + L"` rồi thử lại." + detail;
     case vai::ErrorCode::Model:
         return name + L" không dùng được model \"" + (config.model.empty() ? std::wstring(L"đang chọn") : utf8ToWideString(config.model)) +
-               L"\". Chọn model khác trong Cài đặt AI (nút \"Tải danh sách\")." + detail;
+               L"\". Hãy chọn model khác trong Cài đặt AI, hoặc để \"Tự động\"." + detail;
     case vai::ErrorCode::Effort:
         return name + L" không nhận mức suy nghĩ \"" + utf8ToWideString(config.effort) +
                L"\" cho model này. Chọn mức khác, hoặc \"Mặc định của chương trình\", trong Cài đặt AI." + detail;
@@ -111,7 +111,7 @@ std::wstring forError(const vai::Error& error, const vai::Config& config) {
     case vai::ErrorCode::RateLimit:
         return L"Đã vượt giới hạn yêu cầu hoặc hết hạn mức của " + name + L". Thử lại sau, hoặc kiểm tra gói sử dụng." + detailOf(error);
     case vai::ErrorCode::Model:
-        return L"Không tìm thấy model \"" + model + L"\" hoặc địa chỉ máy chủ sai. Dùng nút \"Tải danh sách\" trong Cài đặt AI để chọn model." +
+        return L"Không tìm thấy model \"" + model + L"\" hoặc địa chỉ máy chủ sai. Hãy chọn model khác trong Cài đặt AI." +
                detailOf(error);
     case vai::ErrorCode::Server:
         if (error.status >= 300 && error.status < 400)
@@ -138,18 +138,17 @@ std::wstring noteForProvider(const std::string& id) {
     if (id == "openrouter")
         return L"Một key dùng được nhiều AI. Tên model có dạng nhà-cung-cấp/tên-model.";
     if (id == "ollama")
-        return L"Chạy trên máy này, không cần key. Cài Ollama từ ollama.com, chạy `ollama serve` rồi tải model bằng `ollama pull llama3.2`.";
+        return L"Chạy trên máy này, không cần key. Cài Ollama từ ollama.com rồi tải một model.";
     if (id == "lmstudio")
         return L"Chạy trên máy này, không cần key. Bật Local Server trong LM Studio.";
     if (id == "custom")
         return L"Cho llama.cpp, vLLM, LocalAI hoặc dịch vụ khác. Địa chỉ dạng https://máy-chủ/v1. Key để trống nếu máy chủ không đòi.";
     //programs of the computer: signed in by themselves, so no key; run in an empty folder with nothing but text allowed
     if (id == "codex-cli")
-        return L"Dùng Codex CLI đã đăng nhập sẵn trên máy (`codex login`), không cần API key. Chương trình chạy trong thư mục tạm trống, không có công cụ, "
-               L"không ghi tệp, không lưu phiên; chữ của bạn đi vào đầu vào chuẩn của nó. Nút \"Tạo ảnh\" của trợ lý AI dùng kỹ năng $imagegen của Codex. "
-               L"Cài: npm install -g @openai/codex.";
+        return L"Dùng Codex CLI đã đăng nhập sẵn trên máy, không cần API key. Chương trình chạy trong thư mục tạm trống, không có công cụ, "
+               L"không ghi tệp, không lưu phiên. Nút \"Tạo ảnh\" của trợ lý AI dùng kỹ năng tạo ảnh của Codex.";
     if (id == "claude-cli")
-        return L"Dùng Claude Code CLI đã đăng nhập sẵn trên máy (`claude auth login`), không cần API key. Chương trình chạy ở chế độ chỉ viết chữ, "
+        return L"Dùng Claude Code CLI đã đăng nhập sẵn trên máy, không cần API key. Chương trình chạy ở chế độ chỉ viết chữ, "
                L"trong thư mục tạm trống, không lưu phiên. Nên chọn tệp claude.exe (bản cài của Anthropic); bản npm là script .cmd, không nhận được "
                L"hướng dẫn nhiều dòng.";
     if (id == "agy-cli")

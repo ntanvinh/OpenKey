@@ -54,6 +54,21 @@ CATALOG = {"models": [
      "supported_reasoning_levels": [{"effort": "low", "description": "x"}]},
 ]}
 
+# the status commands: Codex writes on the standard error, Claude Code prints JSON
+if name == "codex" and args[:2] == ["login", "status"]:
+    if mode == "login":
+        sys.stderr.write("Not logged in\n")
+        sys.exit(1)
+    sys.stderr.write("Logged in using ChatGPT\n")
+    sys.exit(0)
+
+if name == "claude" and args[:2] == ["auth", "status"]:
+    if mode == "login":
+        out(json.dumps({"loggedIn": False}) + "\n")
+        sys.exit(1)
+    out(json.dumps({"loggedIn": True, "authMethod": "claude.ai", "email": "ten@example.vn", "orgName": "Org"}, indent=2) + "\n")
+    sys.exit(0)
+
 if name == "codex" and args[:2] == ["debug", "models"]:
     out(json.dumps(CATALOG))
     sys.exit(0)

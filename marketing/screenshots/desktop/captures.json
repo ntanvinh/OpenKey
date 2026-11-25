@@ -1,21 +1,21 @@
 {
   "ai-writing-assistant": {
-    "shows": "The AI assistant panel beside a document with a selected Vietnamese message to a customer: Codex CLI is connected and its real, politer three-sentence rewrite is in the result box, ready to replace the selection.",
+    "shows": "A sample document with a selected English message to a customer next to the real AI assistant: Codex CLI is connected, the request 'Rewrite this to sound more polite…' is typed and its real three-sentence rewrite is in the result box, ready to replace the selection. The interface of the app is Vietnamese only; the text typed and returned is US English.",
     "inUse": true,
     "language": "vi"
   },
   "local-ai-setup": {
-    "shows": "The real 'Cài AI chạy trên máy' window checking this Mac (Apple M1 Max, 32 GB RAM), recommending Qwen 2.5 14B with quality/speed/Vietnamese ratings and an Install button; text stays on the machine.",
+    "shows": "The real local-AI setup window checking this Mac (Apple M1 Max, 32 GB RAM, 397 GB free), recommending Qwen 2.5 14B with quality, speed and language ratings, size, RAM needs, a real 'machine is busy' notice and the Install button; text stays on the Mac. The interface of the app is Vietnamese only; the text typed and returned is US English.",
     "inUse": true,
     "language": "vi"
   },
   "signed-in-ai-agents": {
-    "shows": "The AI assistant beside a document, using Claude Code CLI (already signed in, no API key) with model Haiku and thinking level chosen in the header; it has rewritten a lower-case Vietnamese draft into a fanpage post.",
+    "shows": "A sample document next to the AI assistant using the signed-in Claude Code CLI (no API key) with model Haiku and a thinking level chosen in the header; it turned a casual note into a real friendly customer email. The interface of the app is Vietnamese only; the text typed and returned is US English.",
     "inUse": true,
     "language": "vi"
   },
   "ai-image-generation": {
-    "shows": "The AI assistant with Codex CLI selected, a Vietnamese picture description in the box and the real generated image of a phin coffee on a wooden table shown in the window, with Save, Show, Copy and Insert image buttons, next to the blog document.",
+    "shows": "The AI assistant with Codex CLI selected, an English picture description typed and the real generated image of a glass pour-over dripper by a sunny window shown, with Save, Show, Insert image buttons, next to a blog draft. The interface of the app is Vietnamese only; the text typed and returned is US English.",
     "inUse": true,
     "language": "vi"
   },

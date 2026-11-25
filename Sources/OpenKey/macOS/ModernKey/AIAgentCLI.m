@@ -36,6 +36,9 @@ static NSDictionary* DictionaryOf(id value) {
 
 #pragma mark - Models
 
+@implementation AIAgentLogin
+@end
+
 @implementation AIAgentModel
 @end
 
@@ -579,6 +582,82 @@ static NSArray<NSString*>* EffortOrder(void) {
     return models;
 }
 
+//one line of what a program printed, without what could not be shown: control characters out, 120 characters at most
+static NSString* ShownLine(NSString* text) {
+    NSMutableString* line = [NSMutableString string];
+    for (NSUInteger i = 0; i < text.length && line.length < 120; i++) {
+        unichar c = [text characterAtIndex:i];
+        if (c == '\n' || c == '\r')
+            break;
+        if (c >= ' ' && c != 0x7f)
+            [line appendFormat:@"%C", c];
+    }
+    return [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+}
+
+-(BOOL)hasLoginStatusCommand {
+    return _kind == AIAgentKindCodex || _kind == AIAgentKindClaude;
+}
+
++(AIAgentLogin*)loginFromOutput:(NSString*)output exitStatus:(int)status forKind:(AIAgentKind)kind {
+    AIAgentLogin* login = [[AIAgentLogin alloc] init];
+    login.state = AIAgentLoginUnknown;
+    output = output ?: @"";
+    if (kind == AIAgentKindClaude) {
+        //`claude auth status` prints JSON: {"loggedIn": true, "email": "..."}
+        NSRange start = [output rangeOfString:@"{"];
+        id root = start.location != NSNotFound ? [NSJSONSerialization JSONObjectWithData:[[output substringFromIndex:start.location] dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil] : nil;
+        id loggedIn = [root isKindOfClass:[NSDictionary class]] ? root[@"loggedIn"] : nil;
+        if (![loggedIn isKindOfClass:[NSNumber class]])
+            return login;
+        if ([loggedIn boolValue]) {
+            login.state = AIAgentLoginSignedIn;
+            id email = root[@"email"];
+            NSString* shown = [email isKindOfClass:[NSString class]] ? ShownLine(email) : nil;
+            login.account = shown.length > 0 ? shown : nil;
+        } else {
+            login.state = AIAgentLoginSignedOut;
+        }
+        return login;
+    }
+    if (kind == AIAgentKindCodex) {
+        //`codex login status`: "Logged in using ChatGPT" (or "... using an API key"); signed out it says so
+        NSString* lower = output.lowercaseString;
+        if ([lower containsString:@"not logged in"] || [lower containsString:@"not signed in"]) {
+            login.state = AIAgentLoginSignedOut;
+        } else if (status == 0 && [lower containsString:@"logged in"]) {
+            login.state = AIAgentLoginSignedIn;
+            NSRange using = [lower rangeOfString:@" using "];
+            if (using.location != NSNotFound) {
+                NSString* method = ShownLine([output substringFromIndex:NSMaxRange(using)]);
+                NSRange dash = [method rangeOfString:@" - "];                //"using an API key - sk-...": what follows may be a part of the key
+                if (dash.location != NSNotFound)
+                    method = [method substringToIndex:dash.location];
+                login.method = method.length > 0 ? method : nil;
+            }
+        }
+    }
+    return login;
+}
+
+-(void)checkLoginOfExecutable:(NSString*)executable completion:(void (^)(AIAgentLogin*))completion {
+    AIAgentKind kind = _kind;
+    if (![self hasLoginStatusCommand] || ![AIAgentCLI isRunnableFile:executable]) {
+        completion([AIAgentCLI loginFromOutput:nil exitStatus:1 forKind:AIAgentKindAntigravity]);
+        return;
+    }
+    NSArray<NSString*>* arguments = kind == AIAgentKindCodex ? @[@"login", @"status"] : @[@"auth", @"status"];
+    [AIAgentProcess captureOutputOfExecutable:executable arguments:arguments environment:[self environmentForExecutable:executable]
+                                      timeout:15 limit:64 * 1024 completion:^(NSData* output, NSString* errorOutput, NSError* error) {
+        if (error != nil && (error.code == VOKAIErrorNoProgram || (output.length == 0 && errorOutput.length == 0))) {
+            completion([AIAgentCLI loginFromOutput:nil exitStatus:1 forKind:AIAgentKindAntigravity]);     //could not ask: not known
+            return;
+        }
+        NSString* text = [[NSString alloc] initWithData:output ?: [NSData data] encoding:NSUTF8StringEncoding] ?: @"";
+        completion([AIAgentCLI loginFromOutput:[text stringByAppendingFormat:@"\n%@", errorOutput ?: @""] exitStatus:error != nil ? 1 : 0 forKind:kind]);
+    }];
+}
+
 -(void)loadModelsFromExecutable:(NSString*)executable completion:(void (^)(NSArray<AIAgentModel*>*, NSError*))completion {
     if (_kind == AIAgentKindClaude) {
         completion([AIAgentCLI claudeModels], nil);
@@ -943,7 +1022,7 @@ static NSURL* NewestPicture(NSString* folder, NSDate* since, NSDate** time) {
         return MakeError(VOKAIErrorModel, [NSString stringWithFormat:@"%@ không nhận mức suy nghĩ “%@” cho model này. Chọn mức khác, hoặc “Mặc định của CLI”, trong Cài đặt > AI.%@",
                                            _displayName, effort, detail]);
     if (has(@[@"model"]) && has(@[@"not found", @"not exist", @"does not exist", @"unsupported", @"not supported", @"invalid", @"unknown", @"no access", @"not available", @"not allowed"]))
-        return MakeError(VOKAIErrorModel, [NSString stringWithFormat:@"%@ không dùng được model “%@”. Chọn model khác trong Cài đặt > AI (nút “Tải danh sách”).%@",
+        return MakeError(VOKAIErrorModel, [NSString stringWithFormat:@"%@ không dùng được model “%@”. Hãy chọn model khác trong Cài đặt > AI, hoặc để “Tự động”.%@",
                                            _displayName, model.length > 0 ? model : @"đang chọn", detail]);
     if (has(@[@"not logged in", @"not signed in", @"please run /login", @"codex login", @"login required", @"log in", @"sign in", @"authenticat",
               @"unauthorized", @"401", @"invalid api key", @"credentials", @"expired token", @"token expired", @"oauth"]))

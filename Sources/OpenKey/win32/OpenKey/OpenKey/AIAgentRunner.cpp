@@ -21,6 +21,7 @@ namespace agent = vai::agent;
 
 const DWORD kTimeoutMs = 10 * 60 * 1000;        //a request that has not ended by then is stopped
 const DWORD kListTimeoutMs = 20 * 1000;
+const DWORD kLoginTimeoutMs = 15 * 1000;
 const size_t kMaxOutput = 2u << 20;             //an answer of 2 MB is a program gone wrong
 const size_t kMaxListing = 8u << 20;
 const size_t kMaxErrorOutput = 64 * 1024;
@@ -31,6 +32,7 @@ struct Run {
     HWND window;
     bool listing;
     bool image;          //a picture is asked for (Codex), not a text
+    bool login;          //whether the program is signed in is asked, not a text
     vai::Config config;
     const agent::Agent* program;
     std::string prompt;
@@ -84,6 +86,15 @@ void postImage(Run* run, const std::wstring& path, const vai::Error& error) {
     done->message = error.ok() ? std::wstring() : AIText::forError(error, run->config);
     if (!PostMessageW(run->window, AIClient::kMessageImage, (WPARAM)run->id, (LPARAM)done))
         delete done;
+}
+
+void postLogin(Run* run, const agent::LoginStatus& status) {
+    if (isCancelled(run))
+        return;
+    AIClient::Login* login = new AIClient::Login();
+    login->status = status;
+    if (!PostMessageW(run->window, AIClient::kMessageLogin, (WPARAM)run->id, (LPARAM)login))
+        delete login;
 }
 
 void postModels(Run* run, const std::vector<std::string>& names, const vai::Error& error) {
@@ -843,10 +854,25 @@ void doImage(Run* run) {
     postImage(run, picture, vai::Error());
 }
 
+//Runs the status command of the program, nothing else; what it said is read by the portable code. A program that cannot be started, or that does
+//not answer in time, is Unknown: never "signed out".
+void doLogin(Run* run) {
+    agent::LoginStatus status;
+    std::vector<std::string> args;
+    if (!isCancelled(run) && agent::loginStatusArguments(*run->program, args)) {
+        Outcome outcome = execute(run, utf8ToWideString(run->config.executable), args, NULL, std::wstring(), NULL, kLoginTimeoutMs, 64 * 1024, true);
+        if (outcome.launched == Launched && !outcome.timedOut)
+            status = agent::loginStatusFromOutput(*run->program, outcome.output + "\n" + outcome.errorOutput, (int)outcome.exitCode);
+    }
+    postLogin(run, status);
+}
+
 DWORD WINAPI runThread(LPVOID parameter) {
     Run* run = (Run*)parameter;
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    if (run->listing)
+    if (run->login)
+        doLogin(run);
+    else if (run->listing)
         doListing(run);
     else if (run->image)
         doImage(run);
@@ -860,7 +886,7 @@ DWORD WINAPI runThread(LPVOID parameter) {
     return 0;
 }
 
-unsigned begin(const vai::Config& config, const std::string& prompt, HWND window, int mode, std::wstring& reason) { //0 text, 1 models, 2 picture
+unsigned begin(const vai::Config& config, const std::string& prompt, HWND window, int mode, std::wstring& reason) { //0 text, 1 models, 2 picture, 3 signed in or not
     ensureLock();
     const agent::Agent* program = agent::find(config.provider.id);
     if (program == NULL) {
@@ -886,6 +912,7 @@ unsigned begin(const vai::Config& config, const std::string& prompt, HWND window
     run->window = window;
     run->listing = mode == 1;
     run->image = mode == 2;
+    run->login = mode == 3;
     run->config = config;
     run->program = program;
     run->prompt = prompt;
@@ -962,6 +989,10 @@ unsigned generateImage(const vai::Config& config, const std::string& request, HW
 
 unsigned listModels(const vai::Config& config, HWND window, std::wstring& reason) {
     return begin(config, std::string(), window, 1, reason);
+}
+
+unsigned checkLogin(const vai::Config& config, HWND window, std::wstring& reason) {
+    return begin(config, std::string(), window, 3, reason);
 }
 
 void cancel(unsigned id) {
